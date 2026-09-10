@@ -573,6 +573,150 @@ async function renderInventory(sequence) {
         .length;
     }
 
+    const inventoryTshirtSizes = [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ];
+
+    function groupInventoryTshirtRows(
+      rows
+    ) {
+      const groups =
+        new Map();
+
+      (
+        Array.isArray(rows)
+          ? rows
+          : []
+      ).forEach(
+        row => {
+          const key =
+            [
+              row.design || "",
+              row.body || "",
+              row.color || ""
+            ].join("||");
+
+          if (
+            !groups.has(
+              key
+            )
+          ) {
+            groups.set(
+              key,
+              {
+                design:
+                  row.design ||
+                  "Tシャツ",
+                body:
+                  row.body ||
+                  "",
+                color:
+                  row.color ||
+                  "",
+                items: []
+              }
+            );
+          }
+
+          groups
+            .get(
+              key
+            )
+            .items
+            .push(
+              row
+            );
+        }
+      );
+
+      return Array.from(
+        groups.values()
+      )
+        .sort(
+          (a, b) =>
+            a.design.localeCompare(
+              b.design,
+              "ja"
+            ) ||
+            a.body.localeCompare(
+              b.body,
+              "ja"
+            ) ||
+            a.color.localeCompare(
+              b.color,
+              "ja"
+            )
+        );
+    }
+
+    function groupInventoryAccessoryRows(
+      rows
+    ) {
+      const groups =
+        new Map();
+
+      (
+        Array.isArray(rows)
+          ? rows
+          : []
+      ).forEach(
+        row => {
+          const design =
+            row.displayName ||
+            row.design ||
+            "アクセサリー";
+
+          if (
+            !groups.has(
+              design
+            )
+          ) {
+            groups.set(
+              design,
+              {
+                design,
+                items: []
+              }
+            );
+          }
+
+          groups
+            .get(
+              design
+            )
+            .items
+            .push(
+              row
+            );
+        }
+      );
+
+      return Array.from(
+        groups.values()
+      )
+        .sort(
+          (a, b) =>
+            a.design.localeCompare(
+              b.design,
+              "ja"
+            )
+        );
+    }
+
+    const tshirtInventoryGroups =
+      groupInventoryTshirtRows(
+        tshirtRows
+      );
+
+    const accessoryInventoryGroups =
+      groupInventoryAccessoryRows(
+        accessoryRows
+      );
+
     view.innerHTML = `
       <h1 class="page-title">
         Inventory
@@ -634,77 +778,132 @@ async function renderInventory(sequence) {
       </div>
 
 
-      <section class="card">
+      <details
+        class="card"
+        style="
+          margin-top:14px;
+        "
+      >
+        <summary
+          style="
+            cursor:pointer;
+            font-weight:800;
+            font-size:16px;
+          "
+        >
+          SKU登録状況
+        </summary>
 
-        <div class="card-title">
-          Tシャツ
+        <div
+          style="
+            display:grid;
+            grid-template-columns:
+              repeat(2,minmax(0,1fr));
+            gap:10px;
+            margin-top:12px;
+          "
+        >
+          <div
+            style="
+              padding:12px;
+              border:1px solid #ecece7;
+              border-radius:12px;
+            "
+          >
+            <div
+              style="
+                font-weight:800;
+                margin-bottom:8px;
+              "
+            >
+              Tシャツ
+            </div>
+
+            <div class="list-row">
+              <span>現在在庫</span>
+              <strong>
+                ${tshirtInventory.summary.totalStock}
+              </strong>
+            </div>
+
+            <div class="list-row">
+              <span>在庫ありSKU</span>
+              <strong>
+                ${tshirtRows.length}
+              </strong>
+            </div>
+
+            <div class="list-row">
+              <span>登録済みSKU</span>
+              <strong>
+                ${tshirtRegistered.length}
+              </strong>
+            </div>
+
+            <div class="list-row">
+              <span>登録済み在庫0</span>
+              <strong>
+                ${tshirtSoldOut.length}
+              </strong>
+            </div>
+          </div>
+
+          <div
+            style="
+              padding:12px;
+              border:1px solid #ecece7;
+              border-radius:12px;
+            "
+          >
+            <div
+              style="
+                font-weight:800;
+                margin-bottom:8px;
+              "
+            >
+              アクセサリー
+            </div>
+
+            <div class="list-row">
+              <span>現在在庫</span>
+              <strong>
+                ${accessoryCatalog.summary.totalStock}
+              </strong>
+            </div>
+
+            <div class="list-row">
+              <span>在庫ありSKU</span>
+              <strong>
+                ${accessoryRows.length}
+              </strong>
+            </div>
+
+            <div class="list-row">
+              <span>登録済みSKU</span>
+              <strong>
+                ${accessoryRegistered.length}
+              </strong>
+            </div>
+
+            <div class="list-row">
+              <span>登録済み在庫0</span>
+              <strong>
+                ${accessorySoldOut.length}
+              </strong>
+            </div>
+          </div>
         </div>
-
-
-        <div class="list-row">
-          <span>
-            現在在庫
-          </span>
-
-          <strong>
-            ${tshirtInventory.summary.totalStock}
-          </strong>
-        </div>
-
-
-        <div class="list-row">
-          <span>
-            在庫ありSKU
-          </span>
-
-          <strong>
-            ${tshirtRows.length}
-          </strong>
-        </div>
-
-
-        <div class="list-row">
-          <span>
-            登録済みSKU
-          </span>
-
-          <strong>
-            ${tshirtRegistered.length}
-          </strong>
-        </div>
-
-
-        <div class="list-row">
-          <span>
-            登録済み在庫0
-          </span>
-
-          <strong>
-            ${tshirtSoldOut.length}
-          </strong>
-        </div>
-
 
         ${
           tshirtUnregistered.length
             ? `
-              <div class="list-row">
-                <span>
-                  未登録の在庫SKU
-                </span>
-
-                <strong>
-                  ${tshirtUnregistered.length}
-                </strong>
-              </div>
-
               <button
                 id="syncTshirtCatalogButton"
                 class="button"
                 type="button"
                 style="
                   width:100%;
-                  margin-top:14px;
+                  margin-top:12px;
                 "
               >
                 現在在庫のTシャツSKUを商品登録
@@ -713,93 +912,24 @@ async function renderInventory(sequence) {
               <div
                 id="syncTshirtCatalogMessage"
                 class="muted"
-                style="margin-top:10px;"
+                style="
+                  margin-top:8px;
+                "
               ></div>
             `
-            : `
-              <div
-                class="muted"
-                style="margin-top:12px;"
-              >
-                現在在庫のTシャツSKUはすべて登録済みです。
-              </div>
-            `
+            : ""
         }
-
-      </section>
-
-
-      <section class="card">
-
-        <div class="card-title">
-          アクセサリー
-        </div>
-
-
-        <div class="list-row">
-          <span>
-            現在在庫
-          </span>
-
-          <strong>
-            ${accessoryCatalog.summary.totalStock}
-          </strong>
-        </div>
-
-
-        <div class="list-row">
-          <span>
-            在庫ありSKU
-          </span>
-
-          <strong>
-            ${accessoryRows.length}
-          </strong>
-        </div>
-
-
-        <div class="list-row">
-          <span>
-            登録済みSKU
-          </span>
-
-          <strong>
-            ${accessoryRegistered.length}
-          </strong>
-        </div>
-
-
-        <div class="list-row">
-          <span>
-            登録済み在庫0
-          </span>
-
-          <strong>
-            ${accessorySoldOut.length}
-          </strong>
-        </div>
-
 
         ${
           accessoryUnregistered.length
             ? `
-              <div class="list-row">
-                <span>
-                  未登録の在庫SKU
-                </span>
-
-                <strong>
-                  ${accessoryUnregistered.length}
-                </strong>
-              </div>
-
               <button
                 id="syncAccessoryCatalogButtonInventory"
                 class="button"
                 type="button"
                 style="
                   width:100%;
-                  margin-top:14px;
+                  margin-top:10px;
                 "
               >
                 現在在庫のアクセサリーSKUを商品登録
@@ -808,28 +938,21 @@ async function renderInventory(sequence) {
               <div
                 id="syncAccessoryCatalogMessageInventory"
                 class="muted"
-                style="margin-top:10px;"
+                style="
+                  margin-top:8px;
+                "
               ></div>
             `
-            : `
-              <div
-                class="muted"
-                style="margin-top:12px;"
-              >
-                現在在庫のアクセサリーSKUはすべて登録済みです。
-              </div>
-            `
+            : ""
         }
-
 
         <div
           style="
-            margin-top:14px;
-            padding-top:12px;
+            margin-top:12px;
+            padding-top:10px;
             border-top:1px solid #ecece7;
           "
         >
-
           ${accessoryCategories.map(
             category => {
               const current =
@@ -845,14 +968,14 @@ async function renderInventory(sequence) {
                   ) =>
                     sum +
                     Number(
-                      row.quantity || 0
+                      row.quantity ||
+                      0
                     ),
                   0
                 );
 
               return `
                 <div class="list-row">
-
                   <span>
                     ${escapeHtml(
                       category.label
@@ -870,170 +993,597 @@ async function renderInventory(sequence) {
 
                     <span class="muted">
                       /
-                      ${
-                        categoryRegisteredCount(
-                          category.id
-                        )
-                      }
+                      ${categoryRegisteredCount(
+                        category.id
+                      )}
                       SKU
                     </span>
                   </span>
-
                 </div>
               `;
             }
           ).join("")}
+        </div>
+      </details>
 
+
+      <section
+        class="card"
+        style="
+          margin-top:14px;
+        "
+      >
+        <div class="card-title">
+          現在庫一覧
         </div>
 
+        <div
+          style="
+            display:flex;
+            gap:7px;
+            overflow-x:auto;
+            padding:2px 0 4px;
+            margin-top:10px;
+          "
+        >
+          ${[
+            ["all", "すべて"],
+            ["tshirt", "Tシャツ"],
+            ["accessory", "アクセサリー"]
+          ].map(
+            ([value, label]) => `
+              <button
+                type="button"
+                class="inventoryViewFilter"
+                data-stock-view="${value}"
+                style="
+                  flex:0 0 auto;
+                  min-height:38px;
+                  padding:0 13px;
+                  border:1px solid #deded9;
+                  border-radius:999px;
+                  background:${
+                    value === "all"
+                      ? "#1f1f1f"
+                      : "#fff"
+                  };
+                  color:${
+                    value === "all"
+                      ? "#fff"
+                      : "#1f1f1f"
+                  };
+                  font-weight:700;
+                "
+              >
+                ${label}
+              </button>
+            `
+          ).join("")}
+        </div>
+
+        <input
+          id="inventoryStockSearch"
+          type="search"
+          placeholder="デザイン、色、Body、サイズで検索"
+          style="
+            ${inputStyle()}
+            margin-top:10px;
+          "
+        >
+
+        <div
+          class="muted"
+          style="
+            margin-top:8px;
+            line-height:1.5;
+            font-size:12px;
+          "
+        >
+          在庫ありSKUだけを表示しています。TシャツはDesignを縦、Sizeを横にまとめています。
+        </div>
       </section>
 
 
-      ${
-        accessoryRows.length
-          ? `
-            <section class="card">
+      <section
+        id="inventoryTshirtSection"
+        class="card inventoryStockSection"
+        data-stock-view="tshirt"
+        style="
+          margin-top:14px;
+        "
+      >
+        <div
+          style="
+            display:flex;
+            justify-content:space-between;
+            gap:10px;
+            align-items:center;
+          "
+        >
+          <div class="card-title">
+            T Shirt Current Stock
+          </div>
 
-              <div class="card-title">
-                Accessory Current Stock
+          <strong>
+            ${tshirtInventory.summary.totalStock} 点
+          </strong>
+        </div>
+
+        <div
+          style="
+            overflow-x:auto;
+            margin-top:10px;
+            border:1px solid #ecece7;
+            border-radius:14px;
+          "
+        >
+          <div
+            style="
+              min-width:620px;
+            "
+          >
+            <div
+              style="
+                display:grid;
+                grid-template-columns:
+                  minmax(190px,1.8fr)
+                  repeat(5,72px);
+                background:#f7f7f4;
+                border-bottom:1px solid #ecece7;
+                font-size:12px;
+                font-weight:800;
+              "
+            >
+              <div
+                style="
+                  position:sticky;
+                  left:0;
+                  z-index:4;
+                  padding:9px 10px;
+                  background:#f7f7f4;
+                  border-right:1px solid #e7e7e2;
+                  box-shadow:3px 0 6px rgba(0,0,0,.04);
+                "
+              >
+                Design / Body / Color
               </div>
 
-
-              ${accessoryRows.map(
-                row => `
-                  <div class="list-row">
-
-                    <div>
-
-                      <div
-                        style="
-                          font-weight:700;
-                          margin-bottom:4px;
-                        "
-                      >
-                        ${escapeHtml(
-                          row.displayName
-                        )}
-                      </div>
-
-                      <div class="muted">
-                        ${escapeHtml(
-                          row.categoryLabel
-                        )}
-                      </div>
-
-                    </div>
-
-
-                    <div
-                      style="
-                        text-align:right;
-                      "
-                    >
-
-                      <div
-                        style="
-                          font-size:20px;
-                          font-weight:800;
-                        "
-                      >
-                        ${row.quantity}
-                      </div>
-
-                      <div class="muted">
-                        ${
-                          accessoryRegisteredMap.has(
-                            row.variantId
-                          )
-                            ? "登録済み"
-                            : "未登録"
-                        }
-                      </div>
-
-                    </div>
-
+              ${inventoryTshirtSizes.map(
+                size => `
+                  <div
+                    style="
+                      padding:9px 4px;
+                      text-align:center;
+                    "
+                  >
+                    ${size}
                   </div>
                 `
               ).join("")}
+            </div>
 
-            </section>
-          `
-          : ""
-      }
+            ${tshirtInventoryGroups.map(
+              group => {
+                const searchText =
+                  [
+                    group.design,
+                    group.body,
+                    group.color,
+                    ...group.items.map(
+                      item =>
+                        [
+                          item.size,
+                          item.variantId
+                        ]
+                          .filter(Boolean)
+                          .join(" ")
+                    )
+                  ]
+                    .filter(Boolean)
+                    .join(" ")
+                    .toLocaleLowerCase();
+
+                return `
+                  <div
+                    class="inventoryStockRow"
+                    data-inventory-type="tshirt"
+                    data-search="${escapeHtml(
+                      searchText
+                    )}"
+                    style="
+                      display:grid;
+                      grid-template-columns:
+                        minmax(190px,1.8fr)
+                        repeat(5,72px);
+                      border-bottom:1px solid #ecece7;
+                    "
+                  >
+                    <div
+                      style="
+                        position:sticky;
+                        left:0;
+                        z-index:3;
+                        padding:10px;
+                        min-width:0;
+                        background:#fff;
+                        border-right:1px solid #e7e7e2;
+                        box-shadow:3px 0 6px rgba(0,0,0,.04);
+                      "
+                    >
+                      <div
+                        style="
+                          font-weight:800;
+                        "
+                      >
+                        ${escapeHtml(
+                          group.design
+                        )}
+                      </div>
+
+                      <div
+                        class="muted"
+                        style="
+                          margin-top:3px;
+                          font-size:12px;
+                          line-height:1.4;
+                        "
+                      >
+                        ${escapeHtml(
+                          [
+                            group.body,
+                            group.color
+                          ]
+                            .filter(Boolean)
+                            .join(" / ")
+                        )}
+                      </div>
+                    </div>
+
+                    ${inventoryTshirtSizes.map(
+                      size => {
+                        const row =
+                          group.items.find(
+                            item =>
+                              item.size ===
+                              size
+                          );
+
+                        if (!row) {
+                          return `
+                            <div
+                              style="
+                                min-height:58px;
+                                display:flex;
+                                align-items:center;
+                                justify-content:center;
+                                border-left:1px solid #f0f0ec;
+                                background:#f3f3f0;
+                                color:#bbb;
+                              "
+                            >
+                              —
+                            </div>
+                          `;
+                        }
+
+                        const registered =
+                          tshirtRegisteredMap.has(
+                            row.variantId
+                          );
+
+                        return `
+                          <div
+                            style="
+                              min-height:58px;
+                              padding:7px 4px;
+                              display:flex;
+                              flex-direction:column;
+                              align-items:center;
+                              justify-content:center;
+                              border-left:1px solid #f0f0ec;
+                              background:#fff;
+                              text-align:center;
+                            "
+                          >
+                            <div
+                              style="
+                                font-size:20px;
+                                font-weight:800;
+                              "
+                            >
+                              ${row.quantity}
+                            </div>
+
+                            ${
+                              registered
+                                ? ""
+                                : `
+                                  <div
+                                    style="
+                                      margin-top:2px;
+                                      font-size:9px;
+                                      color:#b65a3a;
+                                      font-weight:700;
+                                    "
+                                  >
+                                    未登録
+                                  </div>
+                                `
+                            }
+                          </div>
+                        `;
+                      }
+                    ).join("")}
+                  </div>
+                `;
+              }
+            ).join("")}
+          </div>
+        </div>
+      </section>
 
 
-      <section class="card">
+      <section
+        id="inventoryAccessorySection"
+        class="card inventoryStockSection"
+        data-stock-view="accessory"
+        style="
+          margin-top:14px;
+        "
+      >
+        <div
+          style="
+            display:flex;
+            justify-content:space-between;
+            gap:10px;
+            align-items:center;
+          "
+        >
+          <div class="card-title">
+            Accessory Current Stock
+          </div>
 
-        <div class="card-title">
-          T Shirt Current Stock
+          <strong>
+            ${accessoryCatalog.summary.totalStock} 点
+          </strong>
         </div>
 
-
-        ${tshirtRows.map(
-          row => `
-            <div class="list-row">
-
-              <div>
-
-                <div
-                  style="
-                    font-weight:700;
-                    margin-bottom:4px;
-                  "
-                >
-                  ${escapeHtml(
-                    row.design
-                  )}
-                </div>
-
-                <div class="muted">
-                  ${escapeHtml(
-                    row.body
-                  )}
-                  /
-                  ${escapeHtml(
-                    row.color
-                  )}
-                  /
-                  ${escapeHtml(
-                    row.size
-                  )}
-                </div>
-
+        <div
+          style="
+            overflow-x:auto;
+            margin-top:10px;
+            border:1px solid #ecece7;
+            border-radius:14px;
+          "
+        >
+          <div
+            style="
+              min-width:560px;
+            "
+          >
+            <div
+              style="
+                display:grid;
+                grid-template-columns:
+                  minmax(180px,1.7fr)
+                  repeat(4,88px);
+                background:#f7f7f4;
+                border-bottom:1px solid #ecece7;
+                font-size:11px;
+                font-weight:800;
+              "
+            >
+              <div
+                style="
+                  position:sticky;
+                  left:0;
+                  z-index:4;
+                  padding:9px 10px;
+                  background:#f7f7f4;
+                  border-right:1px solid #e7e7e2;
+                  box-shadow:3px 0 6px rgba(0,0,0,.04);
+                "
+              >
+                Design
               </div>
-
 
               <div
                 style="
-                  text-align:right;
+                  padding:9px 4px;
+                  text-align:center;
                 "
               >
-
-                <div
-                  style="
-                    font-size:20px;
-                    font-weight:800;
-                  "
-                >
-                  ${row.quantity}
-                </div>
-
-                <div class="muted">
-                  ${
-                    tshirtRegisteredMap.has(
-                      row.variantId
-                    )
-                      ? "登録済み"
-                      : "未登録"
-                  }
-                </div>
-
+                Pierce
               </div>
 
-            </div>
-          `
-        ).join("")}
+              <div
+                style="
+                  padding:9px 4px;
+                  text-align:center;
+                "
+              >
+                Earring
+              </div>
 
+              <div
+                style="
+                  padding:9px 4px;
+                  text-align:center;
+                "
+              >
+                Drop P
+              </div>
+
+              <div
+                style="
+                  padding:9px 4px;
+                  text-align:center;
+                "
+              >
+                Drop E
+              </div>
+            </div>
+
+            ${accessoryInventoryGroups.map(
+              group => {
+                const searchText =
+                  [
+                    group.design,
+                    ...group.items.map(
+                      item =>
+                        [
+                          item.categoryLabel,
+                          item.category,
+                          item.variantId
+                        ]
+                          .filter(Boolean)
+                          .join(" ")
+                    )
+                  ]
+                    .filter(Boolean)
+                    .join(" ")
+                    .toLocaleLowerCase();
+
+                const categoryOrder = [
+                  "pierce",
+                  "earring",
+                  "drop_pierce",
+                  "drop_earring"
+                ];
+
+                return `
+                  <div
+                    class="inventoryStockRow"
+                    data-inventory-type="accessory"
+                    data-search="${escapeHtml(
+                      searchText
+                    )}"
+                    style="
+                      display:grid;
+                      grid-template-columns:
+                        minmax(180px,1.7fr)
+                        repeat(4,88px);
+                      border-bottom:1px solid #ecece7;
+                    "
+                  >
+                    <div
+                      style="
+                        position:sticky;
+                        left:0;
+                        z-index:3;
+                        padding:10px;
+                        min-width:0;
+                        background:#fff;
+                        border-right:1px solid #e7e7e2;
+                        box-shadow:3px 0 6px rgba(0,0,0,.04);
+                      "
+                    >
+                      <div
+                        style="
+                          font-weight:800;
+                        "
+                      >
+                        ${escapeHtml(
+                          group.design
+                        )}
+                      </div>
+                    </div>
+
+                    ${categoryOrder.map(
+                      category => {
+                        const rows =
+                          group.items.filter(
+                            item =>
+                              item.category ===
+                              category
+                          );
+
+                        if (!rows.length) {
+                          return `
+                            <div
+                              style="
+                                min-height:58px;
+                                display:flex;
+                                align-items:center;
+                                justify-content:center;
+                                border-left:1px solid #f0f0ec;
+                                background:#f3f3f0;
+                                color:#bbb;
+                              "
+                            >
+                              —
+                            </div>
+                          `;
+                        }
+
+                        const quantity =
+                          rows.reduce(
+                            (sum, row) =>
+                              sum +
+                              Number(
+                                row.quantity ||
+                                0
+                              ),
+                            0
+                          );
+
+                        const unregistered =
+                          rows.some(
+                            row =>
+                              !accessoryRegisteredMap.has(
+                                row.variantId
+                              )
+                          );
+
+                        return `
+                          <div
+                            style="
+                              min-height:58px;
+                              padding:7px 4px;
+                              display:flex;
+                              flex-direction:column;
+                              align-items:center;
+                              justify-content:center;
+                              border-left:1px solid #f0f0ec;
+                              background:#fff;
+                              text-align:center;
+                            "
+                          >
+                            <div
+                              style="
+                                font-size:20px;
+                                font-weight:800;
+                              "
+                            >
+                              ${quantity}
+                            </div>
+
+                            ${
+                              unregistered
+                                ? `
+                                  <div
+                                    style="
+                                      margin-top:2px;
+                                      font-size:9px;
+                                      color:#b65a3a;
+                                      font-weight:700;
+                                    "
+                                  >
+                                    未登録
+                                  </div>
+                                `
+                                : ""
+                            }
+                          </div>
+                        `;
+                      }
+                    ).join("")}
+                  </div>
+                `;
+              }
+            ).join("")}
+          </div>
+        </div>
       </section>
     `;
 
@@ -1168,6 +1718,134 @@ async function renderInventory(sequence) {
                 String(error);
             }
           }
+        }
+      );
+
+
+    let inventoryStockView =
+      "all";
+
+    function applyInventoryStockFilters() {
+      const query =
+        String(
+          document
+            .querySelector(
+              "#inventoryStockSearch"
+            )
+            ?.value ||
+          ""
+        )
+          .trim()
+          .toLocaleLowerCase();
+
+      document
+        .querySelectorAll(
+          ".inventoryStockRow"
+        )
+        .forEach(
+          row => {
+            const type =
+              row.dataset
+                .inventoryType ||
+              "";
+
+            const typeMatch =
+              inventoryStockView ===
+                "all" ||
+              inventoryStockView ===
+                type;
+
+            const searchMatch =
+              !query ||
+              String(
+                row.dataset.search ||
+                ""
+              )
+                .toLocaleLowerCase()
+                .includes(
+                  query
+                );
+
+            row.style.display =
+              typeMatch &&
+              searchMatch
+                ? "grid"
+                : "none";
+          }
+        );
+
+      document
+        .querySelectorAll(
+          ".inventoryStockSection"
+        )
+        .forEach(
+          section => {
+            const type =
+              section.dataset
+                .stockView;
+
+            section.style.display =
+              inventoryStockView ===
+                "all" ||
+              inventoryStockView ===
+                type
+                ? ""
+                : "none";
+          }
+        );
+
+      document
+        .querySelectorAll(
+          ".inventoryViewFilter"
+        )
+        .forEach(
+          button => {
+            const active =
+              button.dataset
+                .stockView ===
+              inventoryStockView;
+
+            button.style.background =
+              active
+                ? "#1f1f1f"
+                : "#fff";
+
+            button.style.color =
+              active
+                ? "#fff"
+                : "#1f1f1f";
+          }
+        );
+    }
+
+    document
+      .querySelectorAll(
+        ".inventoryViewFilter"
+      )
+      .forEach(
+        button => {
+          button.addEventListener(
+            "click",
+            () => {
+              inventoryStockView =
+                button.dataset
+                  .stockView ||
+                "all";
+
+              applyInventoryStockFilters();
+            }
+          );
+        }
+      );
+
+    document
+      .querySelector(
+        "#inventoryStockSearch"
+      )
+      ?.addEventListener(
+        "input",
+        () => {
+          applyInventoryStockFilters();
         }
       );
 
