@@ -10,6 +10,7 @@ import { loadQuickPriceBook, saveQuickPrices, QUICK_PRICE_CURRENCIES } from "./s
 import { listSalesSessions, createEventSession, updateEventSession, updateEventExpenses, SESSION_CURRENCIES } from "./services/sessionService.js";
 import { commitQuickSale } from "./services/transactionService.js";
 import { listSessionTransactions } from "./services/salesHistoryService.js";
+import { saveCategoryCost, loadAllCategoryCostHistories, resolveCategoryUnitCost, calculateCategoryCogs } from "./services/costHistoryService.js";
 
 const view = document.querySelector("#view");
 const syncStatus = document.querySelector("#syncStatus");
@@ -951,10 +952,16 @@ async function renderMorePage(sequence) {
   `;
 
   try {
-    const [tshirtOptions, accessoryCatalog, allVariants] = await Promise.all([
+    const [
+      tshirtOptions,
+      accessoryCatalog,
+      allVariants,
+      categoryCostHistories
+    ] = await Promise.all([
       tshirtAdapter.getMasterOptions(),
       accessoryAdapter.getCatalogSnapshot(),
-      listAllProductVariants()
+      listAllProductVariants(),
+      loadAllCategoryCostHistories()
     ]);
 
     if (sequence !== renderSequence) return;
@@ -1002,6 +1009,252 @@ async function renderMorePage(sequence) {
           `).join("")}
         </div>
       </section>
+
+      <section class="card">
+
+        <div class="card-title">
+          カテゴリ標準原価
+        </div>
+
+        <div
+          class="muted"
+          style="
+            margin-bottom:12px;
+            line-height:1.55;
+          "
+        >
+          Quick会計の利益計算に使います。原価変更日は履歴として残ります。
+        </div>
+
+
+        <div
+          style="
+            display:grid;
+            gap:10px;
+          "
+        >
+
+          <select
+            id="costCategory"
+            style="${selectStyle()}"
+          >
+            ${POS_CATEGORY_ORDER.map(
+              category => `
+                <option
+                  value="${category}"
+                >
+                  ${escapeHtml(
+                    POS_CATEGORY_LABELS[
+                      category
+                    ]
+                  )}
+                </option>
+              `
+            ).join("")}
+          </select>
+
+
+          <div
+            style="
+              display:grid;
+              grid-template-columns:
+                minmax(0,1fr)
+                minmax(0,1fr);
+              gap:10px;
+            "
+          >
+
+            <input
+              id="costAmountJPY"
+              type="number"
+              min="0"
+              step="1"
+              inputmode="numeric"
+              placeholder="1点あたり原価 JPY"
+              style="${inputStyle()}"
+            >
+
+
+            <input
+              id="costEffectiveFrom"
+              type="date"
+              value="${
+                new Date()
+                  .toISOString()
+                  .slice(0,10)
+              }"
+              style="${inputStyle()}"
+            >
+
+          </div>
+
+
+          <input
+            id="costNote"
+            type="text"
+            placeholder="メモ 任意"
+            style="${inputStyle()}"
+          >
+
+
+          <button
+            id="saveCategoryCostButton"
+            class="button"
+            type="button"
+            style="
+              width:100%;
+              min-height:50px;
+            "
+          >
+            原価を保存
+          </button>
+
+
+          <div
+            id="saveCategoryCostMessage"
+            class="muted"
+          ></div>
+
+        </div>
+
+
+        <div
+          style="
+            margin-top:16px;
+            padding-top:12px;
+            border-top:1px solid #ecece7;
+          "
+        >
+
+          <div
+            class="card-title"
+            style="
+              margin-bottom:6px;
+            "
+          >
+            現在の標準原価
+          </div>
+
+
+          ${POS_CATEGORY_ORDER.map(
+            category => {
+              const currentCost =
+                resolveCategoryUnitCost(
+                  categoryCostHistories,
+                  category,
+                  new Date()
+                    .toISOString()
+                    .slice(0,10)
+                );
+
+              return `
+                <div class="list-row">
+                  <span>
+                    ${escapeHtml(
+                      POS_CATEGORY_LABELS[
+                        category
+                      ]
+                    )}
+                  </span>
+
+                  <strong>
+                    ${
+                      currentCost === null
+                        ? "未設定"
+                        : formatMoney(
+                            currentCost,
+                            "JPY"
+                          )
+                    }
+                  </strong>
+                </div>
+              `;
+            }
+          ).join("")}
+
+        </div>
+
+
+        <details
+          style="
+            margin-top:12px;
+          "
+        >
+          <summary
+            style="
+              cursor:pointer;
+              font-weight:800;
+              padding:8px 0;
+            "
+          >
+            原価履歴を見る
+          </summary>
+
+          <div
+            style="
+              margin-top:8px;
+            "
+          >
+            ${POS_CATEGORY_ORDER.map(
+              category => {
+                const rows =
+                  categoryCostHistories[
+                    category
+                  ] || [];
+
+                if (!rows.length) {
+                  return "";
+                }
+
+                return `
+                  <div
+                    style="
+                      margin-bottom:14px;
+                    "
+                  >
+                    <div
+                      style="
+                        font-weight:800;
+                        margin-bottom:4px;
+                      "
+                    >
+                      ${escapeHtml(
+                        POS_CATEGORY_LABELS[
+                          category
+                        ]
+                      )}
+                    </div>
+
+                    ${rows.slice(
+                      0,
+                      5
+                    ).map(
+                      row => `
+                        <div class="list-row">
+                          <span>
+                            ${escapeHtml(
+                              row.effectiveFrom
+                            )}
+                          </span>
+
+                          <strong>
+                            ${formatMoney(
+                              row.amountJPY,
+                              "JPY"
+                            )}
+                          </strong>
+                        </div>
+                      `
+                    ).join("")}
+                  </div>
+                `;
+              }
+            ).join("")}
+          </div>
+        </details>
+
+      </section>
+
 
       <section class="card">
         <div class="card-title">アクセサリー在庫連携</div>
@@ -1218,6 +1471,93 @@ async function renderMorePage(sequence) {
         </button>
       </section>
     `;
+
+    document
+      .querySelector(
+        "#saveCategoryCostButton"
+      )
+      ?.addEventListener(
+        "click",
+        async event => {
+          const button =
+            event.currentTarget;
+
+          const messageBox =
+            document.querySelector(
+              "#saveCategoryCostMessage"
+            );
+
+          button.disabled =
+            true;
+
+          button.textContent =
+            "保存中";
+
+          if (messageBox) {
+            messageBox.textContent =
+              "";
+          }
+
+          try {
+            await saveCategoryCost({
+              category:
+                document
+                  .querySelector(
+                    "#costCategory"
+                  )
+                  ?.value,
+
+              amountJPY:
+                document
+                  .querySelector(
+                    "#costAmountJPY"
+                  )
+                  ?.value,
+
+              effectiveFrom:
+                document
+                  .querySelector(
+                    "#costEffectiveFrom"
+                  )
+                  ?.value,
+
+              note:
+                document
+                  .querySelector(
+                    "#costNote"
+                  )
+                  ?.value
+            });
+
+            button.textContent =
+              "保存済み";
+
+            setTimeout(
+              () => {
+                render(
+                  "more"
+                );
+              },
+              400
+            );
+
+          } catch (error) {
+            button.disabled =
+              false;
+
+            button.textContent =
+              "原価を保存";
+
+            if (messageBox) {
+              messageBox.textContent =
+                error.code ||
+                error.message ||
+                String(error);
+            }
+          }
+        }
+      );
+
 
     document
       .querySelector("#syncAccessoryCatalogButton")
@@ -1698,6 +2038,11 @@ async function renderSessions(
             selectedDetailSession.sessionId
           )
         : [];
+
+    const categoryCostHistories =
+      selectedDetailSession
+        ? await loadAllCategoryCostHistories()
+        : {};
 
     if (
       sequence !==
@@ -2435,6 +2780,57 @@ async function renderSessions(
                     100
                   : 0;
 
+              const cogs =
+                calculateCategoryCogs({
+                  transactions:
+                    sessionTransactions,
+                  histories:
+                    categoryCostHistories,
+                  fallbackDate:
+                    selectedDetailSession.startDate
+                });
+
+              const costComplete =
+                cogs.missingQuantity ===
+                0;
+
+              const grossProfitJPY =
+                costComplete
+                  ? (
+                      netSalesJPY -
+                      cogs.totalCostJPY
+                    )
+                  : null;
+
+              const grossMargin =
+                costComplete &&
+                netSalesJPY > 0
+                  ? (
+                      grossProfitJPY /
+                      netSalesJPY
+                    ) *
+                    100
+                  : null;
+
+              const finalProfitJPY =
+                costComplete
+                  ? (
+                      netSalesJPY -
+                      cogs.totalCostJPY -
+                      totalExpensesJPY
+                    )
+                  : null;
+
+              const finalMargin =
+                costComplete &&
+                netSalesJPY > 0
+                  ? (
+                      finalProfitJPY /
+                      netSalesJPY
+                    ) *
+                    100
+                  : null;
+
               const categories =
                 categorySalesSummary(
                   sessionTransactions
@@ -2757,13 +3153,112 @@ async function renderSessions(
                     </div>
 
                     <div
-                      class="muted"
                       style="
-                        margin-top:10px;
-                        line-height:1.55;
+                        margin-top:14px;
+                        padding-top:12px;
+                        border-top:1px solid #ecece7;
                       "
                     >
-                      商品原価はまだ未反映です。最終利益は商品原価履歴を接続した後に計算します。
+                      <div class="card-title">
+                        利益
+                      </div>
+
+                      <div class="list-row">
+                        <span>
+                          商品原価
+                        </span>
+
+                        <strong>
+                          ${formatMoney(
+                            cogs.totalCostJPY,
+                            "JPY"
+                          )}
+                        </strong>
+                      </div>
+
+                      ${
+                        cogs.missingQuantity > 0
+                          ? `
+                            <div
+                              class="warning"
+                              style="
+                                margin-top:10px;
+                              "
+                            >
+                              原価未設定の商品が
+                              ${cogs.missingQuantity}
+                              点あります。
+                              粗利益と最終利益はまだ確定しません。
+                            </div>
+                          `
+                          : `
+                            <div class="list-row">
+                              <span>
+                                粗利益
+                              </span>
+
+                              <strong>
+                                ${formatMoney(
+                                  grossProfitJPY,
+                                  "JPY"
+                                )}
+                              </strong>
+                            </div>
+
+                            <div class="list-row">
+                              <span>
+                                粗利益率
+                              </span>
+
+                              <strong>
+                                ${grossMargin.toFixed(
+                                  1
+                                )}%
+                              </strong>
+                            </div>
+
+                            <div
+                              class="list-row"
+                              style="
+                                margin-top:8px;
+                                font-size:18px;
+                              "
+                            >
+                              <strong>
+                                最終利益
+                              </strong>
+
+                              <strong>
+                                ${formatMoney(
+                                  finalProfitJPY,
+                                  "JPY"
+                                )}
+                              </strong>
+                            </div>
+
+                            <div class="list-row">
+                              <span>
+                                最終利益率
+                              </span>
+
+                              <strong>
+                                ${finalMargin.toFixed(
+                                  1
+                                )}%
+                              </strong>
+                            </div>
+                          `
+                      }
+
+                      <div
+                        class="muted"
+                        style="
+                          margin-top:10px;
+                          line-height:1.55;
+                        "
+                      >
+                        Quick会計はカテゴリ標準原価を使用します。
+                      </div>
                     </div>
 
                     <details
