@@ -269,6 +269,42 @@ function normalizeCount(
   };
 }
 
+async function hasActiveSessionSales(
+  db,
+  sessionId
+) {
+  const {
+    collection,
+    query,
+    where,
+    getDocsFromServer
+  } =
+    await firestoreModule();
+
+  const snapshot =
+    await getDocsFromServer(
+      query(
+        collection(
+          db,
+          "salesTransactions"
+        ),
+        where(
+          "sessionId",
+          "==",
+          sessionId
+        )
+      )
+    );
+
+  return snapshot.docs.some(
+    item =>
+      item.data()
+        ?.status !==
+      "voided"
+  );
+}
+
+
 export async function loadEventInventoryCount(
   sessionId
 ) {
@@ -399,6 +435,23 @@ export async function saveEventOpeningInventory({
     throw error;
   }
 
+  if (
+    await hasActiveSessionSales(
+      db,
+      cleanSessionId
+    )
+  ) {
+    const error =
+      new Error(
+        "有効な売上があるため開始在庫は変更できません。必要な場合は売上を取消してから編集してください。"
+      );
+
+    error.code =
+      "opening-inventory-locked-by-sales";
+
+    throw error;
+  }
+
   const current =
     normalizeCount(
       sessionData
@@ -437,13 +490,7 @@ export async function saveEventOpeningInventory({
         null,
 
       "inventoryCount.soldByVariant":
-        current.opening &&
-        overwrite
-          ? (
-              current.soldByVariant ||
-              {}
-            )
-          : {},
+        {},
 
       "inventoryCount.updatedAt":
         serverTimestamp(),
@@ -608,5 +655,120 @@ export async function saveEventClosingInventory({
           item.closingQty !==
           null
       ).length
+  };
+}
+
+
+export async function resetEventOpeningInventory({
+  sessionId,
+  resetByEmail = ""
+}) {
+  const cleanSessionId =
+    text(sessionId);
+
+  if (!cleanSessionId) {
+    throw new Error(
+      "販売セッションが見つかりません。"
+    );
+  }
+
+  const db =
+    await requireDb();
+
+  const {
+    doc,
+    getDocFromServer,
+    updateDoc,
+    serverTimestamp
+  } =
+    await firestoreModule();
+
+  const ref =
+    doc(
+      db,
+      COLLECTION,
+      cleanSessionId
+    );
+
+  const snapshot =
+    await getDocFromServer(
+      ref
+    );
+
+  if (!snapshot.exists()) {
+    throw new Error(
+      "販売セッションが見つかりません。"
+    );
+  }
+
+  const sessionData =
+    snapshot.data() || {};
+
+  if (
+    sessionData?.status !==
+    "open"
+  ) {
+    const error =
+      new Error(
+        "終了済みのイベントでは開始在庫をリセットできません。"
+      );
+
+    error.code =
+      "session-not-open";
+
+    throw error;
+  }
+
+  if (
+    await hasActiveSessionSales(
+      db,
+      cleanSessionId
+    )
+  ) {
+    const error =
+      new Error(
+        "有効な売上があるため開始在庫をリセットできません。必要な場合は売上を取消してから操作してください。"
+      );
+
+    error.code =
+      "opening-inventory-locked-by-sales";
+
+    throw error;
+  }
+
+  await updateDoc(
+    ref,
+    {
+      "inventoryCount.opening":
+        null,
+
+      "inventoryCount.closing":
+        null,
+
+      "inventoryCount.soldByVariant":
+        {},
+
+      "inventoryCount.resetAt":
+        serverTimestamp(),
+
+      "inventoryCount.resetByEmail":
+        text(
+          resetByEmail
+        ),
+
+      "inventoryCount.updatedAt":
+        serverTimestamp(),
+
+      updatedAt:
+        serverTimestamp()
+    }
+  );
+
+  return {
+    sessionId:
+      cleanSessionId,
+
+    action:
+      "reset"
   };
 }
