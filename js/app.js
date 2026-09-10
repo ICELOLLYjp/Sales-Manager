@@ -8,7 +8,7 @@ import { listAllProductVariants, registerTshirtVariant, registerGeneralProduct, 
 import { CATEGORY_TEMPLATES, getCategoryTemplate } from "./data/categoryTemplates.js";
 import { loadQuickPriceBook, saveQuickPrices, QUICK_PRICE_CURRENCIES } from "./services/priceBookService.js";
 import { listSalesSessions, createEventSession, updateEventSession, updateEventExpenses, SESSION_CURRENCIES } from "./services/sessionService.js";
-import { commitQuickSale } from "./services/transactionService.js";
+import { commitQuickSale, voidSaleTransaction } from "./services/transactionService.js";
 import { listSessionTransactions } from "./services/salesHistoryService.js";
 import { saveCategoryCost, loadAllCategoryCostHistories, resolveCategoryUnitCost, saveTshirtBodyCost, loadTshirtBodyCostHistories, resolveBodyUnitCost, saveVariantCost, loadVariantCostHistories, calculateResolvedCogs } from "./services/costHistoryService.js";
 import { loadPinkoiTshirtCatalog, syncPinkoiTshirtCatalog } from "./services/pinkoiCatalogService.js";
@@ -998,7 +998,6 @@ async function renderMorePage(sequence) {
               priceConflictCount: 0,
               masterStockCount: 0,
               masterStockZeroCount: 0,
-              explicitDesignLinkCount: 0,
               syncEligibleCount: 0,
               zeroStockCatalogCount: 0,
               explicitDesignLinkCount: 0,
@@ -1239,7 +1238,7 @@ async function renderMorePage(sequence) {
 
               <div class="list-row">
                 <span>Design明示リンクSKU</span>
-                <strong>${pinkoiTshirtCatalog.summary.explicitDesignLinkCount}</strong>
+                <strong>${pinkoiTshirtCatalog.summary.explicitDesignLinkCount || 0}</strong>
               </div>
 
               ${
@@ -2270,7 +2269,7 @@ async function renderMorePage(sequence) {
 
             if (messageBox) {
               messageBox.textContent =
-                `${result.processed} SKUを更新しました。matched ${result.mapped}、unmatched ${result.unmatched}、ambiguous ${result.ambiguous}、Design明示リンク ${result.explicitDesignLinkCount}、SKUなし ${result.missingSkuCount}、重複SKU ${result.duplicateSkuCount}、価格なし ${result.missingPriceCount}、価格不一致 ${result.priceConflictCount}。`;
+                `${result.processed} SKUを更新しました。matched ${result.mapped}、unmatched ${result.unmatched}、ambiguous ${result.ambiguous}、SKUなし ${result.missingSkuCount}、重複SKU ${result.duplicateSkuCount}、価格なし ${result.missingPriceCount}、価格不一致 ${result.priceConflictCount}。`;
             }
 
             setTimeout(
@@ -3108,6 +3107,13 @@ async function renderSessions(
           )
         : [];
 
+    const activeSessionTransactions =
+      sessionTransactions.filter(
+        transaction =>
+          transaction.status !==
+          "voided"
+      );
+
     const categoryCostHistories =
       selectedDetailSession
         ? await loadAllCategoryCostHistories()
@@ -3117,7 +3123,7 @@ async function renderSessions(
       selectedDetailSession
         ? Array.from(
             new Set(
-              sessionTransactions
+              activeSessionTransactions
                 .flatMap(
                   transaction =>
                     transaction.items ||
@@ -3906,7 +3912,7 @@ async function renderSessions(
               const cogs =
                 calculateResolvedCogs({
                   transactions:
-                    sessionTransactions,
+                    activeSessionTransactions,
 
                   categoryHistories:
                     categoryCostHistories,
@@ -3967,7 +3973,7 @@ async function renderSessions(
 
               const categories =
                 categorySalesSummary(
-                  sessionTransactions
+                  activeSessionTransactions
                 );
 
               return `
@@ -4618,6 +4624,11 @@ async function renderSessions(
                                 style="
                                   padding:12px 0;
                                   border-bottom:1px solid #ecece7;
+                                  ${
+                                    transaction.status === "voided"
+                                      ? "opacity:.58;"
+                                      : ""
+                                  }
                                 "
                               >
                                 <div
@@ -4637,6 +4648,25 @@ async function renderSessions(
                                       ${transactionTimeText(
                                         transaction.createdAt
                                       ) || "保存済み"}
+
+                                      ${
+                                        transaction.status === "voided"
+                                          ? `
+                                            <span
+                                              style="
+                                                display:inline-block;
+                                                margin-left:6px;
+                                                padding:2px 7px;
+                                                border-radius:999px;
+                                                background:#ecece7;
+                                                font-size:11px;
+                                              "
+                                            >
+                                              取消済み
+                                            </span>
+                                          `
+                                          : ""
+                                      }
                                     </div>
 
                                     <div
@@ -4660,6 +4690,11 @@ async function renderSessions(
                                     <div
                                       style="
                                         font-weight:800;
+                                        ${
+                                          transaction.status === "voided"
+                                            ? "text-decoration:line-through;"
+                                            : ""
+                                        }
                                       "
                                     >
                                       ${formatMoney(
@@ -4696,6 +4731,47 @@ async function renderSessions(
                                     transaction.transactionId
                                   )}
                                 </div>
+
+                                ${
+                                  transaction.status !== "voided"
+                                    ? `
+                                      <button
+                                        type="button"
+                                        class="voidSaleTransactionButton"
+                                        data-transaction-id="${escapeHtml(
+                                          transaction.transactionId
+                                        )}"
+                                        style="
+                                          width:100%;
+                                          min-height:42px;
+                                          margin-top:10px;
+                                          border:1px solid #d8d8d3;
+                                          border-radius:12px;
+                                          background:#fff;
+                                          font-weight:700;
+                                        "
+                                      >
+                                        この会計を取消
+                                      </button>
+                                    `
+                                    : `
+                                      <div
+                                        class="muted"
+                                        style="
+                                          margin-top:7px;
+                                          font-size:11px;
+                                        "
+                                      >
+                                        ${
+                                          transaction.voidedAt
+                                            ? `取消日時 ${transactionTimeText(
+                                                transaction.voidedAt
+                                              )}`
+                                            : "取消済み"
+                                        }
+                                      </div>
+                                    `
+                                }
                               </div>
                             `
                           ).join("")
@@ -5099,6 +5175,93 @@ async function renderSessions(
                 String(error);
             }
           }
+        }
+      );
+
+
+    document
+      .querySelectorAll(
+        ".voidSaleTransactionButton"
+      )
+      .forEach(
+        button => {
+          button.addEventListener(
+            "click",
+            async () => {
+              const transactionId =
+                button.dataset.transactionId ||
+                "";
+
+              if (!transactionId) {
+                return;
+              }
+
+              const confirmed =
+                window.confirm(
+                  "この会計を取り消しますか？\n\n売上集計から除外し、SKU販売で減算済みの実在庫は元に戻します。\n元の会計記録は削除せず、取消済みとして残します。"
+                );
+
+              if (!confirmed) {
+                return;
+              }
+
+              button.disabled =
+                true;
+
+              button.textContent =
+                "取消処理中";
+
+              try {
+                await voidSaleTransaction({
+                  transactionId,
+                  voidedByEmail:
+                    currentUser
+                      ?.email ||
+                    "",
+                  reason:
+                    "manual_void"
+                });
+
+                await renderSessions(
+                  ++renderSequence
+                );
+
+                setTimeout(
+                  () => {
+                    document
+                      .querySelector(
+                        "#sessionSalesDetail"
+                      )
+                      ?.scrollIntoView({
+                        behavior:
+                          "smooth",
+                        block:
+                          "start"
+                      });
+                  },
+                  100
+                );
+
+              } catch (error) {
+                console.error(
+                  "Sale void failed",
+                  error
+                );
+
+                button.disabled =
+                  false;
+
+                button.textContent =
+                  "この会計を取消";
+
+                window.alert(
+                  error.code ||
+                  error.message ||
+                  String(error)
+                );
+              }
+            }
+          );
         }
       );
 
