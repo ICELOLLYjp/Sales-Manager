@@ -3277,6 +3277,12 @@ function buildEventInventorySnapshotRows({
         label:
           displayDesign,
 
+        body,
+
+        color,
+
+        size,
+
         detail:
           [
             body,
@@ -3337,6 +3343,10 @@ function buildEventInventorySnapshotRows({
           row.design ||
           "アクセサリー",
 
+        body: "",
+        color: "",
+        size: "",
+
         detail:
           POS_CATEGORY_LABELS[
             row.category
@@ -3396,6 +3406,170 @@ function buildEventInventorySnapshotRows({
       }
     );
 }
+
+const EVENT_TSHIRT_SIZE_ORDER = [
+  "S",
+  "M",
+  "L",
+  "XL",
+  "XXL"
+];
+
+function eventTshirtSizeRank(
+  value
+) {
+  const textValue =
+    String(
+      value || ""
+    ).trim();
+
+  const index =
+    EVENT_TSHIRT_SIZE_ORDER
+      .indexOf(
+        textValue
+      );
+
+  return index >= 0
+    ? index
+    : 999;
+}
+
+function groupEventTshirtCarryRows(
+  rows
+) {
+  const groups =
+    new Map();
+
+  (
+    Array.isArray(rows)
+      ? rows
+      : []
+  )
+    .filter(
+      row =>
+        row.category ===
+        "tshirt"
+    )
+    .forEach(
+      row => {
+        const key =
+          [
+            row.label || "",
+            row.body || "",
+            row.color || ""
+          ].join("||");
+
+        if (
+          !groups.has(
+            key
+          )
+        ) {
+          groups.set(
+            key,
+            {
+              key,
+              design:
+                row.label ||
+                "Tシャツ",
+              body:
+                row.body ||
+                "",
+              color:
+                row.color ||
+                "",
+              items: []
+            }
+          );
+        }
+
+        groups
+          .get(
+            key
+          )
+          .items
+          .push(
+            row
+          );
+      }
+    );
+
+  return Array.from(
+    groups.values()
+  )
+    .map(
+      group => ({
+        ...group,
+
+        items:
+          group.items
+            .slice()
+            .sort(
+              (a, b) =>
+                eventTshirtSizeRank(
+                  a.size
+                ) -
+                eventTshirtSizeRank(
+                  b.size
+                ) ||
+                String(
+                  a.size || ""
+                ).localeCompare(
+                  String(
+                    b.size || ""
+                  ),
+                  "ja"
+                )
+            )
+      })
+    )
+    .sort(
+      (a, b) =>
+        a.design.localeCompare(
+          b.design,
+          "ja"
+        ) ||
+        a.body.localeCompare(
+          b.body,
+          "ja"
+        ) ||
+        a.color.localeCompare(
+          b.color,
+          "ja"
+        )
+    );
+}
+
+function eventCarryCategoryGroup(
+  category
+) {
+  if (
+    category ===
+    "tshirt"
+  ) {
+    return "tshirt";
+  }
+
+  if (
+    category ===
+      "pierce" ||
+    category ===
+      "earring"
+  ) {
+    return category;
+  }
+
+  if (
+    category ===
+      "drop_pierce" ||
+    category ===
+      "drop_earring"
+  ) {
+    return "drop";
+  }
+
+  return category;
+}
+
 
 function currentInventoryMap(
   rows
@@ -4883,6 +5057,74 @@ async function renderSessions(
                           >
                             すべて0
                           </button>
+
+                          <button
+                            id="copyVisibleStockToCarryButton"
+                            type="button"
+                            class="button button-secondary"
+                            style="
+                              min-height:44px;
+                            "
+                          >
+                            表示中だけ全数コピー
+                          </button>
+
+                          <button
+                            id="clearVisibleCarryButton"
+                            type="button"
+                            class="button button-secondary"
+                            style="
+                              min-height:44px;
+                            "
+                          >
+                            表示中だけ0
+                          </button>
+                        </div>
+
+                        <div
+                          style="
+                            display:flex;
+                            gap:7px;
+                            overflow-x:auto;
+                            padding:2px 0 4px;
+                            margin-top:12px;
+                          "
+                        >
+                          ${[
+                            ["all", "すべて"],
+                            ["tshirt", "Tシャツ"],
+                            ["pierce", "ピアス"],
+                            ["earring", "イヤリング"],
+                            ["drop", "ドロップ"]
+                          ].map(
+                            ([value, label]) => `
+                              <button
+                                type="button"
+                                class="eventCarryCategoryFilter"
+                                data-category-filter="${value}"
+                                style="
+                                  flex:0 0 auto;
+                                  min-height:38px;
+                                  padding:0 13px;
+                                  border:1px solid #deded9;
+                                  border-radius:999px;
+                                  background:${
+                                    value === "all"
+                                      ? "#1f1f1f"
+                                      : "#fff"
+                                  };
+                                  color:${
+                                    value === "all"
+                                      ? "#fff"
+                                      : "#1f1f1f"
+                                  };
+                                  font-weight:700;
+                                "
+                              >
+                                ${label}
+                              </button>
+                            `
+                          ).join("")}
                         </div>
 
                         <input
@@ -4895,6 +5137,22 @@ async function renderSessions(
                           "
                         >
 
+                        <label
+                          style="
+                            display:flex;
+                            align-items:center;
+                            gap:8px;
+                            margin-top:10px;
+                            font-size:14px;
+                          "
+                        >
+                          <input
+                            id="eventCarryOnlySelected"
+                            type="checkbox"
+                          >
+                          持参数ありだけ表示
+                        </label>
+
                         <div
                           class="muted"
                           style="
@@ -4902,150 +5160,426 @@ async function renderSessions(
                             line-height:1.5;
                           "
                         >
-                          各SKUの「イベント持参数」に、会場へ持って行く数量を入力してください。0のSKUは開始在庫に保存されません。
+                          Tシャツはデザインを縦、サイズを横に並べています。Body・Colorが違う場合は別行です。0のSKUは開始在庫に保存されません。
                         </div>
 
                         <div
                           id="eventCarryRows"
                           style="
-                            margin-top:8px;
+                            margin-top:10px;
                           "
                         >
-                          ${eventCurrentInventoryRows.map(
-                            row => {
-                              const searchText =
-                                [
-                                  row.sku,
-                                  row.label,
-                                  row.detail,
-                                  POS_CATEGORY_LABELS[
-                                    row.category
-                                  ] ||
-                                  row.category
-                                ]
-                                  .filter(Boolean)
-                                  .join(" ")
-                                  .toLocaleLowerCase();
+                          <div
+                            class="eventCarryTshirtSection"
+                            data-category-group="tshirt"
+                          >
+                            <div
+                              style="
+                                font-weight:800;
+                                margin:4px 0 8px;
+                              "
+                            >
+                              Tシャツ
+                            </div>
 
-                              return `
+                            <div
+                              style="
+                                overflow-x:auto;
+                                border:1px solid #ecece7;
+                                border-radius:14px;
+                              "
+                            >
+                              <div
+                                style="
+                                  min-width:620px;
+                                "
+                              >
                                 <div
-                                  class="eventCarryRow"
-                                  data-search="${escapeHtml(
-                                    searchText
-                                  )}"
-                                  data-variant-id="${escapeHtml(
-                                    row.variantId
-                                  )}"
-                                  data-category="${escapeHtml(
-                                    row.category
-                                  )}"
-                                  data-inventory-source="${escapeHtml(
-                                    row.inventorySource
-                                  )}"
-                                  data-inventory-key="${escapeHtml(
-                                    row.inventoryKey
-                                  )}"
-                                  data-sku="${escapeHtml(
-                                    row.sku
-                                  )}"
-                                  data-label="${escapeHtml(
-                                    row.label
-                                  )}"
-                                  data-detail="${escapeHtml(
-                                    row.detail
-                                  )}"
-                                  data-current-qty="${row.openingQty}"
                                   style="
-                                    padding:12px 0;
+                                    display:grid;
+                                    grid-template-columns:
+                                      minmax(190px,1.8fr)
+                                      repeat(5,72px);
+                                    gap:0;
+                                    background:#f7f7f4;
                                     border-bottom:1px solid #ecece7;
+                                    font-size:12px;
+                                    font-weight:800;
                                   "
                                 >
                                   <div
                                     style="
-                                      display:grid;
-                                      grid-template-columns:
-                                        minmax(0,1fr)
-                                        110px;
-                                      gap:10px;
-                                      align-items:center;
+                                      padding:9px 10px;
                                     "
                                   >
+                                    Design / Body / Color
+                                  </div>
+
+                                  ${EVENT_TSHIRT_SIZE_ORDER.map(
+                                    size => `
+                                      <div
+                                        style="
+                                          padding:9px 4px;
+                                          text-align:center;
+                                        "
+                                      >
+                                        ${size}
+                                      </div>
+                                    `
+                                  ).join("")}
+                                </div>
+
+                                ${groupEventTshirtCarryRows(
+                                  eventCurrentInventoryRows
+                                ).map(
+                                  group => {
+                                    const groupSearch =
+                                      [
+                                        group.design,
+                                        group.body,
+                                        group.color,
+                                        ...group.items.map(
+                                          item =>
+                                            [
+                                              item.sku,
+                                              item.size
+                                            ]
+                                              .filter(Boolean)
+                                              .join(" ")
+                                        )
+                                      ]
+                                        .filter(Boolean)
+                                        .join(" ")
+                                        .toLocaleLowerCase();
+
+                                    return `
+                                      <div
+                                        class="eventCarryMatrixRow"
+                                        data-category-group="tshirt"
+                                        data-search="${escapeHtml(
+                                          groupSearch
+                                        )}"
+                                        style="
+                                          display:grid;
+                                          grid-template-columns:
+                                            minmax(190px,1.8fr)
+                                            repeat(5,72px);
+                                          gap:0;
+                                          border-bottom:1px solid #ecece7;
+                                        "
+                                      >
+                                        <div
+                                          style="
+                                            padding:10px;
+                                            min-width:0;
+                                          "
+                                        >
+                                          <div
+                                            style="
+                                              font-weight:800;
+                                            "
+                                          >
+                                            ${escapeHtml(
+                                              group.design
+                                            )}
+                                          </div>
+
+                                          <div
+                                            class="muted"
+                                            style="
+                                              margin-top:3px;
+                                              line-height:1.4;
+                                              font-size:12px;
+                                            "
+                                          >
+                                            ${escapeHtml(
+                                              [
+                                                group.body,
+                                                group.color
+                                              ]
+                                                .filter(Boolean)
+                                                .join(" / ")
+                                            )}
+                                          </div>
+                                        </div>
+
+                                        ${EVENT_TSHIRT_SIZE_ORDER.map(
+                                          size => {
+                                            const item =
+                                              group.items.find(
+                                                candidate =>
+                                                  candidate.size ===
+                                                  size
+                                              );
+
+                                            if (!item) {
+                                              return `
+                                                <div
+                                                  style="
+                                                    padding:8px 4px;
+                                                    text-align:center;
+                                                    color:#bbb;
+                                                    border-left:1px solid #f0f0ec;
+                                                  "
+                                                >
+                                                  —
+                                                </div>
+                                              `;
+                                            }
+
+                                            return `
+                                              <div
+                                                class="eventCarryRow"
+                                                data-search="${escapeHtml(
+                                                  [
+                                                    item.sku,
+                                                    item.label,
+                                                    item.body,
+                                                    item.color,
+                                                    item.size
+                                                  ]
+                                                    .filter(Boolean)
+                                                    .join(" ")
+                                                    .toLocaleLowerCase()
+                                                )}"
+                                                data-category-group="tshirt"
+                                                data-variant-id="${escapeHtml(
+                                                  item.variantId
+                                                )}"
+                                                data-category="${escapeHtml(
+                                                  item.category
+                                                )}"
+                                                data-inventory-source="${escapeHtml(
+                                                  item.inventorySource
+                                                )}"
+                                                data-inventory-key="${escapeHtml(
+                                                  item.inventoryKey
+                                                )}"
+                                                data-sku="${escapeHtml(
+                                                  item.sku
+                                                )}"
+                                                data-label="${escapeHtml(
+                                                  item.label
+                                                )}"
+                                                data-detail="${escapeHtml(
+                                                  item.detail
+                                                )}"
+                                                data-current-qty="${item.openingQty}"
+                                                style="
+                                                  padding:7px 4px;
+                                                  border-left:1px solid #f0f0ec;
+                                                  text-align:center;
+                                                "
+                                              >
+                                                <div
+                                                  class="muted"
+                                                  style="
+                                                    font-size:10px;
+                                                    margin-bottom:3px;
+                                                  "
+                                                >
+                                                  在${item.openingQty}
+                                                </div>
+
+                                                <input
+                                                  class="eventCarryQtyInput"
+                                                  data-variant-id="${escapeHtml(
+                                                    item.variantId
+                                                  )}"
+                                                  type="number"
+                                                  min="0"
+                                                  max="${item.openingQty}"
+                                                  step="1"
+                                                  inputmode="numeric"
+                                                  value=""
+                                                  placeholder="0"
+                                                  aria-label="${escapeHtml(
+                                                    `${group.design} ${group.body} ${group.color} ${size} イベント持参数`
+                                                  )}"
+                                                  style="
+                                                    width:58px;
+                                                    min-height:38px;
+                                                    padding:0 5px;
+                                                    border:1px solid #deded9;
+                                                    border-radius:8px;
+                                                    text-align:center;
+                                                    font-size:16px;
+                                                  "
+                                                >
+                                              </div>
+                                            `;
+                                          }
+                                        ).join("")}
+                                      </div>
+                                    `;
+                                  }
+                                ).join("")}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div
+                            class="eventCarryAccessorySection"
+                            style="
+                              margin-top:16px;
+                            "
+                          >
+                            <div
+                              style="
+                                font-weight:800;
+                                margin:4px 0 8px;
+                              "
+                            >
+                              アクセサリー
+                            </div>
+
+                            ${eventCurrentInventoryRows
+                              .filter(
+                                row =>
+                                  row.category !==
+                                  "tshirt"
+                              )
+                              .map(
+                                row => {
+                                  const searchText =
+                                    [
+                                      row.sku,
+                                      row.label,
+                                      row.detail,
+                                      POS_CATEGORY_LABELS[
+                                        row.category
+                                      ] ||
+                                      row.category
+                                    ]
+                                      .filter(Boolean)
+                                      .join(" ")
+                                      .toLocaleLowerCase();
+
+                                  return `
                                     <div
+                                      class="eventCarryRow eventCarryAccessoryRow"
+                                      data-search="${escapeHtml(
+                                        searchText
+                                      )}"
+                                      data-category-group="${escapeHtml(
+                                        eventCarryCategoryGroup(
+                                          row.category
+                                        )
+                                      )}"
+                                      data-variant-id="${escapeHtml(
+                                        row.variantId
+                                      )}"
+                                      data-category="${escapeHtml(
+                                        row.category
+                                      )}"
+                                      data-inventory-source="${escapeHtml(
+                                        row.inventorySource
+                                      )}"
+                                      data-inventory-key="${escapeHtml(
+                                        row.inventoryKey
+                                      )}"
+                                      data-sku="${escapeHtml(
+                                        row.sku
+                                      )}"
+                                      data-label="${escapeHtml(
+                                        row.label
+                                      )}"
+                                      data-detail="${escapeHtml(
+                                        row.detail
+                                      )}"
+                                      data-current-qty="${row.openingQty}"
                                       style="
-                                        min-width:0;
+                                        padding:12px 0;
+                                        border-bottom:1px solid #ecece7;
                                       "
                                     >
                                       <div
                                         style="
-                                          font-weight:800;
+                                          display:grid;
+                                          grid-template-columns:
+                                            minmax(0,1fr)
+                                            110px;
+                                          gap:10px;
+                                          align-items:center;
                                         "
                                       >
-                                        ${escapeHtml(
-                                          row.label
-                                        )}
-                                      </div>
+                                        <div
+                                          style="
+                                            min-width:0;
+                                          "
+                                        >
+                                          <div
+                                            style="
+                                              font-weight:800;
+                                            "
+                                          >
+                                            ${escapeHtml(
+                                              row.label
+                                            )}
+                                          </div>
 
-                                      <div
-                                        class="muted"
-                                        style="
-                                          margin-top:3px;
-                                          line-height:1.45;
-                                        "
-                                      >
-                                        ${escapeHtml(
-                                          row.detail
-                                        )}
+                                          <div
+                                            class="muted"
+                                            style="
+                                              margin-top:3px;
+                                              line-height:1.45;
+                                            "
+                                          >
+                                            ${escapeHtml(
+                                              row.detail
+                                            )}
 
-                                        ${
-                                          row.sku
-                                            ? `
-                                              <br>
-                                              ${escapeHtml(
-                                                row.sku
-                                              )}
-                                            `
-                                            : ""
-                                        }
+                                            ${
+                                              row.sku
+                                                ? `
+                                                  <br>
+                                                  ${escapeHtml(
+                                                    row.sku
+                                                  )}
+                                                `
+                                                : ""
+                                            }
 
-                                        <br>
-                                        実在庫
-                                        <strong>
-                                          ${row.openingQty}
-                                        </strong>
+                                            <br>
+                                            実在庫
+                                            <strong>
+                                              ${row.openingQty}
+                                            </strong>
+                                          </div>
+                                        </div>
+
+                                        <label>
+                                          <div
+                                            class="muted"
+                                            style="
+                                              font-size:12px;
+                                              margin-bottom:4px;
+                                            "
+                                          >
+                                            イベント持参数
+                                          </div>
+
+                                          <input
+                                            class="eventCarryQtyInput"
+                                            data-variant-id="${escapeHtml(
+                                              row.variantId
+                                            )}"
+                                            type="number"
+                                            min="0"
+                                            max="${row.openingQty}"
+                                            step="1"
+                                            inputmode="numeric"
+                                            value=""
+                                            placeholder="0"
+                                            style="${inputStyle()}"
+                                          >
+                                        </label>
                                       </div>
                                     </div>
-
-                                    <label>
-                                      <div
-                                        class="muted"
-                                        style="
-                                          font-size:12px;
-                                          margin-bottom:4px;
-                                        "
-                                      >
-                                        イベント持参数
-                                      </div>
-
-                                      <input
-                                        class="eventCarryQtyInput"
-                                        data-variant-id="${escapeHtml(
-                                          row.variantId
-                                        )}"
-                                        type="number"
-                                        min="0"
-                                        max="${row.openingQty}"
-                                        step="1"
-                                        inputmode="numeric"
-                                        value=""
-                                        placeholder="0"
-                                        style="${inputStyle()}"
-                                      >
-                                    </label>
-                                  </div>
-                                </div>
-                              `;
-                            }
-                          ).join("")}
+                                  `;
+                                }
+                              ).join("")}
+                          </div>
                         </div>
 
                         <button
@@ -7343,6 +7877,7 @@ async function renderSessions(
               }
 
               updateEventCarrySummary();
+              applyEventCarryFilters();
             }
           );
         }
@@ -7376,6 +7911,7 @@ async function renderSessions(
             );
 
           updateEventCarrySummary();
+          applyEventCarryFilters();
         }
       );
 
@@ -7399,6 +7935,323 @@ async function renderSessions(
             );
 
           updateEventCarrySummary();
+          applyEventCarryFilters();
+        }
+      );
+
+
+    function visibleCarryRows() {
+      return Array.from(
+        document.querySelectorAll(
+          ".eventCarryRow"
+        )
+      )
+        .filter(
+          row => {
+            const matrixParent =
+              row.closest(
+                ".eventCarryMatrixRow"
+              );
+
+            if (
+              matrixParent
+            ) {
+              return (
+                matrixParent.style
+                  .display !==
+                "none"
+              );
+            }
+
+            return (
+              row.style.display !==
+              "none"
+            );
+          }
+        );
+    }
+
+
+    document
+      .querySelector(
+        "#copyVisibleStockToCarryButton"
+      )
+      ?.addEventListener(
+        "click",
+        () => {
+          visibleCarryRows()
+            .forEach(
+              row => {
+                const input =
+                  row.querySelector(
+                    ".eventCarryQtyInput"
+                  );
+
+                if (input) {
+                  input.value =
+                    row.dataset.currentQty ||
+                    "0";
+                }
+              }
+            );
+
+          updateEventCarrySummary();
+          applyEventCarryFilters();
+        }
+      );
+
+
+    document
+      .querySelector(
+        "#clearVisibleCarryButton"
+      )
+      ?.addEventListener(
+        "click",
+        () => {
+          visibleCarryRows()
+            .forEach(
+              row => {
+                const input =
+                  row.querySelector(
+                    ".eventCarryQtyInput"
+                  );
+
+                if (input) {
+                  input.value =
+                    "";
+                }
+              }
+            );
+
+          updateEventCarrySummary();
+          applyEventCarryFilters();
+        }
+      );
+
+
+    let eventCarryCategoryFilterValue =
+      "all";
+
+    function applyEventCarryFilters() {
+      const query =
+        String(
+          document
+            .querySelector(
+              "#eventCarrySearch"
+            )
+            ?.value ||
+          ""
+        )
+          .trim()
+          .toLocaleLowerCase();
+
+      const onlySelected =
+        Boolean(
+          document
+            .querySelector(
+              "#eventCarryOnlySelected"
+            )
+            ?.checked
+        );
+
+      document
+        .querySelectorAll(
+          ".eventCarryAccessoryRow"
+        )
+        .forEach(
+          row => {
+            const categoryMatch =
+              eventCarryCategoryFilterValue ===
+                "all" ||
+              row.dataset
+                .categoryGroup ===
+                eventCarryCategoryFilterValue;
+
+            const searchMatch =
+              !query ||
+              String(
+                row.dataset.search ||
+                ""
+              )
+                .toLocaleLowerCase()
+                .includes(
+                  query
+                );
+
+            const selectedMatch =
+              !onlySelected ||
+              Number(
+                row.querySelector(
+                  ".eventCarryQtyInput"
+                )?.value ||
+                0
+              ) > 0;
+
+            row.style.display =
+              categoryMatch &&
+              searchMatch &&
+              selectedMatch
+                ? ""
+                : "none";
+          }
+        );
+
+      document
+        .querySelectorAll(
+          ".eventCarryMatrixRow"
+        )
+        .forEach(
+          row => {
+            const categoryMatch =
+              eventCarryCategoryFilterValue ===
+                "all" ||
+              eventCarryCategoryFilterValue ===
+                "tshirt";
+
+            const groupSearch =
+              String(
+                row.dataset.search ||
+                ""
+              )
+                .toLocaleLowerCase();
+
+            const cellSearchMatch =
+              Array.from(
+                row.querySelectorAll(
+                  ".eventCarryRow"
+                )
+              ).some(
+                cell =>
+                  String(
+                    cell.dataset.search ||
+                    ""
+                  )
+                    .toLocaleLowerCase()
+                    .includes(
+                      query
+                    )
+              );
+
+            const searchMatch =
+              !query ||
+              groupSearch.includes(
+                query
+              ) ||
+              cellSearchMatch;
+
+            const selectedMatch =
+              !onlySelected ||
+              Array.from(
+                row.querySelectorAll(
+                  ".eventCarryQtyInput"
+                )
+              ).some(
+                input =>
+                  Number(
+                    input.value ||
+                    0
+                  ) > 0
+              );
+
+            row.style.display =
+              categoryMatch &&
+              searchMatch &&
+              selectedMatch
+                ? "grid"
+                : "none";
+          }
+        );
+
+      const tshirtVisible =
+        Array.from(
+          document
+            .querySelectorAll(
+              ".eventCarryMatrixRow"
+            )
+        ).some(
+          row =>
+            row.style.display !==
+            "none"
+        );
+
+      const accessoryVisible =
+        Array.from(
+          document
+            .querySelectorAll(
+              ".eventCarryAccessoryRow"
+            )
+        ).some(
+          row =>
+            row.style.display !==
+            "none"
+        );
+
+      const tshirtSection =
+        document.querySelector(
+          ".eventCarryTshirtSection"
+        );
+
+      const accessorySection =
+        document.querySelector(
+          ".eventCarryAccessorySection"
+        );
+
+      if (tshirtSection) {
+        tshirtSection.style.display =
+          tshirtVisible
+            ? ""
+            : "none";
+      }
+
+      if (accessorySection) {
+        accessorySection.style.display =
+          accessoryVisible
+            ? ""
+            : "none";
+      }
+
+      document
+        .querySelectorAll(
+          ".eventCarryCategoryFilter"
+        )
+        .forEach(
+          button => {
+            const active =
+              button.dataset
+                .categoryFilter ===
+              eventCarryCategoryFilterValue;
+
+            button.style.background =
+              active
+                ? "#1f1f1f"
+                : "#fff";
+
+            button.style.color =
+              active
+                ? "#fff"
+                : "#1f1f1f";
+          }
+        );
+    }
+
+
+    document
+      .querySelectorAll(
+        ".eventCarryCategoryFilter"
+      )
+      .forEach(
+        button => {
+          button.addEventListener(
+            "click",
+            () => {
+              eventCarryCategoryFilterValue =
+                button.dataset
+                  .categoryFilter ||
+                "all";
+
+              applyEventCarryFilters();
+            }
+          );
         }
       );
 
@@ -7409,37 +8262,20 @@ async function renderSessions(
       )
       ?.addEventListener(
         "input",
-        event => {
-          const query =
-            String(
-              event.target.value ||
-              ""
-            )
-              .trim()
-              .toLocaleLowerCase();
+        () => {
+          applyEventCarryFilters();
+        }
+      );
 
-          document
-            .querySelectorAll(
-              ".eventCarryRow"
-            )
-            .forEach(
-              row => {
-                const haystack =
-                  String(
-                    row.dataset.search ||
-                    ""
-                  )
-                    .toLocaleLowerCase();
 
-                row.style.display =
-                  !query ||
-                  haystack.includes(
-                    query
-                  )
-                    ? ""
-                    : "none";
-              }
-            );
+    document
+      .querySelector(
+        "#eventCarryOnlySelected"
+      )
+      ?.addEventListener(
+        "change",
+        () => {
+          applyEventCarryFilters();
         }
       );
 
