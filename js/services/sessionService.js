@@ -56,6 +56,157 @@ function cleanRate(value, currency) {
   return number;
 }
 
+
+const EXPENSE_KEYS = [
+  "boothFee",
+  "flight",
+  "hotel",
+  "shipping",
+  "transport",
+  "interpreter",
+  "other"
+];
+
+function normalizeExpenseEntry(
+  value,
+  defaultCurrency = "JPY",
+  sessionCurrency = "JPY",
+  sessionRate = null
+) {
+  if (
+    value !== null &&
+    typeof value === "object" &&
+    !Array.isArray(value)
+  ) {
+    const amount =
+      Math.max(
+        0,
+        Number(
+          value.amount || 0
+        )
+      );
+
+    const currency =
+      value.currency ||
+      defaultCurrency ||
+      "JPY";
+
+    let fxRateToJPY =
+      value.fxRateToJPY ??
+      null;
+
+    if (currency === "JPY") {
+      fxRateToJPY = 1;
+    } else if (
+      currency ===
+      sessionCurrency &&
+      Number(
+        sessionRate || 0
+      ) > 0
+    ) {
+      fxRateToJPY =
+        Number(
+          sessionRate
+        );
+    }
+
+    const amountJPY =
+      Number(
+        value.amountJPY || 0
+      ) > 0
+        ? Number(
+            value.amountJPY
+          )
+        : (
+            Number(
+              fxRateToJPY || 0
+            ) > 0
+              ? amount *
+                Number(
+                  fxRateToJPY
+                )
+              : 0
+          );
+
+    return {
+      amount,
+      currency,
+      fxRateToJPY:
+        Number(
+          fxRateToJPY || 0
+        ) > 0
+          ? Number(
+              fxRateToJPY
+            )
+          : null,
+      amountJPY
+    };
+  }
+
+  const amount =
+    Math.max(
+      0,
+      Number(
+        value || 0
+      )
+    );
+
+  return {
+    amount,
+    currency:
+      "JPY",
+    fxRateToJPY:
+      1,
+    amountJPY:
+      amount
+  };
+}
+
+function normalizeExpenses(
+  expenses,
+  sessionCurrency,
+  sessionRate
+) {
+  const source =
+    expenses || {};
+
+  const result = {};
+
+  EXPENSE_KEYS.forEach(
+    key => {
+      result[key] =
+        normalizeExpenseEntry(
+          source?.[key],
+          "JPY",
+          sessionCurrency,
+          sessionRate
+        );
+    }
+  );
+
+  return result;
+}
+
+function expenseSummary(
+  expenses
+) {
+  const totalJPY =
+    EXPENSE_KEYS.reduce(
+      (sum, key) =>
+        sum +
+        Number(
+          expenses
+            ?.[key]
+            ?.amountJPY || 0
+        ),
+      0
+    );
+
+  return {
+    totalJPY
+  };
+}
+
 function normalizeSession(id, data) {
   return {
     id,
@@ -83,6 +234,22 @@ function normalizeSession(id, data) {
       data?.fxRateMode || "manual_event_rate",
     status:
       data?.status || "open",
+
+    expenses:
+      normalizeExpenses(
+        data?.expenses,
+        data?.currency || "JPY",
+        data?.fxRateToJPY ?? null
+      ),
+
+    expenseSummary:
+      expenseSummary(
+        normalizeExpenses(
+          data?.expenses,
+          data?.currency || "JPY",
+          data?.fxRateToJPY ?? null
+        )
+      ),
 
     salesSummary: {
       grossSales:
@@ -334,20 +501,52 @@ export async function createEventSession({
       "open",
 
     expenses: {
-      boothFee:
-        0,
-      flight:
-        0,
-      hotel:
-        0,
-      shipping:
-        0,
-      transport:
-        0,
-      interpreter:
-        0,
-      other:
-        0
+      boothFee: {
+        amount: 0,
+        currency: "JPY",
+        fxRateToJPY: 1,
+        amountJPY: 0
+      },
+      flight: {
+        amount: 0,
+        currency: "JPY",
+        fxRateToJPY: 1,
+        amountJPY: 0
+      },
+      hotel: {
+        amount: 0,
+        currency: "JPY",
+        fxRateToJPY: 1,
+        amountJPY: 0
+      },
+      shipping: {
+        amount: 0,
+        currency: "JPY",
+        fxRateToJPY: 1,
+        amountJPY: 0
+      },
+      transport: {
+        amount: 0,
+        currency: "JPY",
+        fxRateToJPY: 1,
+        amountJPY: 0
+      },
+      interpreter: {
+        amount: 0,
+        currency: "JPY",
+        fxRateToJPY: 1,
+        amountJPY: 0
+      },
+      other: {
+        amount: 0,
+        currency: "JPY",
+        fxRateToJPY: 1,
+        amountJPY: 0
+      }
+    },
+
+    expenseSummary: {
+      totalJPY: 0
     },
 
     salesSummary: {
@@ -558,4 +757,142 @@ export async function updateEventSession(
           : "pending"
     }
   );
+}
+
+
+export async function updateEventExpenses(
+  sessionId,
+  expenseInput
+) {
+  const db = await requireDb();
+
+  const cleanSessionId =
+    cleanText(
+      sessionId
+    );
+
+  if (!cleanSessionId) {
+    throw new Error(
+      "販売セッションが見つかりません。"
+    );
+  }
+
+  const {
+    doc,
+    getDocFromServer,
+    updateDoc,
+    serverTimestamp
+  } = await firestoreModule();
+
+  const ref =
+    doc(
+      db,
+      COLLECTION,
+      cleanSessionId
+    );
+
+  const snapshot =
+    await getDocFromServer(
+      ref
+    );
+
+  if (!snapshot.exists()) {
+    throw new Error(
+      "販売セッションが見つかりません。"
+    );
+  }
+
+  const current =
+    snapshot.data();
+
+  const sessionCurrency =
+    current?.currency || "JPY";
+
+  const sessionRate =
+    current?.fxRateToJPY ?? null;
+
+  const next = {};
+
+  EXPENSE_KEYS.forEach(
+    key => {
+      const item =
+        expenseInput?.[key] || {};
+
+      const amount =
+        Math.max(
+          0,
+          Number(
+            item.amount || 0
+          )
+        );
+
+      const currency =
+        item.currency ===
+        sessionCurrency &&
+        sessionCurrency !==
+        "JPY"
+          ? sessionCurrency
+          : "JPY";
+
+      let fxRateToJPY =
+        currency === "JPY"
+          ? 1
+          : (
+              Number(
+                sessionRate || 0
+              ) > 0
+                ? Number(
+                    sessionRate
+                  )
+                : null
+            );
+
+      if (
+        currency !== "JPY" &&
+        !fxRateToJPY &&
+        amount > 0
+      ) {
+        throw new Error(
+          "現地通貨の経費を登録するには、イベントの為替レートを設定してください。"
+        );
+      }
+
+      next[key] = {
+        amount,
+        currency,
+        fxRateToJPY,
+        amountJPY:
+          amount *
+          Number(
+            fxRateToJPY || 0
+          )
+      };
+    }
+  );
+
+  const summary =
+    expenseSummary(
+      next
+    );
+
+  await updateDoc(
+    ref,
+    {
+      expenses:
+        next,
+
+      expenseSummary:
+        summary,
+
+      updatedAt:
+        serverTimestamp()
+    }
+  );
+
+  return {
+    expenses:
+      next,
+    expenseSummary:
+      summary
+  };
 }
