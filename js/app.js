@@ -6,7 +6,7 @@ import { accessoryAdapter } from "./inventoryAdapters/accessoryAdapter.js";
 import { loadTshirtProductVariants, syncTshirtCurrentStockRows } from "./services/catalogService.js";
 import { listAllProductVariants, registerTshirtVariant, registerGeneralProduct, syncAccessoryCatalogRows } from "./services/productAdminService.js";
 import { CATEGORY_TEMPLATES, getCategoryTemplate } from "./data/categoryTemplates.js";
-import { loadPosPriceConfig, savePosPriceConfig, QUICK_PRICE_CURRENCIES } from "./services/priceBookService.js?v=20260910-setdiscount-2";
+import { loadPosPriceConfig, savePosPriceConfig, QUICK_PRICE_CURRENCIES } from "./services/priceBookService.js?v=20260910-multiset-3";
 import { listSalesSessions, createEventSession, updateEventSession, updateEventExpenses, SESSION_CURRENCIES } from "./services/sessionService.js";
 import { commitQuickSale, voidSaleTransaction } from "./services/transactionService.js?v=20260910-setdiscount-2";
 import { listSessionTransactions } from "./services/salesHistoryService.js?v=20260910-setdiscount-2";
@@ -5675,34 +5675,365 @@ function posPrice(
   );
 }
 
+function posSetOfferRows(
+  category
+) {
+  const raw =
+    posSetOfferBook
+      ?.[category]
+      ?.[posCurrency];
+
+  const source =
+    Array.isArray(raw)
+      ? raw
+      : (
+          raw &&
+          typeof raw === "object"
+        )
+        ? [raw]
+        : [];
+
+  return source.map(
+    offer => ({
+      quantity:
+        Math.max(
+          0,
+          Math.floor(
+            Number(
+              offer?.quantity || 0
+            )
+          )
+        ),
+
+      price:
+        Math.max(
+          0,
+          Number(
+            offer?.price || 0
+          )
+        )
+    })
+  );
+}
+
+function posSetOffers(
+  category
+) {
+  return posSetOfferRows(
+    category
+  )
+    .filter(
+      offer =>
+        offer.quantity >= 2 &&
+        offer.price > 0
+    )
+    .sort(
+      (a, b) =>
+        a.quantity -
+        b.quantity ||
+        a.price -
+        b.price
+    );
+}
+
+/*
+ * Compatibility helper.
+ * Existing transaction payload can still carry one representative
+ * set offer. The actual set discount is calculated per line.
+ */
 function posSetOffer(
   category
 ) {
-  const value =
-    posSetOfferBook
-      ?.[category]
-      ?.[posCurrency] ||
-    {};
+  return (
+    posSetOffers(
+      category
+    )[0] ||
+    {
+      quantity: 0,
+      price: 0
+    }
+  );
+}
 
-  return {
-    quantity:
-      Math.max(
-        0,
-        Math.floor(
-          Number(
-            value.quantity || 0
-          )
-        )
-      ),
-
-    price:
-      Math.max(
-        0,
+function optimalSetPlan(
+  quantity,
+  unitPrice,
+  offers
+) {
+  const totalQuantity =
+    Math.max(
+      0,
+      Math.floor(
         Number(
-          value.price || 0
+          quantity || 0
         )
       )
+    );
+
+  const singlePrice =
+    Math.max(
+      0,
+      Number(
+        unitPrice || 0
+      )
+    );
+
+  if (
+    totalQuantity <= 0 ||
+    singlePrice <= 0
+  ) {
+    return {
+      total:
+        totalQuantity *
+        singlePrice,
+      applications: []
+    };
+  }
+
+  const validOffers =
+    (Array.isArray(offers)
+      ? offers
+      : []
+    )
+      .filter(
+        offer =>
+          offer.quantity >= 2 &&
+          offer.price > 0 &&
+          offer.price <
+            (
+              offer.quantity *
+              singlePrice
+            )
+      );
+
+  const dp =
+    Array(
+      totalQuantity + 1
+    ).fill(null);
+
+  dp[0] = {
+    cost: 0,
+    previous: null,
+    action: null
   };
+
+  for (
+    let count = 1;
+    count <= totalQuantity;
+    count += 1
+  ) {
+    let best = {
+      cost:
+        dp[count - 1].cost +
+        singlePrice,
+
+      previous:
+        count - 1,
+
+      action: {
+        type: "single"
+      }
+    };
+
+    validOffers.forEach(
+      offer => {
+        if (
+          offer.quantity >
+          count
+        ) {
+          return;
+        }
+
+        const candidate =
+          dp[
+            count -
+            offer.quantity
+          ].cost +
+          offer.price;
+
+        if (
+          candidate <
+          best.cost -
+          0.000001
+        ) {
+          best = {
+            cost:
+              candidate,
+
+            previous:
+              count -
+              offer.quantity,
+
+            action: {
+              type: "set",
+              quantity:
+                offer.quantity,
+              price:
+                offer.price
+            }
+          };
+        }
+      }
+    );
+
+    dp[count] =
+      best;
+  }
+
+  const applicationMap =
+    new Map();
+
+  let cursor =
+    totalQuantity;
+
+  while (
+    cursor > 0
+  ) {
+    const node =
+      dp[cursor];
+
+    if (
+      !node ||
+      node.previous === null
+    ) {
+      break;
+    }
+
+    if (
+      node.action
+        ?.type ===
+      "set"
+    ) {
+      const key =
+        `${node.action.quantity}|${node.action.price}`;
+
+      const current =
+        applicationMap.get(
+          key
+        ) ||
+        {
+          quantity:
+            node.action.quantity,
+          price:
+            node.action.price,
+          count: 0
+        };
+
+      current.count += 1;
+
+      applicationMap.set(
+        key,
+        current
+      );
+    }
+
+    cursor =
+      node.previous;
+  }
+
+  return {
+    total:
+      dp[totalQuantity].cost,
+
+    applications:
+      Array.from(
+        applicationMap.values()
+      )
+  };
+}
+
+function capturePosPriceSettingsFromDom() {
+  document
+    .querySelectorAll(
+      ".posPriceInput"
+    )
+    .forEach(
+      input => {
+        const category =
+          input.dataset.category;
+
+        if (
+          !category
+        ) {
+          return;
+        }
+
+        if (
+          !posPriceBook[
+            category
+          ]
+        ) {
+          posPriceBook[
+            category
+          ] = {};
+        }
+
+        posPriceBook[
+          category
+        ][
+          posCurrency
+        ] =
+          Math.max(
+            0,
+            Number(
+              input.value || 0
+            )
+          );
+      }
+    );
+
+  POS_CATEGORY_ORDER
+    .forEach(
+      category => {
+        const rows =
+          Array.from(
+            document.querySelectorAll(
+              `.posSetOfferRow[data-category="${category}"]`
+            )
+          );
+
+        if (
+          !posSetOfferBook[
+            category
+          ]
+        ) {
+          posSetOfferBook[
+            category
+          ] = {};
+        }
+
+        posSetOfferBook[
+          category
+        ][
+          posCurrency
+        ] =
+          rows.map(
+            row => ({
+              quantity:
+                Math.max(
+                  0,
+                  Math.floor(
+                    Number(
+                      row.querySelector(
+                        ".posSetQuantityInput"
+                      )?.value || 0
+                    )
+                  )
+                ),
+
+              price:
+                Math.max(
+                  0,
+                  Number(
+                    row.querySelector(
+                      ".posSetPriceInput"
+                    )?.value || 0
+                  )
+                )
+            })
+          );
+      }
+    );
 }
 
 function posCartTotals() {
@@ -5811,26 +6142,14 @@ function posCartTotals() {
         lines[0]
           ?.unitPrice || 0;
 
-      const offer =
-        posSetOffer(
+      const offers =
+        posSetOffers(
           category
         );
 
       if (
-        offer.quantity < 2 ||
-        offer.price <= 0 ||
+        !offers.length ||
         unitPrice <= 0
-      ) {
-        return;
-      }
-
-      const regularSetTotal =
-        offer.quantity *
-        unitPrice;
-
-      if (
-        offer.price >=
-        regularSetTotal
       ) {
         return;
       }
@@ -5843,24 +6162,29 @@ function posCartTotals() {
           0
         );
 
-      const setCount =
-        Math.floor(
-          groupQuantity /
-          offer.quantity
+      const plan =
+        optimalSetPlan(
+          groupQuantity,
+          unitPrice,
+          offers
+        );
+
+      const regularTotal =
+        groupQuantity *
+        unitPrice;
+
+      const groupSetDiscount =
+        Math.max(
+          0,
+          regularTotal -
+          plan.total
         );
 
       if (
-        setCount <= 0
+        groupSetDiscount <= 0
       ) {
         return;
       }
-
-      const groupSetDiscount =
-        setCount *
-        (
-          regularSetTotal -
-          offer.price
-        );
 
       let allocated = 0;
 
@@ -5901,18 +6225,28 @@ function posCartTotals() {
         }
       );
 
-      setSummaries.push({
-        category,
-        unitPrice,
-        setQuantity:
-          offer.quantity,
-        setPrice:
-          offer.price,
-        setCount,
-        discount:
-          groupSetDiscount
-      });
-    }
+      plan.applications
+        .forEach(
+          application => {
+            setSummaries.push({
+              category,
+              unitPrice,
+              setQuantity:
+                application.quantity,
+              setPrice:
+                application.price,
+              setCount:
+                application.count,
+              discount:
+                application.count *
+                (
+                  application.quantity *
+                  unitPrice -
+                  application.price
+                )
+            });
+          }
+        );    }
   );
 
   let setDiscount = 0;
@@ -6897,15 +7231,25 @@ async function renderPos(
           >
             ${POS_CATEGORY_ORDER.map(
               category => {
-                const offer =
-                  posSetOffer(
+                const rawOffers =
+                  posSetOfferRows(
                     category
                   );
+
+                const displayOffers =
+                  rawOffers.length
+                    ? rawOffers
+                    : [
+                        {
+                          quantity: 0,
+                          price: 0
+                        }
+                      ];
 
                 return `
                   <div
                     style="
-                      padding:10px 0;
+                      padding:12px 0;
                       border-bottom:1px solid #ecece7;
                     "
                   >
@@ -6962,71 +7306,119 @@ async function renderPos(
 
                     <div
                       style="
-                        display:grid;
-                        grid-template-columns:
-                          minmax(0,1fr)
-                          70px
-                          110px;
-                        gap:8px;
-                        align-items:center;
-                        margin-top:8px;
+                        margin-top:10px;
                       "
                     >
-                      <span class="muted">
+                      <div
+                        class="muted"
+                        style="
+                          font-size:12px;
+                          margin-bottom:5px;
+                        "
+                      >
                         セット価格
-                      </span>
+                      </div>
 
-                      <input
-                        class="posSetQuantityInput"
+                      ${displayOffers.map(
+                        (
+                          offer,
+                          index
+                        ) => `
+                          <div
+                            class="posSetOfferRow"
+                            data-category="${category}"
+                            data-index="${index}"
+                            style="
+                              display:grid;
+                              grid-template-columns:
+                                68px
+                                minmax(0,1fr)
+                                52px;
+                              gap:7px;
+                              align-items:center;
+                              margin-top:7px;
+                            "
+                          >
+                            <input
+                              class="posSetQuantityInput"
+                              type="number"
+                              min="0"
+                              step="1"
+                              inputmode="numeric"
+                              value="${
+                                offer.quantity ||
+                                ""
+                              }"
+                              placeholder="個数"
+                              aria-label="セット個数"
+                              style="
+                                width:100%;
+                                min-height:40px;
+                                padding:0 7px;
+                                border:1px solid #deded9;
+                                border-radius:9px;
+                                text-align:center;
+                              "
+                            >
+
+                            <input
+                              class="posSetPriceInput"
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              inputmode="decimal"
+                              value="${
+                                offer.price ||
+                                ""
+                              }"
+                              placeholder="セット合計価格"
+                              aria-label="セット合計価格"
+                              style="
+                                width:100%;
+                                min-height:40px;
+                                padding:0 8px;
+                                border:1px solid #deded9;
+                                border-radius:9px;
+                                text-align:right;
+                              "
+                            >
+
+                            <button
+                              type="button"
+                              class="posRemoveSetOfferButton"
+                              data-category="${category}"
+                              data-index="${index}"
+                              style="
+                                min-height:40px;
+                                border:1px solid #deded9;
+                                border-radius:9px;
+                                background:#fff;
+                                font-size:12px;
+                                font-weight:700;
+                              "
+                            >
+                              削除
+                            </button>
+                          </div>
+                        `
+                      ).join("")}
+
+                      <button
+                        type="button"
+                        class="posAddSetOfferButton"
                         data-category="${category}"
-                        type="number"
-                        min="0"
-                        step="1"
-                        inputmode="numeric"
-                        value="${
-                          offer.quantity || ""
-                        }"
-                        placeholder="個数"
-                        aria-label="${escapeHtml(
-                          POS_CATEGORY_LABELS[
-                            category
-                          ]
-                        )} セット個数"
                         style="
                           width:100%;
-                          min-height:42px;
-                          padding:0 8px;
+                          min-height:38px;
+                          margin-top:8px;
                           border:1px solid #deded9;
-                          border-radius:10px;
-                          text-align:center;
+                          border-radius:9px;
+                          background:#fff;
+                          font-weight:700;
                         "
                       >
-
-                      <input
-                        class="posSetPriceInput"
-                        data-category="${category}"
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        inputmode="decimal"
-                        value="${
-                          offer.price || ""
-                        }"
-                        placeholder="合計"
-                        aria-label="${escapeHtml(
-                          POS_CATEGORY_LABELS[
-                            category
-                          ]
-                        )} セット合計価格"
-                        style="
-                          width:100%;
-                          min-height:42px;
-                          padding:0 8px;
-                          border:1px solid #deded9;
-                          border-radius:10px;
-                          text-align:right;
-                        "
-                      >
+                        ＋ セット価格を追加
+                      </button>
                     </div>
                   </div>
                 `;
@@ -7183,25 +7575,19 @@ async function renderPos(
                       }
 
                       ${
-                        (() => {
-                          const offer =
-                            posSetOffer(
-                              category
-                            );
-
-                          return (
-                            offer.quantity >= 2 &&
-                            offer.price > 0
-                          )
-                            ? `
+                        posSetOffers(
+                          category
+                        )
+                          .map(
+                            offer => `
                               <br>
                               ${offer.quantity}点
                               ${formatMoney(
                                 offer.price
                               )}
                             `
-                            : "";
-                        })()
+                          )
+                          .join("")
                       }
                     </div>
                   </button>
@@ -8386,6 +8772,117 @@ async function renderPos(
 
 
       document
+        .querySelectorAll(
+          ".posAddSetOfferButton"
+        )
+        .forEach(
+          button => {
+            button.addEventListener(
+              "click",
+              () => {
+                capturePosPriceSettingsFromDom();
+
+                const category =
+                  button.dataset.category;
+
+                if (
+                  !posSetOfferBook[
+                    category
+                  ]
+                ) {
+                  posSetOfferBook[
+                    category
+                  ] = {};
+                }
+
+                const current =
+                  posSetOfferRows(
+                    category
+                  );
+
+                current.push({
+                  quantity: 0,
+                  price: 0
+                });
+
+                posSetOfferBook[
+                  category
+                ][
+                  posCurrency
+                ] = current;
+
+                posPriceSettingsOpen =
+                  true;
+
+                renderPosBody();
+              }
+            );
+          }
+        );
+
+
+      document
+        .querySelectorAll(
+          ".posRemoveSetOfferButton"
+        )
+        .forEach(
+          button => {
+            button.addEventListener(
+              "click",
+              () => {
+                capturePosPriceSettingsFromDom();
+
+                const category =
+                  button.dataset.category;
+
+                const index =
+                  Math.max(
+                    0,
+                    Math.floor(
+                      Number(
+                        button.dataset.index ||
+                        0
+                      )
+                    )
+                  );
+
+                const current =
+                  posSetOfferRows(
+                    category
+                  );
+
+                current.splice(
+                  index,
+                  1
+                );
+
+                if (
+                  !posSetOfferBook[
+                    category
+                  ]
+                ) {
+                  posSetOfferBook[
+                    category
+                  ] = {};
+                }
+
+                posSetOfferBook[
+                  category
+                ][
+                  posCurrency
+                ] = current;
+
+                posPriceSettingsOpen =
+                  true;
+
+                renderPosBody();
+              }
+            );
+          }
+        );
+
+
+      document
         .querySelector(
           "#savePosPrices"
         )
@@ -8422,41 +8919,47 @@ async function renderPos(
             POS_CATEGORY_ORDER
               .forEach(
                 category => {
-                  const quantityInput =
-                    document.querySelector(
-                      `.posSetQuantityInput[data-category="${category}"]`
-                    );
-
-                  const priceInput =
-                    document.querySelector(
-                      `.posSetPriceInput[data-category="${category}"]`
+                  const rows =
+                    Array.from(
+                      document.querySelectorAll(
+                        `.posSetOfferRow[data-category="${category}"]`
+                      )
                     );
 
                   setOffers[
                     category
-                  ] = {
-                    quantity:
-                      Math.max(
-                        0,
-                        Math.floor(
-                          Number(
-                            quantityInput
-                              ?.value ||
-                            0
-                          )
-                        )
-                      ),
+                  ] =
+                    rows
+                      .map(
+                        row => ({
+                          quantity:
+                            Math.max(
+                              0,
+                              Math.floor(
+                                Number(
+                                  row.querySelector(
+                                    ".posSetQuantityInput"
+                                  )?.value || 0
+                                )
+                              )
+                            ),
 
-                    price:
-                      Math.max(
-                        0,
-                        Number(
-                          priceInput
-                            ?.value ||
-                          0
-                        )
+                          price:
+                            Math.max(
+                              0,
+                              Number(
+                                row.querySelector(
+                                  ".posSetPriceInput"
+                                )?.value || 0
+                              )
+                            )
+                        })
                       )
-                  };
+                      .filter(
+                        offer =>
+                          offer.quantity >= 2 &&
+                          offer.price > 0
+                      );
                 }
               );
 
@@ -8511,19 +9014,20 @@ async function renderPos(
                       category
                     ][
                       posCurrency
-                    ] = {
-                      quantity:
+                    ] =
+                      (
                         setOffers[
                           category
-                        ]?.quantity ||
-                        0,
-
-                      price:
-                        setOffers[
-                          category
-                        ]?.price ||
-                        0
-                    };
+                        ] ||
+                        []
+                      ).map(
+                        offer => ({
+                          quantity:
+                            offer.quantity,
+                          price:
+                            offer.price
+                        })
+                      );
                   }
                 );
 
