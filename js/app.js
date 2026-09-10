@@ -4037,6 +4037,300 @@ function eventInventoryCountSummary({
   };
 }
 
+function eventOpeningDisplayParts(
+  item
+) {
+  const detailParts =
+    String(
+      item?.detail ||
+      ""
+    )
+      .split("/")
+      .map(
+        part =>
+          part.trim()
+      )
+      .filter(Boolean);
+
+  if (
+    item?.category ===
+    "tshirt"
+  ) {
+    return {
+      design:
+        item?.label ||
+        "Tシャツ",
+
+      body:
+        detailParts[0] ||
+        "",
+
+      color:
+        detailParts[1] ||
+        "",
+
+      size:
+        detailParts[2] ||
+        ""
+    };
+  }
+
+  return {
+    design:
+      item?.label ||
+      "商品",
+
+    body:
+      "",
+
+    color:
+      item?.detail ||
+      "",
+
+    size:
+      ""
+  };
+}
+
+function eventExpectedRemainingRows({
+  openingItems,
+  sales,
+  closingMap
+}) {
+  return (
+    Array.isArray(
+      openingItems
+    )
+      ? openingItems
+      : []
+  )
+    .map(
+      opening => {
+        const openingQty =
+          Math.max(
+            0,
+            Math.floor(
+              Number(
+                opening
+                  ?.openingQty ||
+                0
+              )
+            )
+          );
+
+        const soldQty =
+          Math.max(
+            0,
+            Math.floor(
+              Number(
+                sales
+                  ?.exactByVariant
+                  ?.get(
+                    opening
+                      ?.variantId
+                  ) ||
+                0
+              )
+            )
+          );
+
+        const closing =
+          closingMap
+            ?.get(
+              opening
+                ?.variantId
+            ) ||
+          {};
+
+        const recordedReduction =
+          Math.max(
+            0,
+            Number(
+              closing.loss ||
+              0
+            )
+          ) +
+          Math.max(
+            0,
+            Number(
+              closing.theft ||
+              0
+            )
+          ) +
+          Math.max(
+            0,
+            Number(
+              closing.damage ||
+              0
+            )
+          ) +
+          Math.max(
+            0,
+            Number(
+              closing.gift ||
+              0
+            )
+          ) +
+          Math.max(
+            0,
+            Number(
+              closing.sample ||
+              0
+            )
+          );
+
+        const stockAdjustment =
+          Number(
+            closing
+              .stockAdjustment ||
+            0
+          );
+
+        const remainingQty =
+          Math.max(
+            0,
+            openingQty -
+            soldQty -
+            recordedReduction +
+            stockAdjustment
+          );
+
+        const parts =
+          eventOpeningDisplayParts(
+            opening
+          );
+
+        return {
+          variantId:
+            opening
+              ?.variantId ||
+            "",
+
+          category:
+            opening
+              ?.category ||
+            "",
+
+          sku:
+            opening
+              ?.sku ||
+            "",
+
+          label:
+            opening
+              ?.label ||
+            "",
+
+          detail:
+            opening
+              ?.detail ||
+            "",
+
+          design:
+            parts.design,
+
+          body:
+            parts.body,
+
+          color:
+            parts.color,
+
+          size:
+            parts.size,
+
+          openingQty,
+          soldQty,
+          recordedReduction,
+          stockAdjustment,
+          remainingQty
+        };
+      }
+    );
+}
+
+function groupEventRemainingTshirts(
+  rows
+) {
+  const groups =
+    new Map();
+
+  (
+    Array.isArray(rows)
+      ? rows
+      : []
+  )
+    .filter(
+      row =>
+        row.category ===
+        "tshirt"
+    )
+    .forEach(
+      row => {
+        const key =
+          [
+            row.design ||
+              "",
+            row.body ||
+              "",
+            row.color ||
+              ""
+          ].join(
+            "||"
+          );
+
+        if (
+          !groups.has(
+            key
+          )
+        ) {
+          groups.set(
+            key,
+            {
+              design:
+                row.design ||
+                "Tシャツ",
+              body:
+                row.body ||
+                "",
+              color:
+                row.color ||
+                "",
+              items: []
+            }
+          );
+        }
+
+        groups
+          .get(
+            key
+          )
+          .items
+          .push(
+            row
+          );
+      }
+    );
+
+  return Array.from(
+    groups.values()
+  )
+    .sort(
+      (a, b) =>
+        a.design.localeCompare(
+          b.design,
+          "ja"
+        ) ||
+        a.body.localeCompare(
+          b.body,
+          "ja"
+        ) ||
+        a.color.localeCompare(
+          b.color,
+          "ja"
+        )
+    );
+}
+
 function countDifferenceLabel(
   value
 ) {
@@ -5112,6 +5406,36 @@ async function renderSessions(
                   closingMap,
                   sales
                 });
+
+              const remainingRows =
+                eventExpectedRemainingRows({
+                  openingItems,
+                  sales,
+                  closingMap
+                });
+
+              const tshirtRemainingGroups =
+                groupEventRemainingTshirts(
+                  remainingRows
+                );
+
+              const accessoryRemainingRows =
+                remainingRows.filter(
+                  row =>
+                    row.category !==
+                    "tshirt"
+                );
+
+              const skuExpectedRemainingTotal =
+                remainingRows.reduce(
+                  (sum, row) =>
+                    sum +
+                    Number(
+                      row.remainingQty ||
+                      0
+                    ),
+                  0
+                );
 
               const currentTotal =
                 eventCurrentInventoryRows
@@ -6233,6 +6557,358 @@ async function renderSessions(
                             `
                             : ""
                         }
+
+                        <details
+                          style="
+                            margin-top:14px;
+                            border:1px solid #ecece7;
+                            border-radius:14px;
+                            padding:10px 12px;
+                          "
+                        >
+                          <summary
+                            style="
+                              cursor:pointer;
+                              font-weight:800;
+                              padding:4px 0;
+                            "
+                          >
+                            現在のSKU別在庫残数を見る
+                            （${skuExpectedRemainingTotal}点）
+                          </summary>
+
+                          <div
+                            class="muted"
+                            style="
+                              margin-top:8px;
+                              line-height:1.5;
+                              font-size:12px;
+                            "
+                          >
+                            開始在庫 − SKU販売 − 記録済み減少 ＋ 在庫調整 で計算しています。
+                          </div>
+
+                          ${
+                            countSummary.quickSalesTotal >
+                            0
+                              ? `
+                                <div
+                                  class="warning"
+                                  style="
+                                    margin-top:8px;
+                                  "
+                                >
+                                  Quick販売 ${countSummary.quickSalesTotal} 点はSKUに割り当てられていないため、このSKU別残数には配分していません。上の「計算上残数」には反映されています。
+                                </div>
+                              `
+                              : ""
+                          }
+
+                          ${
+                            tshirtRemainingGroups.length
+                              ? `
+                                <div
+                                  style="
+                                    margin-top:14px;
+                                    font-weight:800;
+                                  "
+                                >
+                                  Tシャツ
+                                </div>
+
+                                <div
+                                  style="
+                                    overflow-x:auto;
+                                    margin-top:8px;
+                                    border:1px solid #ecece7;
+                                    border-radius:12px;
+                                  "
+                                >
+                                  <div
+                                    style="
+                                      min-width:620px;
+                                    "
+                                  >
+                                    <div
+                                      style="
+                                        display:grid;
+                                        grid-template-columns:
+                                          minmax(190px,1.8fr)
+                                          repeat(5,72px);
+                                        background:#f7f7f4;
+                                        border-bottom:1px solid #ecece7;
+                                        font-size:12px;
+                                        font-weight:800;
+                                      "
+                                    >
+                                      <div
+                                        style="
+                                          padding:9px 10px;
+                                        "
+                                      >
+                                        Design / Body / Color
+                                      </div>
+
+                                      ${EVENT_TSHIRT_SIZE_ORDER.map(
+                                        size => `
+                                          <div
+                                            style="
+                                              padding:9px 4px;
+                                              text-align:center;
+                                            "
+                                          >
+                                            ${size}
+                                          </div>
+                                        `
+                                      ).join("")}
+                                    </div>
+
+                                    ${tshirtRemainingGroups.map(
+                                      group => `
+                                        <div
+                                          style="
+                                            display:grid;
+                                            grid-template-columns:
+                                              minmax(190px,1.8fr)
+                                              repeat(5,72px);
+                                            border-bottom:1px solid #ecece7;
+                                          "
+                                        >
+                                          <div
+                                            style="
+                                              padding:10px;
+                                              min-width:0;
+                                            "
+                                          >
+                                            <div
+                                              style="
+                                                font-weight:800;
+                                              "
+                                            >
+                                              ${escapeHtml(
+                                                group.design
+                                              )}
+                                            </div>
+
+                                            <div
+                                              class="muted"
+                                              style="
+                                                margin-top:3px;
+                                                font-size:12px;
+                                                line-height:1.4;
+                                              "
+                                            >
+                                              ${escapeHtml(
+                                                [
+                                                  group.body,
+                                                  group.color
+                                                ]
+                                                  .filter(Boolean)
+                                                  .join(" / ")
+                                              )}
+                                            </div>
+                                          </div>
+
+                                          ${EVENT_TSHIRT_SIZE_ORDER.map(
+                                            size => {
+                                              const item =
+                                                group.items.find(
+                                                  row =>
+                                                    row.size ===
+                                                    size
+                                                );
+
+                                              if (!item) {
+                                                return `
+                                                  <div
+                                                    style="
+                                                      display:flex;
+                                                      align-items:center;
+                                                      justify-content:center;
+                                                      min-height:62px;
+                                                      border-left:1px solid #f0f0ec;
+                                                      background:#f3f3f0;
+                                                      color:#bbb;
+                                                    "
+                                                  >
+                                                    —
+                                                  </div>
+                                                `;
+                                              }
+
+                                              const soldOut =
+                                                item.remainingQty <=
+                                                0;
+
+                                              return `
+                                                <div
+                                                  style="
+                                                    min-height:62px;
+                                                    padding:7px 4px;
+                                                    border-left:1px solid #f0f0ec;
+                                                    text-align:center;
+                                                    background:${
+                                                      soldOut
+                                                        ? "#f3f3f0"
+                                                        : "#fff"
+                                                    };
+                                                    color:${
+                                                      soldOut
+                                                        ? "#aaa"
+                                                        : "#1f1f1f"
+                                                    };
+                                                  "
+                                                >
+                                                  <div
+                                                    style="
+                                                      font-size:19px;
+                                                      font-weight:800;
+                                                    "
+                                                  >
+                                                    ${item.remainingQty}
+                                                  </div>
+
+                                                  <div
+                                                    style="
+                                                      margin-top:2px;
+                                                      font-size:10px;
+                                                      color:#888;
+                                                      line-height:1.25;
+                                                    "
+                                                  >
+                                                    開${item.openingQty}
+                                                    ${
+                                                      item.soldQty >
+                                                      0
+                                                        ? ` / 売${item.soldQty}`
+                                                        : ""
+                                                    }
+                                                  </div>
+                                                </div>
+                                              `;
+                                            }
+                                          ).join("")}
+                                        </div>
+                                      `
+                                    ).join("")}
+                                  </div>
+                                </div>
+                              `
+                              : ""
+                          }
+
+                          ${
+                            accessoryRemainingRows.length
+                              ? `
+                                <div
+                                  style="
+                                    margin-top:14px;
+                                    font-weight:800;
+                                  "
+                                >
+                                  アクセサリー
+                                </div>
+
+                                <div
+                                  style="
+                                    margin-top:6px;
+                                  "
+                                >
+                                  ${accessoryRemainingRows.map(
+                                    row => `
+                                      <div
+                                        style="
+                                          display:grid;
+                                          grid-template-columns:
+                                            minmax(0,1fr)
+                                            auto;
+                                          gap:10px;
+                                          align-items:center;
+                                          padding:10px 0;
+                                          border-bottom:1px solid #ecece7;
+                                          ${
+                                            row.remainingQty <=
+                                            0
+                                              ? "color:#aaa;"
+                                              : ""
+                                          }
+                                        "
+                                      >
+                                        <div
+                                          style="
+                                            min-width:0;
+                                          "
+                                        >
+                                          <div
+                                            style="
+                                              font-weight:800;
+                                            "
+                                          >
+                                            ${escapeHtml(
+                                              row.label
+                                            )}
+                                          </div>
+
+                                          <div
+                                            class="muted"
+                                            style="
+                                              margin-top:2px;
+                                              font-size:12px;
+                                              line-height:1.4;
+                                            "
+                                          >
+                                            ${escapeHtml(
+                                              row.detail
+                                            )}
+                                            ${
+                                              row.sku
+                                                ? `<br>${escapeHtml(
+                                                    row.sku
+                                                  )}`
+                                                : ""
+                                            }
+                                          </div>
+                                        </div>
+
+                                        <div
+                                          style="
+                                            min-width:82px;
+                                            text-align:right;
+                                          "
+                                        >
+                                          <div
+                                            style="
+                                              font-size:20px;
+                                              font-weight:800;
+                                            "
+                                          >
+                                            ${row.remainingQty}
+                                          </div>
+
+                                          <div
+                                            class="muted"
+                                            style="
+                                              margin-top:2px;
+                                              font-size:10px;
+                                            "
+                                          >
+                                            開${row.openingQty}
+                                            ${
+                                              row.soldQty >
+                                              0
+                                                ? ` / 売${row.soldQty}`
+                                                : ""
+                                            }
+                                          </div>
+                                        </div>
+                                      </div>
+                                    `
+                                  ).join("")}
+                                </div>
+                              `
+                              : ""
+                          }
+                        </details>
 
                         ${
                           countSummary.quickSalesTotal >
