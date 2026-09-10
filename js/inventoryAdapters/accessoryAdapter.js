@@ -2,6 +2,7 @@ import { getFirebaseState } from "../firebase.js";
 
 const COLLECTION = "accessoryStock";
 const DOCUMENT = "shared";
+const LOCAL_STORAGE_KEY = "accessory-inventory-designs-v1";
 
 async function firestoreModule() {
   return await import(
@@ -29,25 +30,49 @@ async function loadSharedDocument() {
   return snapshot.data();
 }
 
+function normalizeDesigns(items) {
+  if (!Array.isArray(items)) {
+    return [];
+  }
+
+  return items.map(item => ({
+    ...item,
+    id: String(item?.id || "").trim(),
+    name: String(item?.name || "").trim(),
+    category: String(item?.category || "standard").trim(),
+    piercing: Math.max(0, Number(item?.piercing || 0)),
+    earring: Math.max(0, Number(item?.earring || 0)),
+    priority: Math.max(0, Number(item?.priority || 0))
+  }));
+}
+
+function loadLocalDesigns() {
+  try {
+    const saved = localStorage.getItem(
+      LOCAL_STORAGE_KEY
+    );
+
+    if (!saved) {
+      return [];
+    }
+
+    return normalizeDesigns(
+      JSON.parse(saved)
+    );
+  } catch (error) {
+    console.warn(
+      "Accessory local stock could not be read.",
+      error
+    );
+
+    return [];
+  }
+}
+
 function encodePart(value) {
-  return encodeURIComponent(String(value || ""));
-}
-
-function buildVariantId(category, sourceId) {
-  return [
-    "accessory",
-    encodePart(category),
-    encodePart(sourceId)
-  ].join("__");
-}
-
-function buildInventoryKey(sourceId, stockField) {
-  return [
-    "accessory:",
-    encodePart(sourceId),
-    "|",
-    encodePart(stockField)
-  ].join("");
+  return encodeURIComponent(
+    String(value || "")
+  );
 }
 
 function categoryFor(sourceCategory, stockField) {
@@ -73,102 +98,292 @@ function categoryLabel(category) {
   return labels[category] || category;
 }
 
-function buildRows(designs) {
+function buildVariantId(
+  category,
+  sourceId
+) {
+  return [
+    "accessory",
+    encodePart(category),
+    encodePart(sourceId)
+  ].join("__");
+}
+
+function buildInventoryKey(
+  sourceId,
+  stockField
+) {
+  return [
+    "accessory:",
+    encodePart(sourceId),
+    "|",
+    encodePart(stockField)
+  ].join("");
+}
+
+function buildRows(
+  designs,
+  options = {}
+) {
+  const onlyPositive =
+    Boolean(options.onlyPositive);
+
   const rows = [];
 
-  (Array.isArray(designs) ? designs : []).forEach(item => {
-    const sourceId = String(item?.id || "").trim();
-    const name = String(item?.name || "").trim();
-    const sourceCategory = String(item?.category || "standard").trim();
+  normalizeDesigns(designs).forEach(
+    item => {
+      if (
+        !item.id ||
+        !item.name
+      ) {
+        return;
+      }
 
-    if (!sourceId || !name) return;
+      [
+        "piercing",
+        "earring"
+      ].forEach(
+        stockField => {
+          const quantity =
+            Math.max(
+              0,
+              Number(
+                item?.[stockField] || 0
+              )
+            );
 
-    ["piercing", "earring"].forEach(stockField => {
-      const category = categoryFor(sourceCategory, stockField);
-      const quantity = Math.max(
-        0,
-        Number(item?.[stockField] || 0)
+          if (
+            onlyPositive &&
+            quantity <= 0
+          ) {
+            return;
+          }
+
+          const category =
+            categoryFor(
+              item.category,
+              stockField
+            );
+
+          rows.push({
+            variantId:
+              buildVariantId(
+                category,
+                item.id
+              ),
+
+            productId:
+              category,
+
+            category,
+
+            categoryLabel:
+              categoryLabel(
+                category
+              ),
+
+            displayName:
+              item.name,
+
+            design:
+              item.name,
+
+            sourceId:
+              item.id,
+
+            sourceCategory:
+              item.category,
+
+            stockField,
+
+            quantity,
+
+            inventorySource:
+              "accessory",
+
+            inventoryKey:
+              buildInventoryKey(
+                item.id,
+                stockField
+              ),
+
+            inventoryStatus:
+              "tracked",
+
+            saleStatus:
+              "active",
+
+            active:
+              true,
+
+            priority:
+              item.priority,
+
+            source:
+              "accessoryStock/shared"
+          });
+        }
       );
-
-      rows.push({
-        variantId: buildVariantId(category, sourceId),
-        productId: category,
-        category,
-        categoryLabel: categoryLabel(category),
-        displayName: name,
-        design: name,
-        sourceId,
-        sourceCategory,
-        stockField,
-        quantity,
-        inventorySource: "accessory",
-        inventoryKey: buildInventoryKey(sourceId, stockField),
-        inventoryStatus: "tracked",
-        saleStatus: "active",
-        active: true,
-        priority: Math.max(0, Number(item?.priority || 0)),
-        source: "accessoryStock/shared"
-      });
-    });
-  });
+    }
+  );
 
   return rows;
 }
 
+function stockSummary(
+  designs
+) {
+  const rows =
+    buildRows(
+      designs,
+      {
+        onlyPositive:
+          true
+      }
+    );
+
+  return {
+    designCount:
+      normalizeDesigns(
+        designs
+      ).length,
+
+    inStockSkuCount:
+      rows.length,
+
+    totalStock:
+      rows.reduce(
+        (
+          sum,
+          row
+        ) =>
+          sum +
+          row.quantity,
+        0
+      ),
+
+    rows
+  };
+}
+
 export const accessoryAdapter = {
   async getCatalogSnapshot() {
-    const shared = await loadSharedDocument();
-    const rows = buildRows(shared?.designs);
+    const shared =
+      await loadSharedDocument();
 
-    const counts = {
-      pierce: 0,
-      earring: 0,
-      drop_pierce: 0,
-      drop_earring: 0
-    };
+    const cloudDesigns =
+      normalizeDesigns(
+        shared?.designs
+      );
 
-    let totalStock = 0;
+    const localDesigns =
+      loadLocalDesigns();
 
-    rows.forEach(row => {
-      totalStock += row.quantity;
-      counts[row.category] += 1;
-    });
+    const cloud =
+      stockSummary(
+        cloudDesigns
+      );
+
+    const local =
+      stockSummary(
+        localDesigns
+      );
+
+    let sourceState =
+      "empty";
+
+    if (
+      cloud.totalStock > 0
+    ) {
+      sourceState =
+        "cloud_ready";
+    } else if (
+      local.totalStock > 0
+    ) {
+      sourceState =
+        "local_only";
+    }
 
     return {
       summary: {
-        source: "accessoryStock/shared",
-        designCount: Array.isArray(shared?.designs)
-          ? shared.designs.length
-          : 0,
-        skuCount: rows.length,
-        totalStock,
-        counts
+        source:
+          "accessoryStock/shared",
+
+        designCount:
+          cloud.designCount,
+
+        currentStockSkuCount:
+          cloud.inStockSkuCount,
+
+        totalStock:
+          cloud.totalStock,
+
+        localDesignCount:
+          local.designCount,
+
+        localInStockSkuCount:
+          local.inStockSkuCount,
+
+        localTotalStock:
+          local.totalStock,
+
+        sourceState
       },
-      rows
+
+      rows:
+        cloud.rows
     };
   },
 
-  async getStock(inventoryKey) {
-    const value = String(inventoryKey || "");
+  async getStock(
+    inventoryKey
+  ) {
+    const value =
+      String(
+        inventoryKey || ""
+      );
 
-    if (!value.startsWith("accessory:")) {
+    if (
+      !value.startsWith(
+        "accessory:"
+      )
+    ) {
       return null;
     }
 
-    const parts = value
-      .slice(10)
-      .split("|")
-      .map(part => decodeURIComponent(part));
+    const parts =
+      value
+        .slice(10)
+        .split("|")
+        .map(
+          part =>
+            decodeURIComponent(
+              part
+            )
+        );
 
-    if (parts.length !== 2) {
+    if (
+      parts.length !== 2
+    ) {
       return null;
     }
 
-    const [sourceId, stockField] = parts;
-    const shared = await loadSharedDocument();
-    const item = (shared?.designs || []).find(
-      design => String(design?.id || "") === sourceId
-    );
+    const [
+      sourceId,
+      stockField
+    ] = parts;
+
+    const shared =
+      await loadSharedDocument();
+
+    const item =
+      normalizeDesigns(
+        shared?.designs
+      ).find(
+        design =>
+          design.id ===
+          sourceId
+      );
 
     if (!item) {
       return 0;
@@ -176,24 +391,37 @@ export const accessoryAdapter = {
 
     return Math.max(
       0,
-      Number(item?.[stockField] || 0)
+      Number(
+        item?.[stockField] || 0
+      )
     );
   },
 
-  async changeStock(inventoryKey, quantityChange, operationId) {
-    console.warn("Read only phase", {
-      inventoryKey,
-      quantityChange,
-      operationId
-    });
+  async changeStock(
+    inventoryKey,
+    quantityChange,
+    operationId
+  ) {
+    console.warn(
+      "Read only phase",
+      {
+        inventoryKey,
+        quantityChange,
+        operationId
+      }
+    );
 
     throw new Error(
       "アクセサリー在庫は現在読み取り専用です。"
     );
   },
 
-  async canTrack(inventoryKey) {
-    return String(inventoryKey || "").startsWith(
+  async canTrack(
+    inventoryKey
+  ) {
+    return String(
+      inventoryKey || ""
+    ).startsWith(
       "accessory:"
     );
   }
