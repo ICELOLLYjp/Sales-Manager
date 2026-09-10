@@ -380,3 +380,182 @@ export async function createEventSession({
     data
   );
 }
+
+
+export async function updateEventSession(
+  sessionId,
+  {
+    eventName,
+    country,
+    city = "",
+    startDate,
+    endDate = "",
+    currency = "JPY",
+    fxRateToJPY = null
+  }
+) {
+  const db = await requireDb();
+
+  const cleanSessionId =
+    cleanText(sessionId);
+
+  const name =
+    cleanText(eventName);
+
+  const cleanCountry =
+    cleanText(country);
+
+  const cleanCity =
+    cleanText(city);
+
+  const cleanStart =
+    cleanText(startDate);
+
+  const cleanEnd =
+    cleanText(endDate) ||
+    cleanStart;
+
+  if (!cleanSessionId) {
+    throw new Error(
+      "販売セッションが見つかりません。"
+    );
+  }
+
+  if (!name) {
+    throw new Error(
+      "イベント名を入力してください。"
+    );
+  }
+
+  if (!cleanCountry) {
+    throw new Error(
+      "国を入力してください。"
+    );
+  }
+
+  if (!cleanStart) {
+    throw new Error(
+      "開始日を入力してください。"
+    );
+  }
+
+  if (
+    !SESSION_CURRENCIES.includes(
+      currency
+    )
+  ) {
+    throw new Error(
+      "通貨を確認してください。"
+    );
+  }
+
+  if (
+    cleanEnd &&
+    cleanEnd < cleanStart
+  ) {
+    throw new Error(
+      "終了日は開始日以降にしてください。"
+    );
+  }
+
+  const rate =
+    cleanRate(
+      fxRateToJPY,
+      currency
+    );
+
+  const {
+    doc,
+    getDocFromServer,
+    updateDoc,
+    serverTimestamp
+  } = await firestoreModule();
+
+  const ref =
+    doc(
+      db,
+      COLLECTION,
+      cleanSessionId
+    );
+
+  const snapshot =
+    await getDocFromServer(
+      ref
+    );
+
+  if (!snapshot.exists()) {
+    throw new Error(
+      "販売セッションが見つかりません。"
+    );
+  }
+
+  const current =
+    snapshot.data();
+
+  await updateDoc(
+    ref,
+    {
+      eventName:
+        name,
+
+      country:
+        cleanCountry,
+
+      city:
+        cleanCity,
+
+      startDate:
+        cleanStart,
+
+      endDate:
+        cleanEnd,
+
+      currency,
+
+      baseCurrency:
+        "JPY",
+
+      fxRateToJPY:
+        rate,
+
+      fxRateMode:
+        "manual_event_rate",
+
+      fxRateStatus:
+        rate
+          ? "set"
+          : "pending",
+
+      updatedAt:
+        serverTimestamp()
+    }
+  );
+
+  return normalizeSession(
+    cleanSessionId,
+    {
+      ...current,
+      eventName:
+        name,
+      country:
+        cleanCountry,
+      city:
+        cleanCity,
+      startDate:
+        cleanStart,
+      endDate:
+        cleanEnd,
+      currency,
+      baseCurrency:
+        "JPY",
+      fxRateToJPY:
+        rate,
+      fxRateMode:
+        "manual_event_rate",
+      fxRateStatus:
+        rate
+          ? "set"
+          : "pending"
+    }
+  );
+}
