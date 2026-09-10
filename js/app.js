@@ -1079,7 +1079,7 @@ async function renderInventory(sequence) {
             font-size:12px;
           "
         >
-          在庫ありSKUだけを表示しています。TシャツはDesignを縦、Sizeを横にまとめています。
+          在庫ありSKUだけを表示しています。Design列をコンパクトに固定し、TシャツはSizeを横にまとめています。
         </div>
       </section>
 
@@ -1119,15 +1119,15 @@ async function renderInventory(sequence) {
         >
           <div
             style="
-              min-width:620px;
+              min-width:420px;
             "
           >
             <div
               style="
                 display:grid;
                 grid-template-columns:
-                  minmax(190px,1.8fr)
-                  repeat(5,72px);
+                  140px
+                  repeat(5,56px);
                 background:#f7f7f4;
                 border-bottom:1px solid #ecece7;
                 font-size:12px;
@@ -1139,7 +1139,7 @@ async function renderInventory(sequence) {
                   position:sticky;
                   left:0;
                   z-index:4;
-                  padding:9px 10px;
+                  padding:8px;
                   background:#f7f7f4;
                   border-right:1px solid #e7e7e2;
                   box-shadow:3px 0 6px rgba(0,0,0,.04);
@@ -1193,8 +1193,8 @@ async function renderInventory(sequence) {
                     style="
                       display:grid;
                       grid-template-columns:
-                        minmax(190px,1.8fr)
-                        repeat(5,72px);
+                        140px
+                        repeat(5,56px);
                       border-bottom:1px solid #ecece7;
                     "
                   >
@@ -1203,7 +1203,7 @@ async function renderInventory(sequence) {
                         position:sticky;
                         left:0;
                         z-index:3;
-                        padding:10px;
+                        padding:8px;
                         min-width:0;
                         background:#fff;
                         border-right:1px solid #e7e7e2;
@@ -1213,6 +1213,9 @@ async function renderInventory(sequence) {
                       <div
                         style="
                           font-weight:800;
+                          font-size:14px;
+                          line-height:1.2;
+                          overflow-wrap:anywhere;
                         "
                       >
                         ${escapeHtml(
@@ -1224,8 +1227,9 @@ async function renderInventory(sequence) {
                         class="muted"
                         style="
                           margin-top:3px;
-                          font-size:12px;
-                          line-height:1.4;
+                          font-size:10px;
+                          line-height:1.25;
+                          overflow-wrap:anywhere;
                         "
                       >
                         ${escapeHtml(
@@ -1287,7 +1291,7 @@ async function renderInventory(sequence) {
                           >
                             <div
                               style="
-                                font-size:20px;
+                                font-size:18px;
                                 font-weight:800;
                               "
                             >
@@ -1358,15 +1362,15 @@ async function renderInventory(sequence) {
         >
           <div
             style="
-              min-width:560px;
+              min-width:390px;
             "
           >
             <div
               style="
                 display:grid;
                 grid-template-columns:
-                  minmax(180px,1.7fr)
-                  repeat(4,88px);
+                  128px
+                  repeat(4,62px);
                 background:#f7f7f4;
                 border-bottom:1px solid #ecece7;
                 font-size:11px;
@@ -1378,7 +1382,7 @@ async function renderInventory(sequence) {
                   position:sticky;
                   left:0;
                   z-index:4;
-                  padding:9px 10px;
+                  padding:8px;
                   background:#f7f7f4;
                   border-right:1px solid #e7e7e2;
                   box-shadow:3px 0 6px rgba(0,0,0,.04);
@@ -1461,8 +1465,8 @@ async function renderInventory(sequence) {
                     style="
                       display:grid;
                       grid-template-columns:
-                        minmax(180px,1.7fr)
-                        repeat(4,88px);
+                        128px
+                        repeat(4,62px);
                       border-bottom:1px solid #ecece7;
                     "
                   >
@@ -1471,7 +1475,7 @@ async function renderInventory(sequence) {
                         position:sticky;
                         left:0;
                         z-index:3;
-                        padding:10px;
+                        padding:8px;
                         min-width:0;
                         background:#fff;
                         border-right:1px solid #e7e7e2;
@@ -1481,6 +1485,9 @@ async function renderInventory(sequence) {
                       <div
                         style="
                           font-weight:800;
+                          font-size:14px;
+                          line-height:1.2;
+                          overflow-wrap:anywhere;
                         "
                       >
                         ${escapeHtml(
@@ -1551,7 +1558,7 @@ async function renderInventory(sequence) {
                           >
                             <div
                               style="
-                                font-size:20px;
+                                font-size:18px;
                                 font-weight:800;
                               "
                             >
