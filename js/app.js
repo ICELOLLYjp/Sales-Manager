@@ -14384,7 +14384,7 @@ async function renderPos(
               line-height:1.6;
             "
           >
-            Quickはカテゴリ単位で売上だけを記録します。SKUモードのTシャツはPinkoi SKUを表示し、JPYではPinkoi日本価格を使用します。SKU販売は会計確定と同時に実在庫を減らします。
+            QuickとSKUは会計途中でも自由に切り替えられ、同じカートに混在できます。Quickはカテゴリ単位で記録し、SKU販売は会計確定と同時に対象SKUの実在庫を減らします。
           </div>
 
         </section>
@@ -14405,27 +14405,10 @@ async function renderPos(
               return;
             }
 
-            if (
-              posCart.size > 0
-            ) {
-              const confirmed =
-                window.confirm(
-                  "現在の会計内容をクリアしてQuickモードに切り替えますか？"
-                );
-
-              if (!confirmed) {
-                return;
-              }
-
-              posCart =
-                new Map();
-
-              posOrderDiscount =
-                0;
-
-              invalidatePendingCheckout();
-            }
-
+            /*
+             * Quick / SKU are product-selection views only.
+             * Keep the same cart so one checkout can mix both.
+             */
             posMode =
               "quick";
 
@@ -14455,27 +14438,10 @@ async function renderPos(
               return;
             }
 
-            if (
-              posCart.size > 0
-            ) {
-              const confirmed =
-                window.confirm(
-                  "現在の会計内容をクリアしてSKUモードに切り替えますか？"
-                );
-
-              if (!confirmed) {
-                return;
-              }
-
-              posCart =
-                new Map();
-
-              posOrderDiscount =
-                0;
-
-              invalidatePendingCheckout();
-            }
-
+            /*
+             * Quick / SKU are product-selection views only.
+             * Keep the same cart so one checkout can mix both.
+             */
             posMode =
               "sku";
 
