@@ -29,6 +29,56 @@
     </nav>
   </div>
 
-  <script type="module" src="./js/app.js?v=20260910-event-inventory-count-1"></script>
+
+  <script>
+    (function () {
+      function showBootError(message) {
+        var status = document.getElementById("syncStatus");
+        var view = document.getElementById("view");
+
+        if (status) {
+          status.textContent = "Error";
+        }
+
+        if (
+          view &&
+          !view.dataset.booted
+        ) {
+          view.innerHTML =
+            '<div class="warning" style="margin:20px;">'
+            + 'アプリの読み込みに失敗しました。<br>'
+            + String(message || "Unknown error")
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+            + '</div>';
+        }
+      }
+
+      window.addEventListener(
+        "error",
+        function (event) {
+          showBootError(
+            event.message ||
+            event.error?.message ||
+            "JavaScript読み込みエラー"
+          );
+        }
+      );
+
+      window.addEventListener(
+        "unhandledrejection",
+        function (event) {
+          showBootError(
+            event.reason?.message ||
+            event.reason ||
+            "JavaScript処理エラー"
+          );
+        }
+      );
+    })();
+  </script>
+
+  <script type="module" src="./js/app.js?v=20260910-event-inventory-count-bootfix-2"></script>
 </body>
 </html>
