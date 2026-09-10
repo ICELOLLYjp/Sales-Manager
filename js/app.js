@@ -978,6 +978,36 @@ async function renderMorePage(sequence) {
       loadAllCategoryCostHistories(),
       loadTshirtBodyCostHistories(),
       loadPinkoiTshirtCatalog()
+        .catch(
+          error => ({
+            error,
+            summary: {
+              inventoryCount: 0,
+              inventoryDocuments: 0,
+              skuCount: 0,
+              missingSkuCount: 0,
+              duplicateSkuCount: 0,
+              matchedCount: 0,
+              mappedVariants: 0,
+              unmatchedCount: 0,
+              unmappedVariants: 0,
+              ambiguousCount: 0,
+              priceCount: 0,
+              pricedCount: 0,
+              missingPriceCount: 0,
+              priceConflictCount: 0,
+              masterStockCount: 0,
+              masterStockZeroCount: 0,
+              syncEligibleCount: 0,
+              zeroStockCatalogCount: 0
+            },
+            items: [],
+            variants: [],
+            unmapped: [],
+            ambiguous: [],
+            byVariantId: new Map()
+          })
+        )
     ]);
 
     if (sequence !== renderSequence) return;
@@ -1121,216 +1151,314 @@ async function renderMorePage(sequence) {
             line-height:1.55;
           "
         >
-          TシャツのSKUと日本価格はPinkoi Inventoryを基準にします。実在庫はこれまで通り tshirtStock/master が正式マスターです。
+          SKUと日本価格はPinkoi、正式実在庫は tshirtStock/master.inventory_v2 を使用します。
         </div>
-
-
-        <div class="list-row">
-          <span>
-            Pinkoi Inventory
-          </span>
-
-          <strong>
-            ${pinkoiTshirtCatalog.summary.inventoryDocuments}
-          </strong>
-        </div>
-
-
-        <div class="list-row">
-          <span>
-            masterに対応したSKU
-          </span>
-
-          <strong>
-            ${pinkoiTshirtCatalog.summary.mappedVariants}
-          </strong>
-        </div>
-
-
-        <div class="list-row">
-          <span>
-            Pinkoi SKUあり
-          </span>
-
-          <strong>
-            ${pinkoiTshirtCatalog.summary.skuCount}
-          </strong>
-        </div>
-
-
-        <div class="list-row">
-          <span>
-            日本価格あり
-          </span>
-
-          <strong>
-            ${pinkoiTshirtCatalog.summary.pricedCount}
-          </strong>
-        </div>
-
-
-        <div class="list-row">
-          <span>
-            在庫0の登録SKU
-          </span>
-
-          <strong>
-            ${pinkoiTshirtCatalog.summary.zeroStockCatalogCount}
-          </strong>
-        </div>
-
-
-        <div class="list-row">
-          <span>
-            未対応
-          </span>
-
-          <strong>
-            ${pinkoiTshirtCatalog.summary.unmappedVariants}
-          </strong>
-        </div>
-
 
         ${
-          pinkoiTshirtCatalog.summary.unmappedVariants > 0
+          pinkoiTshirtCatalog.error
             ? `
-              <div
-                class="warning"
-                style="
-                  margin-top:12px;
-                "
-              >
-                masterと対応できないPinkoi SKUがあります。未対応SKUはSales Managerへ登録しません。
+              <div class="warning">
+                Pinkoi連携データの読み込みに失敗しました。
+                Sales Managerの他機能はそのまま利用できます。
+                <br>
+                ${escapeHtml(
+                  pinkoiTshirtCatalog.error.code ||
+                  pinkoiTshirtCatalog.error.message ||
+                  String(pinkoiTshirtCatalog.error)
+                )}
+              </div>
+            `
+            : `
+              <div class="list-row">
+                <span>Pinkoi Inventory総数</span>
+                <strong>${pinkoiTshirtCatalog.summary.inventoryCount}</strong>
               </div>
 
-              <details
-                style="
-                  margin-top:12px;
-                "
-              >
-                <summary
-                  style="
-                    cursor:pointer;
-                    font-weight:800;
-                    padding:8px 0;
-                  "
-                >
-                  未対応 ${pinkoiTshirtCatalog.summary.unmappedVariants}件の詳細
-                </summary>
+              <div class="list-row">
+                <span>master対応済み</span>
+                <strong>${pinkoiTshirtCatalog.summary.matchedCount}</strong>
+              </div>
 
-                <div
-                  style="
-                    margin-top:8px;
-                  "
-                >
-                  ${pinkoiTshirtCatalog.unmapped.map(
-                    row => `
-                      <div
+              <div class="list-row">
+                <span>master未対応</span>
+                <strong>${pinkoiTshirtCatalog.summary.unmatchedCount}</strong>
+              </div>
+
+              <div class="list-row">
+                <span>ambiguous</span>
+                <strong>${pinkoiTshirtCatalog.summary.ambiguousCount}</strong>
+              </div>
+
+              <div class="list-row">
+                <span>SKUあり</span>
+                <strong>${pinkoiTshirtCatalog.summary.skuCount}</strong>
+              </div>
+
+              <div class="list-row">
+                <span>SKUなし</span>
+                <strong>${pinkoiTshirtCatalog.summary.missingSkuCount}</strong>
+              </div>
+
+              <div class="list-row">
+                <span>重複SKU</span>
+                <strong>${pinkoiTshirtCatalog.summary.duplicateSkuCount}</strong>
+              </div>
+
+              <div class="list-row">
+                <span>日本価格あり</span>
+                <strong>${pinkoiTshirtCatalog.summary.priceCount}</strong>
+              </div>
+
+              <div class="list-row">
+                <span>日本価格なし</span>
+                <strong>${pinkoiTshirtCatalog.summary.missingPriceCount}</strong>
+              </div>
+
+              <div class="list-row">
+                <span>価格不一致</span>
+                <strong>${pinkoiTshirtCatalog.summary.priceConflictCount}</strong>
+              </div>
+
+              <div class="list-row">
+                <span>master在庫あり</span>
+                <strong>${pinkoiTshirtCatalog.summary.masterStockCount}</strong>
+              </div>
+
+              <div class="list-row">
+                <span>master在庫0</span>
+                <strong>${pinkoiTshirtCatalog.summary.masterStockZeroCount}</strong>
+              </div>
+
+              <div class="list-row">
+                <span>同期可能SKU</span>
+                <strong>${pinkoiTshirtCatalog.summary.syncEligibleCount}</strong>
+              </div>
+
+              ${
+                pinkoiTshirtCatalog.summary.ambiguousCount > 0
+                  ? `
+                    <div class="warning" style="margin-top:12px;">
+                      ambiguous のSKUは自動登録しません。
+                    </div>
+                  `
+                  : ""
+              }
+
+              ${
+                pinkoiTshirtCatalog.summary.duplicateSkuCount > 0
+                  ? `
+                    <div class="warning" style="margin-top:12px;">
+                      重複SKUは自動登録しません。
+                    </div>
+                  `
+                  : ""
+              }
+
+              ${
+                pinkoiTshirtCatalog.summary.priceConflictCount > 0
+                  ? `
+                    <div class="warning" style="margin-top:12px;">
+                      価格不一致は自動的に正しい価格を決めません。JPY販売では価格未確定として扱います。
+                    </div>
+                  `
+                  : ""
+              }
+
+              ${
+                pinkoiTshirtCatalog.items.some(
+                  item =>
+                    item.masterMatch.status !== "matched" ||
+                    item.skuStatus !== "ok"
+                )
+                  ? `
+                    <details style="margin-top:12px;">
+                      <summary
                         style="
-                          padding:10px 0;
-                          border-bottom:1px solid #ecece7;
+                          cursor:pointer;
+                          font-weight:800;
+                          padding:8px 0;
                         "
                       >
-                        <div
-                          style="
-                            font-weight:700;
-                          "
-                        >
-                          ${escapeHtml(
-                            [
-                              row.designName,
-                              row.bodyName,
-                              row.colorName,
-                              row.size
-                            ]
-                              .filter(Boolean)
-                              .join(" / ")
-                          )}
-                        </div>
+                        未対応・要確認SKUの詳細
+                      </summary>
 
-                        <div
-                          class="muted"
-                          style="
-                            margin-top:4px;
-                            line-height:1.45;
-                            word-break:break-all;
-                          "
-                        >
-                          ${
-                            row.sku
-                              ? `SKU ${escapeHtml(row.sku)}<br>`
-                              : ""
-                          }
-                          未対応:
-                          ${escapeHtml(
-                            (row.reasons || [])
-                              .join(", ")
-                          )}
-                        </div>
+                      <div style="margin-top:8px;">
+                        ${pinkoiTshirtCatalog.items
+                          .filter(
+                            item =>
+                              item.masterMatch.status !== "matched" ||
+                              item.skuStatus !== "ok"
+                          )
+                          .map(
+                            item => `
+                              <div
+                                style="
+                                  padding:10px 0;
+                                  border-bottom:1px solid #ecece7;
+                                "
+                              >
+                                <div style="font-weight:700;">
+                                  ${escapeHtml(
+                                    [
+                                      item.names.design,
+                                      item.names.body,
+                                      item.names.color,
+                                      item.pinkoi.size
+                                    ]
+                                      .filter(Boolean)
+                                      .join(" / ")
+                                  )}
+                                </div>
+
+                                <div
+                                  class="muted"
+                                  style="
+                                    margin-top:4px;
+                                    line-height:1.5;
+                                    word-break:break-all;
+                                  "
+                                >
+                                  SKU:
+                                  ${escapeHtml(item.sku || "未設定")}
+                                  <br>
+
+                                  判定:
+                                  ${escapeHtml(item.masterMatch.status)}
+                                  <br>
+
+                                  理由:
+                                  ${escapeHtml(
+                                    (
+                                      item.masterMatch.reasons || []
+                                    ).join(", ") ||
+                                    "なし"
+                                  )}
+                                  <br>
+
+                                  価格:
+                                  ${
+                                    item.price.priceStatus === "ok"
+                                      ? formatMoney(
+                                          item.price.priceJpy,
+                                          "JPY"
+                                        )
+                                      : escapeHtml(item.price.priceStatus)
+                                  }
+                                </div>
+                              </div>
+                            `
+                          )
+                          .join("")}
                       </div>
-                    `
-                  ).join("")}
-                </div>
-              </details>
-            `
-            : ""
-        }
+                    </details>
+                  `
+                  : ""
+              }
 
+              ${
+                pinkoiTshirtCatalog.items.some(
+                  item =>
+                    item.price.priceStatus === "price_missing" ||
+                    item.price.priceStatus === "price_conflict"
+                )
+                  ? `
+                    <details style="margin-top:12px;">
+                      <summary
+                        style="
+                          cursor:pointer;
+                          font-weight:800;
+                          padding:8px 0;
+                        "
+                      >
+                        日本価格の要確認
+                      </summary>
 
-        ${
-          pinkoiTshirtCatalog.summary.mappedVariants >
-          pinkoiTshirtCatalog.summary.pricedCount
-            ? `
-              <div
-                class="warning"
+                      <div style="margin-top:8px;">
+                        ${pinkoiTshirtCatalog.items
+                          .filter(
+                            item =>
+                              item.price.priceStatus === "price_missing" ||
+                              item.price.priceStatus === "price_conflict"
+                          )
+                          .map(
+                            item => `
+                              <div
+                                style="
+                                  padding:10px 0;
+                                  border-bottom:1px solid #ecece7;
+                                "
+                              >
+                                <div style="font-weight:700;">
+                                  ${escapeHtml(
+                                    [
+                                      item.names.design,
+                                      item.names.body,
+                                      item.names.color,
+                                      item.pinkoi.size
+                                    ]
+                                      .filter(Boolean)
+                                      .join(" / ")
+                                  )}
+                                </div>
+
+                                <div class="muted" style="margin-top:4px;">
+                                  SKU:
+                                  ${escapeHtml(item.sku || "未設定")}
+                                  <br>
+                                  ${escapeHtml(item.price.priceStatus)}
+                                  <br>
+                                  products:
+                                  ${formatMoney(
+                                    item.price.productPriceJpy || 0,
+                                    "JPY"
+                                  )}
+                                  /
+                                  inventory:
+                                  ${formatMoney(
+                                    item.price.inventoryPriceJpy || 0,
+                                    "JPY"
+                                  )}
+                                </div>
+                              </div>
+                            `
+                          )
+                          .join("")}
+                      </div>
+                    </details>
+                  `
+                  : ""
+              }
+
+              <button
+                id="syncPinkoiTshirtButton"
+                class="button"
+                type="button"
                 style="
-                  margin-top:12px;
+                  width:100%;
+                  min-height:52px;
+                  margin-top:14px;
                 "
               >
-                master対応済みのうち
-                ${
-                  pinkoiTshirtCatalog.summary.mappedVariants -
-                  pinkoiTshirtCatalog.summary.pricedCount
-                }
-                SKUは日本価格が未設定です。
+                診断済みSKU・日本価格を更新
+              </button>
+
+              <div
+                id="syncPinkoiTshirtMessage"
+                class="muted"
+                style="margin-top:10px;"
+              ></div>
+
+              <div
+                class="muted"
+                style="
+                  margin-top:12px;
+                  line-height:1.55;
+                "
+              >
+                同期対象は、SKUあり、重複なし、Body / Design / Color / Size がすべて matched のSKUだけです。診断表示だけではFirestoreを書き換えません。
               </div>
             `
-            : ""
         }
-
-
-        <button
-          id="syncPinkoiTshirtButton"
-          class="button"
-          type="button"
-          style="
-            width:100%;
-            min-height:52px;
-            margin-top:14px;
-          "
-        >
-          PinkoiからSKU・日本価格を更新
-        </button>
-
-
-        <div
-          id="syncPinkoiTshirtMessage"
-          class="muted"
-          style="
-            margin-top:10px;
-          "
-        ></div>
-
-
-        <div
-          class="muted"
-          style="
-            margin-top:12px;
-            line-height:1.55;
-          "
-        >
-          現地イベント価格はSales Manager側で別管理します。
-        </div>
 
       </section>
 
@@ -2117,7 +2245,7 @@ async function renderMorePage(sequence) {
 
             if (messageBox) {
               messageBox.textContent =
-                `${result.processed} SKUを更新しました。SKUあり ${result.skuCount}、日本価格あり ${result.pricedCount}、未対応 ${result.unmapped}。`;
+                `${result.processed} SKUを更新しました。matched ${result.mapped}、unmatched ${result.unmatched}、ambiguous ${result.ambiguous}、SKUなし ${result.missingSkuCount}、重複SKU ${result.duplicateSkuCount}、価格なし ${result.missingPriceCount}、価格不一致 ${result.priceConflictCount}。`;
             }
 
             setTimeout(
