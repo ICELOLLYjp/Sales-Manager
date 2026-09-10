@@ -83,8 +83,68 @@ function normalizeSession(id, data) {
       data?.fxRateMode || "manual_event_rate",
     status:
       data?.status || "open",
+
+    salesSummary: {
+      grossSales:
+        Number(
+          data
+            ?.salesSummary
+            ?.grossSales || 0
+        ),
+
+      discount:
+        Number(
+          data
+            ?.salesSummary
+            ?.discount || 0
+        ),
+
+      netSales:
+        Number(
+          data
+            ?.salesSummary
+            ?.netSales || 0
+        ),
+
+      transactionCount:
+        Number(
+          data
+            ?.salesSummary
+            ?.transactionCount || 0
+        ),
+
+      itemCount:
+        Number(
+          data
+            ?.salesSummary
+            ?.itemCount || 0
+        ),
+
+      grossSalesJPY:
+        Number(
+          data
+            ?.salesSummary
+            ?.grossSalesJPY || 0
+        ),
+
+      discountJPY:
+        Number(
+          data
+            ?.salesSummary
+            ?.discountJPY || 0
+        ),
+
+      netSalesJPY:
+        Number(
+          data
+            ?.salesSummary
+            ?.netSalesJPY || 0
+        )
+    },
+
     createdAt:
       data?.createdAt || null,
+
     updatedAt:
       data?.updatedAt || null
   };
