@@ -1079,7 +1079,7 @@ async function renderInventory(sequence) {
             font-size:12px;
           "
         >
-          在庫ありSKUだけを表示しています。Design列をコンパクトに固定し、TシャツはSizeを横にまとめています。
+          在庫ありSKUだけを表示しています。横スクロールする表はDesign列140pxで統一し、TシャツのSize列は56pxで表示しています。
         </div>
       </section>
 
@@ -1369,7 +1369,7 @@ async function renderInventory(sequence) {
               style="
                 display:grid;
                 grid-template-columns:
-                  128px
+                  140px
                   repeat(4,62px);
                 background:#f7f7f4;
                 border-bottom:1px solid #ecece7;
@@ -1465,7 +1465,7 @@ async function renderInventory(sequence) {
                     style="
                       display:grid;
                       grid-template-columns:
-                        128px
+                        140px
                         repeat(4,62px);
                       border-bottom:1px solid #ecece7;
                     "
@@ -6860,15 +6860,15 @@ async function renderSessions(
                             >
                               <div
                                 style="
-                                  min-width:620px;
+                                  min-width:420px;
                                 "
                               >
                                 <div
                                   style="
                                     display:grid;
                                     grid-template-columns:
-                                      minmax(190px,1.8fr)
-                                      repeat(5,72px);
+                                      140px
+                                      repeat(5,56px);
                                     gap:0;
                                     background:#f7f7f4;
                                     border-bottom:1px solid #ecece7;
@@ -6881,7 +6881,7 @@ async function renderSessions(
                                       position:sticky;
                                       left:0;
                                       z-index:4;
-                                      padding:9px 10px;
+                                      padding:8px;
                                       background:#f7f7f4;
                                       border-right:1px solid #e7e7e2;
                                       box-shadow:3px 0 6px rgba(0,0,0,.04);
@@ -6950,8 +6950,8 @@ async function renderSessions(
                                         style="
                                           display:grid;
                                           grid-template-columns:
-                                            minmax(190px,1.8fr)
-                                            repeat(5,72px);
+                                            140px
+                                            repeat(5,56px);
                                           gap:0;
                                           border-bottom:1px solid #ecece7;
                                         "
@@ -6961,7 +6961,7 @@ async function renderSessions(
                                             position:sticky;
                                             left:0;
                                             z-index:3;
-                                            padding:10px;
+                                            padding:8px;
                                             min-width:0;
                                             background:#fff;
                                             border-right:1px solid #e7e7e2;
@@ -6971,6 +6971,9 @@ async function renderSessions(
                                           <div
                                             style="
                                               font-weight:800;
+                                              font-size:14px;
+                                              line-height:1.2;
+                                              overflow-wrap:anywhere;
                                             "
                                           >
                                             ${escapeHtml(
@@ -6982,8 +6985,9 @@ async function renderSessions(
                                             class="muted"
                                             style="
                                               margin-top:3px;
-                                              line-height:1.4;
-                                              font-size:12px;
+                                              line-height:1.25;
+                                              font-size:10px;
+                                              overflow-wrap:anywhere;
                                             "
                                           >
                                             ${escapeHtml(
@@ -7000,12 +7004,8 @@ async function renderSessions(
                                             style="
                                               display:grid;
                                               grid-template-columns:
-                                                ${
-                                                  isFirstDesignRow
-                                                    ? "repeat(2,minmax(0,1fr))"
-                                                    : "minmax(0,1fr)"
-                                                };
-                                              gap:6px;
+                                                minmax(0,1fr);
+                                              gap:5px;
                                               margin-top:7px;
                                             "
                                           >
@@ -7172,9 +7172,9 @@ async function renderSessions(
                                                     `${group.design} ${group.body} ${group.color} ${size} イベント持参数`
                                                   )}"
                                                   style="
-                                                    width:58px;
+                                                    width:46px;
                                                     min-height:38px;
-                                                    padding:0 5px;
+                                                    padding:0 3px;
                                                     border:1px solid ${
                                                       outOfStock
                                                         ? "#e4e4df"
@@ -7182,7 +7182,7 @@ async function renderSessions(
                                                     };
                                                     border-radius:8px;
                                                     text-align:center;
-                                                    font-size:16px;
+                                                    font-size:15px;
                                                     ${
                                                       outOfStock
                                                         ? "background:#ededE9;color:#aaa;opacity:.72;"
@@ -7698,15 +7698,15 @@ async function renderSessions(
                                 >
                                   <div
                                     style="
-                                      min-width:620px;
+                                      min-width:420px;
                                     "
                                   >
                                     <div
                                       style="
                                         display:grid;
                                         grid-template-columns:
-                                          minmax(190px,1.8fr)
-                                          repeat(5,72px);
+                                          140px
+                                          repeat(5,56px);
                                         background:#f7f7f4;
                                         border-bottom:1px solid #ecece7;
                                         font-size:12px;
@@ -7715,7 +7715,7 @@ async function renderSessions(
                                     >
                                       <div
                                         style="
-                                          padding:9px 10px;
+                                          padding:8px;
                                         "
                                       >
                                         Design / Body / Color
@@ -7741,20 +7741,23 @@ async function renderSessions(
                                           style="
                                             display:grid;
                                             grid-template-columns:
-                                              minmax(190px,1.8fr)
-                                              repeat(5,72px);
+                                              140px
+                                              repeat(5,56px);
                                             border-bottom:1px solid #ecece7;
                                           "
                                         >
                                           <div
                                             style="
-                                              padding:10px;
+                                              padding:8px;
                                               min-width:0;
                                             "
                                           >
                                             <div
                                               style="
                                                 font-weight:800;
+                                                font-size:14px;
+                                                line-height:1.2;
+                                                overflow-wrap:anywhere;
                                               "
                                             >
                                               ${escapeHtml(
@@ -7766,8 +7769,9 @@ async function renderSessions(
                                               class="muted"
                                               style="
                                                 margin-top:3px;
-                                                font-size:12px;
-                                                line-height:1.4;
+                                                font-size:10px;
+                                                line-height:1.25;
+                                                overflow-wrap:anywhere;
                                               "
                                             >
                                               ${escapeHtml(
@@ -7833,7 +7837,7 @@ async function renderSessions(
                                                 >
                                                   <div
                                                     style="
-                                                      font-size:19px;
+                                                      font-size:18px;
                                                       font-weight:800;
                                                     "
                                                   >
@@ -15711,15 +15715,15 @@ async function renderPos(
                         >
                           <div
                             style="
-                              min-width:650px;
+                              min-width:420px;
                             "
                           >
                             <div
                               style="
                                 display:grid;
                                 grid-template-columns:
-                                  minmax(210px,1.9fr)
-                                  repeat(5,82px);
+                                  140px
+                                  repeat(5,56px);
                                 background:#f7f7f4;
                                 border-bottom:1px solid #ecece7;
                                 font-size:12px;
@@ -15728,7 +15732,13 @@ async function renderPos(
                             >
                               <div
                                 style="
-                                  padding:9px 10px;
+                                  position:sticky;
+                                  left:0;
+                                  z-index:4;
+                                  padding:8px;
+                                  background:#f7f7f4;
+                                  border-right:1px solid #e7e7e2;
+                                  box-shadow:3px 0 6px rgba(0,0,0,.04);
                                 "
                               >
                                 Design / Body / Color
@@ -15754,8 +15764,8 @@ async function renderPos(
                                   style="
                                     display:grid;
                                     grid-template-columns:
-                                      minmax(210px,1.9fr)
-                                      repeat(5,82px);
+                                      140px
+                                      repeat(5,56px);
                                     border-bottom:1px solid #ecece7;
                                   "
                                 >
@@ -15764,7 +15774,7 @@ async function renderPos(
                                       position:sticky;
                                       left:0;
                                       z-index:3;
-                                      padding:10px;
+                                      padding:8px;
                                       min-width:0;
                                       background:#fff;
                                       border-right:1px solid #e7e7e2;
@@ -15774,6 +15784,9 @@ async function renderPos(
                                     <div
                                       style="
                                         font-weight:800;
+                                        font-size:14px;
+                                        line-height:1.2;
+                                        overflow-wrap:anywhere;
                                       "
                                     >
                                       ${escapeHtml(
@@ -15785,8 +15798,9 @@ async function renderPos(
                                       class="muted"
                                       style="
                                         margin-top:3px;
-                                        font-size:12px;
-                                        line-height:1.4;
+                                        font-size:10px;
+                                        line-height:1.25;
+                                        overflow-wrap:anywhere;
                                       "
                                     >
                                       ${escapeHtml(
@@ -15855,8 +15869,8 @@ async function renderPos(
                                           type="button"
                                           ${soldOut ? "disabled" : ""}
                                           style="
-                                            min-height:74px;
-                                            padding:6px 4px;
+                                            min-height:66px;
+                                            padding:5px 2px;
                                             border:0;
                                             border-left:1px solid #f0f0ec;
                                             background:${
@@ -15884,8 +15898,9 @@ async function renderPos(
                                         >
                                           <div
                                             style="
-                                              font-size:11px;
+                                              font-size:10px;
                                               color:inherit;
+                                              white-space:nowrap;
                                             "
                                           >
                                             ${
@@ -15897,10 +15912,11 @@ async function renderPos(
 
                                           <div
                                             style="
-                                              margin-top:4px;
-                                              font-size:11px;
+                                              margin-top:3px;
+                                              font-size:9px;
                                               font-weight:800;
-                                              line-height:1.2;
+                                              line-height:1.15;
+                                              white-space:nowrap;
                                             "
                                           >
                                             ${
@@ -15919,9 +15935,10 @@ async function renderPos(
                                               ? `
                                                 <div
                                                   style="
-                                                    margin-top:4px;
-                                                    font-size:10px;
+                                                    margin-top:3px;
+                                                    font-size:9px;
                                                     font-weight:800;
+                                                    white-space:nowrap;
                                                   "
                                                 >
                                                   会計 ${cartQty}
