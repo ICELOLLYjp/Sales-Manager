@@ -7456,7 +7456,7 @@ async function renderSessions(
                                 line-height:1.55;
                               "
                             >
-                              「終了実数」には会場で実際に数えた数量を入力します。システム在庫のコピーは動作確認用・入力補助です。
+                              「終了実数」には会場で実際に数えた数量を入力します。会社全体の実在庫ではなく、このイベントの「計算残数」を基準に確認してください。
                             </div>
 
                             <div
@@ -7472,14 +7472,14 @@ async function renderSessions(
                               "
                             >
                               <button
-                                id="copySystemStockToClosingButton"
+                                id="copyCalculatedStockToClosingButton"
                                 type="button"
                                 class="button button-secondary"
                                 style="
                                   min-height:44px;
                                 "
                               >
-                                システム在庫をコピー
+                                計算残数を終了実数へコピー
                               </button>
 
                               <button
@@ -7584,7 +7584,11 @@ async function renderSessions(
                                       data-variant-id="${escapeHtml(
                                         opening.variantId
                                       )}"
-                                      data-system-qty="${systemQty}"
+                                      data-calculated-qty="${Math.max(
+                                        0,
+                                        rowExpected
+                                      )}"
+                                      data-global-stock-qty="${systemQty}"
                                       style="
                                         padding:12px 0;
                                         border-bottom:1px solid #ecece7;
@@ -7660,17 +7664,29 @@ async function renderSessions(
                                           </div>
 
                                           <div>
-                                            計算
-                                            <strong>
-                                              ${rowExpected}
+                                            イベント残数
+                                            <strong
+                                              style="
+                                                font-size:15px;
+                                              "
+                                            >
+                                              ${Math.max(
+                                                0,
+                                                rowExpected
+                                              )}
                                             </strong>
                                           </div>
 
-                                          <div>
-                                            現在庫
-                                            <strong>
-                                              ${systemQty}
-                                            </strong>
+                                          <div
+                                            class="muted"
+                                            style="
+                                              margin-top:2px;
+                                              font-size:10px;
+                                            "
+                                          >
+                                            会社実在庫
+                                            ${systemQty}
+                                            （参考）
                                           </div>
                                         </div>
                                       </div>
@@ -7715,6 +7731,18 @@ async function renderSessions(
                                           style="${inputStyle()}"
                                         >
                                       </label>
+
+                                      <div
+                                        class="inventoryClosingDifference muted"
+                                        data-variant-id="${escapeHtml(
+                                          opening.variantId
+                                        )}"
+                                        style="
+                                          margin-top:5px;
+                                          font-size:12px;
+                                          min-height:18px;
+                                        "
+                                      ></div>
 
                                       <details
                                         style="
@@ -10323,9 +10351,78 @@ async function renderSessions(
       );
 
 
+    function updateClosingDifference(
+      row
+    ) {
+      const input =
+        row.querySelector(
+          ".inventoryClosingQty"
+        );
+
+      const differenceBox =
+        row.querySelector(
+          ".inventoryClosingDifference"
+        );
+
+      if (
+        !input ||
+        !differenceBox
+      ) {
+        return;
+      }
+
+      if (
+        input.value ===
+        ""
+      ) {
+        differenceBox.textContent =
+          "";
+
+        return;
+      }
+
+      const calculatedQty =
+        Number(
+          row.dataset
+            .calculatedQty ||
+          0
+        );
+
+      const actualQty =
+        Math.max(
+          0,
+          Number(
+            input.value ||
+            0
+          )
+        );
+
+      const difference =
+        calculatedQty -
+        actualQty;
+
+      if (
+        difference ===
+        0
+      ) {
+        differenceBox.textContent =
+          "計算残数と一致";
+
+        return;
+      }
+
+      differenceBox.textContent =
+        difference > 0
+          ? `差異：${difference} 点不足`
+          : `差異：${Math.abs(
+              difference
+            )} 点超過`;
+    }
+
+
     document
       .querySelector(
-        "#copySystemStockToClosingButton"
+        "#copyCalculatedStockToClosingButton"
       )
       ?.addEventListener(
         "click",
@@ -10346,11 +10443,55 @@ async function renderSessions(
                 ) {
                   input.value =
                     row.dataset
-                      .systemQty ||
+                      .calculatedQty ||
                     "0";
+
+                  updateClosingDifference(
+                    row
+                  );
                 }
               }
             );
+        }
+      );
+
+
+    document
+      .querySelectorAll(
+        ".inventoryClosingQty"
+      )
+      .forEach(
+        input => {
+          input.addEventListener(
+            "input",
+            () => {
+              const row =
+                input.closest(
+                  ".inventoryCountRow"
+                );
+
+              if (
+                row
+              ) {
+                updateClosingDifference(
+                  row
+                );
+              }
+            }
+          );
+
+          const row =
+            input.closest(
+              ".inventoryCountRow"
+            );
+
+          if (
+            row
+          ) {
+            updateClosingDifference(
+              row
+            );
+          }
         }
       );
 
@@ -10369,6 +10510,17 @@ async function renderSessions(
             .forEach(
               input => {
                 input.value =
+                  "";
+              }
+            );
+
+          document
+            .querySelectorAll(
+              ".inventoryClosingDifference"
+            )
+            .forEach(
+              box => {
+                box.textContent =
                   "";
               }
             );
