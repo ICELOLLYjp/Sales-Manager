@@ -81,163 +81,800 @@ function inputStyle() {
 async function renderInventory(sequence) {
   view.innerHTML = `
     <h1 class="page-title">Inventory</h1>
-    <p class="page-note">読み込み中</p>
+    <p class="page-note">在庫を読み込んでいます</p>
   `;
 
   try {
-    const inventory = await tshirtAdapter.getInventorySnapshot();
+    const [
+      tshirtInventory,
+      accessoryCatalog,
+      allVariants
+    ] = await Promise.all([
+      tshirtAdapter.getInventorySnapshot(),
+      accessoryAdapter.getCatalogSnapshot(),
+      listAllProductVariants()
+    ]);
 
-    let registered = [];
-    try {
-      registered = await loadTshirtProductVariants();
-    } catch (error) {
-      console.warn("productVariants read failed", error);
+    if (sequence !== renderSequence) {
+      return;
     }
 
-    if (sequence !== renderSequence) return;
+    const tshirtRows =
+      tshirtInventory.rows;
 
-    const rows = inventory.rows;
-    const registeredMap = new Map(
-      registered.map(item => [item.variantId || item.id, item])
-    );
+    const tshirtRegistered =
+      allVariants.filter(
+        item =>
+          item.productId === "tshirt" ||
+          item.category === "tshirt"
+      );
 
-    const currentIds = new Set(rows.map(row => row.variantId));
+    const tshirtRegisteredMap =
+      new Map(
+        tshirtRegistered.map(
+          item => [
+            item.variantId ||
+            item.id,
+            item
+          ]
+        )
+      );
 
-    const unregisteredRows = rows.filter(
-      row => !registeredMap.has(row.variantId)
-    );
+    const tshirtCurrentIds =
+      new Set(
+        tshirtRows.map(
+          row =>
+            row.variantId
+        )
+      );
 
-    const soldOutRegistered = registered.filter(
-      item => !currentIds.has(item.variantId || item.id)
-    );
+    const tshirtUnregistered =
+      tshirtRows.filter(
+        row =>
+          !tshirtRegisteredMap.has(
+            row.variantId
+          )
+      );
+
+    const tshirtSoldOut =
+      tshirtRegistered.filter(
+        item =>
+          !tshirtCurrentIds.has(
+            item.variantId ||
+            item.id
+          )
+      );
+
+    const accessoryRows =
+      accessoryCatalog.rows;
+
+    const accessoryRegistered =
+      allVariants.filter(
+        item =>
+          item.inventorySource ===
+          "accessory"
+      );
+
+    const accessoryRegisteredMap =
+      new Map(
+        accessoryRegistered.map(
+          item => [
+            item.variantId ||
+            item.id,
+            item
+          ]
+        )
+      );
+
+    const accessoryCurrentIds =
+      new Set(
+        accessoryRows.map(
+          row =>
+            row.variantId
+        )
+      );
+
+    const accessoryUnregistered =
+      accessoryRows.filter(
+        row =>
+          !accessoryRegisteredMap.has(
+            row.variantId
+          )
+      );
+
+    const accessorySoldOut =
+      accessoryRegistered.filter(
+        item =>
+          !accessoryCurrentIds.has(
+            item.variantId ||
+            item.id
+          )
+      );
+
+    const accessoryCategories = [
+      {
+        id:
+          "pierce",
+        label:
+          "ピアス"
+      },
+      {
+        id:
+          "earring",
+        label:
+          "イヤリング"
+      },
+      {
+        id:
+          "drop_pierce",
+        label:
+          "ドロップタイプピアス"
+      },
+      {
+        id:
+          "drop_earring",
+        label:
+          "ドロップタイプイヤリング"
+      }
+    ];
+
+    const totalTrackedStock =
+      Number(
+        tshirtInventory
+          .summary
+          .totalStock || 0
+      ) +
+      Number(
+        accessoryCatalog
+          .summary
+          .totalStock || 0
+      );
+
+    function categoryCurrentRows(
+      category
+    ) {
+      return accessoryRows
+        .filter(
+          row =>
+            row.category ===
+            category
+        );
+    }
+
+    function categoryRegisteredCount(
+      category
+    ) {
+      return accessoryRegistered
+        .filter(
+          item =>
+            item.category ===
+            category
+        )
+        .length;
+    }
 
     view.innerHTML = `
-      <h1 class="page-title">Inventory</h1>
-      <p class="page-note">Tシャツ商品カタログ</p>
+      <h1 class="page-title">
+        Inventory
+      </h1>
+
+      <p class="page-note">
+        Tシャツとアクセサリー
+      </p>
+
 
       <div class="grid grid-2">
-        <section class="card">
-          <div class="metric">${inventory.summary.totalStock}</div>
-          <div class="metric-label">T Shirt Stock</div>
-        </section>
 
         <section class="card">
-          <div class="metric">${inventory.summary.activeSkuCount}</div>
-          <div class="metric-label">In Stock SKU</div>
+          <div class="metric">
+            ${totalTrackedStock}
+          </div>
+
+          <div class="metric-label">
+            Tracked Stock
+          </div>
         </section>
 
-        <section class="card">
-          <div class="metric">${registered.length}</div>
-          <div class="metric-label">Registered SKU</div>
-        </section>
 
         <section class="card">
-          <div class="metric">${soldOutRegistered.length}</div>
-          <div class="metric-label">Sold Out SKU</div>
+          <div class="metric">
+            ${tshirtInventory.summary.totalStock}
+          </div>
+
+          <div class="metric-label">
+            T Shirt
+          </div>
         </section>
+
+
+        <section class="card">
+          <div class="metric">
+            ${accessoryCatalog.summary.totalStock}
+          </div>
+
+          <div class="metric-label">
+            Accessory
+          </div>
+        </section>
+
+
+        <section class="card">
+          <div class="metric">
+            ${
+              tshirtRegistered.length +
+              accessoryRegistered.length
+            }
+          </div>
+
+          <div class="metric-label">
+            Registered SKU
+          </div>
+        </section>
+
       </div>
 
-      <section class="card">
-        <div class="card-title">商品カタログ</div>
 
-        <div class="list-row"><span>現在在庫SKU</span><strong>${rows.length}</strong></div>
-        <div class="list-row"><span>登録済みSKU</span><strong>${registered.length}</strong></div>
-        <div class="list-row"><span>未登録の在庫SKU</span><strong>${unregisteredRows.length}</strong></div>
-        <div class="list-row"><span>登録済み在庫0</span><strong>${soldOutRegistered.length}</strong></div>
+      <section class="card">
+
+        <div class="card-title">
+          Tシャツ
+        </div>
+
+
+        <div class="list-row">
+          <span>
+            現在在庫
+          </span>
+
+          <strong>
+            ${tshirtInventory.summary.totalStock}
+          </strong>
+        </div>
+
+
+        <div class="list-row">
+          <span>
+            在庫ありSKU
+          </span>
+
+          <strong>
+            ${tshirtRows.length}
+          </strong>
+        </div>
+
+
+        <div class="list-row">
+          <span>
+            登録済みSKU
+          </span>
+
+          <strong>
+            ${tshirtRegistered.length}
+          </strong>
+        </div>
+
+
+        <div class="list-row">
+          <span>
+            登録済み在庫0
+          </span>
+
+          <strong>
+            ${tshirtSoldOut.length}
+          </strong>
+        </div>
+
 
         ${
-          unregisteredRows.length
+          tshirtUnregistered.length
             ? `
-              <button id="syncTshirtCatalogButton" class="button" type="button" style="width:100%;margin-top:16px;">
-                現在在庫のSKUを商品登録
+              <div class="list-row">
+                <span>
+                  未登録の在庫SKU
+                </span>
+
+                <strong>
+                  ${tshirtUnregistered.length}
+                </strong>
+              </div>
+
+              <button
+                id="syncTshirtCatalogButton"
+                class="button"
+                type="button"
+                style="
+                  width:100%;
+                  margin-top:14px;
+                "
+              >
+                現在在庫のTシャツSKUを商品登録
               </button>
-              <div id="syncTshirtCatalogMessage" class="muted" style="margin-top:10px;"></div>
+
+              <div
+                id="syncTshirtCatalogMessage"
+                class="muted"
+                style="margin-top:10px;"
+              ></div>
             `
             : `
-              <div class="muted" style="margin-top:12px;">
-                現在在庫のSKUはすべて商品登録済みです。
+              <div
+                class="muted"
+                style="margin-top:12px;"
+              >
+                現在在庫のTシャツSKUはすべて登録済みです。
               </div>
             `
         }
+
       </section>
+
 
       <section class="card">
-        <div class="card-title">Current Stock</div>
 
-        ${rows.map(row => `
-          <div class="list-row">
-            <div>
-              <div style="font-weight:700;margin-bottom:4px;">${escapeHtml(row.design)}</div>
-              <div class="muted">
-                ${escapeHtml(row.body)} / ${escapeHtml(row.color)} / ${escapeHtml(row.size)}
+        <div class="card-title">
+          アクセサリー
+        </div>
+
+
+        <div class="list-row">
+          <span>
+            現在在庫
+          </span>
+
+          <strong>
+            ${accessoryCatalog.summary.totalStock}
+          </strong>
+        </div>
+
+
+        <div class="list-row">
+          <span>
+            在庫ありSKU
+          </span>
+
+          <strong>
+            ${accessoryRows.length}
+          </strong>
+        </div>
+
+
+        <div class="list-row">
+          <span>
+            登録済みSKU
+          </span>
+
+          <strong>
+            ${accessoryRegistered.length}
+          </strong>
+        </div>
+
+
+        <div class="list-row">
+          <span>
+            登録済み在庫0
+          </span>
+
+          <strong>
+            ${accessorySoldOut.length}
+          </strong>
+        </div>
+
+
+        ${
+          accessoryUnregistered.length
+            ? `
+              <div class="list-row">
+                <span>
+                  未登録の在庫SKU
+                </span>
+
+                <strong>
+                  ${accessoryUnregistered.length}
+                </strong>
               </div>
-            </div>
 
-            <div style="text-align:right;">
-              <div style="font-size:20px;font-weight:800;">${row.quantity}</div>
-              <div class="muted">${registeredMap.has(row.variantId) ? "登録済み" : "未登録"}</div>
-            </div>
-          </div>
-        `).join("")}
+              <button
+                id="syncAccessoryCatalogButtonInventory"
+                class="button"
+                type="button"
+                style="
+                  width:100%;
+                  margin-top:14px;
+                "
+              >
+                現在在庫のアクセサリーSKUを商品登録
+              </button>
+
+              <div
+                id="syncAccessoryCatalogMessageInventory"
+                class="muted"
+                style="margin-top:10px;"
+              ></div>
+            `
+            : `
+              <div
+                class="muted"
+                style="margin-top:12px;"
+              >
+                現在在庫のアクセサリーSKUはすべて登録済みです。
+              </div>
+            `
+        }
+
+
+        <div
+          style="
+            margin-top:14px;
+            padding-top:12px;
+            border-top:1px solid #ecece7;
+          "
+        >
+
+          ${accessoryCategories.map(
+            category => {
+              const current =
+                categoryCurrentRows(
+                  category.id
+                );
+
+              const stock =
+                current.reduce(
+                  (
+                    sum,
+                    row
+                  ) =>
+                    sum +
+                    Number(
+                      row.quantity || 0
+                    ),
+                  0
+                );
+
+              return `
+                <div class="list-row">
+
+                  <span>
+                    ${escapeHtml(
+                      category.label
+                    )}
+                  </span>
+
+                  <span
+                    style="
+                      text-align:right;
+                    "
+                  >
+                    <strong>
+                      ${stock}
+                    </strong>
+
+                    <span class="muted">
+                      /
+                      ${
+                        categoryRegisteredCount(
+                          category.id
+                        )
+                      }
+                      SKU
+                    </span>
+                  </span>
+
+                </div>
+              `;
+            }
+          ).join("")}
+
+        </div>
+
       </section>
 
+
       ${
-        soldOutRegistered.length
+        accessoryRows.length
           ? `
             <section class="card">
-              <div class="card-title">Sold Out</div>
 
-              ${soldOutRegistered.map(row => `
-                <div class="list-row">
-                  <div>
-                    <div style="font-weight:700;margin-bottom:4px;">${escapeHtml(row.design || "")}</div>
-                    <div class="muted">
-                      ${escapeHtml(row.body || "")} / ${escapeHtml(row.color || "")} / ${escapeHtml(row.size || "")}
+              <div class="card-title">
+                Accessory Current Stock
+              </div>
+
+
+              ${accessoryRows.map(
+                row => `
+                  <div class="list-row">
+
+                    <div>
+
+                      <div
+                        style="
+                          font-weight:700;
+                          margin-bottom:4px;
+                        "
+                      >
+                        ${escapeHtml(
+                          row.displayName
+                        )}
+                      </div>
+
+                      <div class="muted">
+                        ${escapeHtml(
+                          row.categoryLabel
+                        )}
+                      </div>
+
                     </div>
+
+
+                    <div
+                      style="
+                        text-align:right;
+                      "
+                    >
+
+                      <div
+                        style="
+                          font-size:20px;
+                          font-weight:800;
+                        "
+                      >
+                        ${row.quantity}
+                      </div>
+
+                      <div class="muted">
+                        ${
+                          accessoryRegisteredMap.has(
+                            row.variantId
+                          )
+                            ? "登録済み"
+                            : "未登録"
+                        }
+                      </div>
+
+                    </div>
+
                   </div>
-                  <strong>0</strong>
-                </div>
-              `).join("")}
+                `
+              ).join("")}
+
             </section>
           `
           : ""
       }
+
+
+      <section class="card">
+
+        <div class="card-title">
+          T Shirt Current Stock
+        </div>
+
+
+        ${tshirtRows.map(
+          row => `
+            <div class="list-row">
+
+              <div>
+
+                <div
+                  style="
+                    font-weight:700;
+                    margin-bottom:4px;
+                  "
+                >
+                  ${escapeHtml(
+                    row.design
+                  )}
+                </div>
+
+                <div class="muted">
+                  ${escapeHtml(
+                    row.body
+                  )}
+                  /
+                  ${escapeHtml(
+                    row.color
+                  )}
+                  /
+                  ${escapeHtml(
+                    row.size
+                  )}
+                </div>
+
+              </div>
+
+
+              <div
+                style="
+                  text-align:right;
+                "
+              >
+
+                <div
+                  style="
+                    font-size:20px;
+                    font-weight:800;
+                  "
+                >
+                  ${row.quantity}
+                </div>
+
+                <div class="muted">
+                  ${
+                    tshirtRegisteredMap.has(
+                      row.variantId
+                    )
+                      ? "登録済み"
+                      : "未登録"
+                  }
+                </div>
+
+              </div>
+
+            </div>
+          `
+        ).join("")}
+
+      </section>
     `;
 
-    const syncButton = document.querySelector("#syncTshirtCatalogButton");
 
-    syncButton?.addEventListener("click", async () => {
-      const message = document.querySelector("#syncTshirtCatalogMessage");
-      syncButton.disabled = true;
-      syncButton.textContent = "登録中";
+    const tshirtSyncButton =
+      document.querySelector(
+        "#syncTshirtCatalogButton"
+      );
 
-      try {
-        const result = await syncTshirtCurrentStockRows(unregisteredRows);
 
-        if (message) {
-          message.textContent = `${result.processed} SKUを登録しました。`;
+    tshirtSyncButton
+      ?.addEventListener(
+        "click",
+        async () => {
+
+          const message =
+            document.querySelector(
+              "#syncTshirtCatalogMessage"
+            );
+
+
+          tshirtSyncButton.disabled =
+            true;
+
+
+          tshirtSyncButton.textContent =
+            "登録中";
+
+
+          try {
+
+            const result =
+              await syncTshirtCurrentStockRows(
+                tshirtUnregistered
+              );
+
+
+            if (message) {
+
+              message.textContent =
+                `${result.processed} SKUを登録しました。`;
+            }
+
+
+            await renderInventory(
+              ++renderSequence
+            );
+
+
+          } catch (error) {
+
+            tshirtSyncButton.disabled =
+              false;
+
+
+            tshirtSyncButton.textContent =
+              "現在在庫のTシャツSKUを商品登録";
+
+
+            if (message) {
+
+              message.textContent =
+                error.code ||
+                error.message ||
+                String(error);
+            }
+          }
         }
+      );
 
-        await renderInventory(++renderSequence);
 
-      } catch (error) {
-        syncButton.disabled = false;
-        syncButton.textContent = "現在在庫のSKUを商品登録";
+    const accessorySyncButton =
+      document.querySelector(
+        "#syncAccessoryCatalogButtonInventory"
+      );
 
-        if (message) {
-          message.textContent = error.code || error.message || String(error);
+
+    accessorySyncButton
+      ?.addEventListener(
+        "click",
+        async () => {
+
+          const message =
+            document.querySelector(
+              "#syncAccessoryCatalogMessageInventory"
+            );
+
+
+          accessorySyncButton.disabled =
+            true;
+
+
+          accessorySyncButton.textContent =
+            "登録中";
+
+
+          try {
+
+            const result =
+              await syncAccessoryCatalogRows(
+                accessoryUnregistered
+              );
+
+
+            if (message) {
+
+              message.textContent =
+                `${result.processed} SKUを登録しました。`;
+            }
+
+
+            await renderInventory(
+              ++renderSequence
+            );
+
+
+          } catch (error) {
+
+            accessorySyncButton.disabled =
+              false;
+
+
+            accessorySyncButton.textContent =
+              "現在在庫のアクセサリーSKUを商品登録";
+
+
+            if (message) {
+
+              message.textContent =
+                error.code ||
+                error.message ||
+                String(error);
+            }
+          }
         }
-      }
-    });
+      );
 
-    syncStatus.textContent = "Firebase";
+
+    syncStatus.textContent =
+      "Firebase";
+
 
   } catch (error) {
-    console.error(error);
+
+    console.error(
+      error
+    );
+
 
     view.innerHTML = `
-      <h1 class="page-title">Inventory</h1>
-      <div class="warning">${escapeHtml(error.code || error.message || error)}</div>
+      <h1 class="page-title">
+        Inventory
+      </h1>
+
+      <div class="warning">
+        ${escapeHtml(
+          error.code ||
+          error.message ||
+          error
+        )}
+      </div>
     `;
   }
 }
