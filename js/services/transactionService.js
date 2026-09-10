@@ -58,6 +58,52 @@ function normalizeItems(items) {
         safeNumber(item?.unitPrice)
       );
 
+      const grossLineTotal =
+        quantity *
+        unitPrice;
+
+      const requestedSetDiscount =
+        Math.max(
+          0,
+          safeNumber(
+            item?.setDiscount
+          )
+        );
+
+      const setDiscount =
+        Math.min(
+          requestedSetDiscount,
+          grossLineTotal
+        );
+
+      const afterSet =
+        Math.max(
+          0,
+          grossLineTotal -
+          setDiscount
+        );
+
+      const requestedManualDiscount =
+        Math.max(
+          0,
+          safeNumber(
+            item?.manualDiscount
+          )
+        );
+
+      const manualDiscount =
+        Math.min(
+          requestedManualDiscount,
+          afterSet
+        );
+
+      const netBeforeOrder =
+        Math.max(
+          0,
+          afterSet -
+          manualDiscount
+        );
+
       const variantId =
         String(
           item?.variantId || ""
@@ -86,8 +132,38 @@ function normalizeItems(items) {
 
         unitPrice,
 
-        grossLineTotal:
-          quantity * unitPrice,
+        grossLineTotal,
+
+        setDiscount,
+
+        manualDiscount,
+
+        lineDiscountBeforeOrder:
+          setDiscount +
+          manualDiscount,
+
+        netBeforeOrder,
+
+        setOffer: {
+          quantity:
+            Math.max(
+              0,
+              Math.floor(
+                safeNumber(
+                  item?.setOffer
+                    ?.quantity
+                )
+              )
+            ),
+          price:
+            Math.max(
+              0,
+              safeNumber(
+                item?.setOffer
+                  ?.price
+              )
+            )
+        },
 
         trackingMode:
           variantId
@@ -110,15 +186,137 @@ function normalizeItems(items) {
     );
 }
 
+function allocateOrderDiscount(
+  items,
+  orderDiscount
+) {
+  const beforeOrder =
+    items.reduce(
+      (sum, item) =>
+        sum +
+        item.netBeforeOrder,
+      0
+    );
+
+  const cleanOrderDiscount =
+    Math.max(
+      0,
+      Math.min(
+        safeNumber(
+          orderDiscount
+        ),
+        beforeOrder
+      )
+    );
+
+  let allocated = 0;
+
+  const eligibleIndexes =
+    items
+      .map(
+        (item, index) => ({
+          item,
+          index
+        })
+      )
+      .filter(
+        entry =>
+          entry.item
+            .netBeforeOrder >
+          0
+      )
+      .map(
+        entry =>
+          entry.index
+      );
+
+  return {
+    orderDiscount:
+      cleanOrderDiscount,
+
+    items:
+      items.map(
+        (
+          item,
+          index
+        ) => {
+          let allocation = 0;
+
+          const eligiblePosition =
+            eligibleIndexes
+              .indexOf(
+                index
+              );
+
+          if (
+            cleanOrderDiscount > 0 &&
+            eligiblePosition >= 0
+          ) {
+            const isLast =
+              eligiblePosition ===
+              eligibleIndexes.length -
+              1;
+
+            allocation =
+              isLast
+                ? (
+                    cleanOrderDiscount -
+                    allocated
+                  )
+                : (
+                    cleanOrderDiscount *
+                    (
+                      item.netBeforeOrder /
+                      beforeOrder
+                    )
+                  );
+
+            allocation =
+              Math.max(
+                0,
+                Math.min(
+                  allocation,
+                  item.netBeforeOrder
+                )
+              );
+
+            allocated +=
+              allocation;
+          }
+
+          return {
+            ...item,
+
+            orderDiscountAllocated:
+              allocation,
+
+            totalLineDiscount:
+              item.lineDiscountBeforeOrder +
+              allocation,
+
+            netLineTotal:
+              Math.max(
+                0,
+                item.netBeforeOrder -
+                allocation
+              )
+          };
+        }
+      )
+  };
+}
+
 function fingerprintFor({
   sessionId,
   currency,
   items,
+  orderDiscount,
   discount
 }) {
   return JSON.stringify({
     sessionId,
     currency,
+    orderDiscount,
     discount,
     items: items.map(
       item => ({
@@ -128,6 +326,10 @@ function fingerprintFor({
           item.quantity,
         unitPrice:
           item.unitPrice,
+        setDiscount:
+          item.setDiscount,
+        manualDiscount:
+          item.manualDiscount,
         trackingMode:
           item.trackingMode,
         variantId:
@@ -256,8 +458,17 @@ export async function commitQuickSale({
     );
   }
 
+  const allocation =
+    allocateOrderDiscount(
+      normalizedItems,
+      orderDiscount
+    );
+
+  const pricedItems =
+    allocation.items;
+
   const subtotal =
-    normalizedItems.reduce(
+    pricedItems.reduce(
       (sum, item) =>
         sum +
         item.grossLineTotal,
@@ -265,21 +476,36 @@ export async function commitQuickSale({
     );
 
   const itemCount =
-    normalizedItems.reduce(
+    pricedItems.reduce(
       (sum, item) =>
         sum +
         item.quantity,
       0
     );
 
-  const discount =
-    Math.max(
-      0,
-      Math.min(
-        safeNumber(orderDiscount),
-        subtotal
-      )
+  const setDiscount =
+    pricedItems.reduce(
+      (sum, item) =>
+        sum +
+        item.setDiscount,
+      0
     );
+
+  const lineDiscount =
+    pricedItems.reduce(
+      (sum, item) =>
+        sum +
+        item.manualDiscount,
+      0
+    );
+
+  const cleanOrderDiscount =
+    allocation.orderDiscount;
+
+  const discount =
+    setDiscount +
+    lineDiscount +
+    cleanOrderDiscount;
 
   const netSales =
     Math.max(
@@ -410,6 +636,10 @@ export async function commitQuickSale({
             duplicate: true,
             currency,
             subtotal,
+            setDiscount,
+            lineDiscount,
+            orderDiscount:
+              cleanOrderDiscount,
             discount,
             netSales,
             itemCount
@@ -423,7 +653,7 @@ export async function commitQuickSale({
         const variantSnapshots =
           new Map();
 
-        for (const item of normalizedItems) {
+        for (const item of pricedItems) {
           if (!item.variantId) {
             continue;
           }
@@ -459,7 +689,7 @@ export async function commitQuickSale({
           false;
 
         const resolvedItems =
-          normalizedItems.map(
+          pricedItems.map(
             item => {
               if (!item.variantId) {
                 return {
@@ -772,6 +1002,24 @@ export async function commitQuickSale({
               fxRateToJPY
             : null;
 
+        const setDiscountJPY =
+          fxRateToJPY
+            ? setDiscount *
+              fxRateToJPY
+            : null;
+
+        const lineDiscountJPY =
+          fxRateToJPY
+            ? lineDiscount *
+              fxRateToJPY
+            : null;
+
+        const orderDiscountJPY =
+          fxRateToJPY
+            ? cleanOrderDiscount *
+              fxRateToJPY
+            : null;
+
         const discountJPY =
           fxRateToJPY
             ? discount *
@@ -898,11 +1146,24 @@ export async function commitQuickSale({
           grossSales:
             subtotal,
 
+          setDiscount,
+
+          lineDiscount,
+
+          orderDiscount:
+            cleanOrderDiscount,
+
           discount,
 
           netSales,
 
           grossSalesJPY,
+
+          setDiscountJPY,
+
+          lineDiscountJPY,
+
+          orderDiscountJPY,
 
           discountJPY,
 
@@ -1047,6 +1308,21 @@ export async function commitQuickSale({
           "salesSummary.grossSales":
             increment(subtotal),
 
+          "salesSummary.setDiscount":
+            increment(
+              setDiscount
+            ),
+
+          "salesSummary.lineDiscount":
+            increment(
+              lineDiscount
+            ),
+
+          "salesSummary.orderDiscount":
+            increment(
+              cleanOrderDiscount
+            ),
+
           "salesSummary.discount":
             increment(discount),
 
@@ -1072,6 +1348,27 @@ export async function commitQuickSale({
           ] =
             increment(
               grossSalesJPY
+            );
+
+          sessionUpdate[
+            "salesSummary.setDiscountJPY"
+          ] =
+            increment(
+              setDiscountJPY
+            );
+
+          sessionUpdate[
+            "salesSummary.lineDiscountJPY"
+          ] =
+            increment(
+              lineDiscountJPY
+            );
+
+          sessionUpdate[
+            "salesSummary.orderDiscountJPY"
+          ] =
+            increment(
+              orderDiscountJPY
             );
 
           sessionUpdate[
@@ -1101,6 +1398,10 @@ export async function commitQuickSale({
             false,
           currency,
           subtotal,
+          setDiscount,
+          lineDiscount,
+          orderDiscount:
+            cleanOrderDiscount,
           discount,
           netSales,
           itemCount,
@@ -1520,6 +1821,8 @@ export async function voidSaleTransaction({
         {};
 
       const nextSummary = {
+        ...currentSummary,
+
         grossSales:
           Math.max(
             0,
@@ -1528,6 +1831,39 @@ export async function voidSaleTransaction({
             ) -
             safeNumber(
               sale?.grossSales
+            )
+          ),
+
+        setDiscount:
+          Math.max(
+            0,
+            safeNumber(
+              currentSummary.setDiscount
+            ) -
+            safeNumber(
+              sale?.setDiscount
+            )
+          ),
+
+        lineDiscount:
+          Math.max(
+            0,
+            safeNumber(
+              currentSummary.lineDiscount
+            ) -
+            safeNumber(
+              sale?.lineDiscount
+            )
+          ),
+
+        orderDiscount:
+          Math.max(
+            0,
+            safeNumber(
+              currentSummary.orderDiscount
+            ) -
+            safeNumber(
+              sale?.orderDiscount
             )
           ),
 
@@ -1596,6 +1932,60 @@ export async function voidSaleTransaction({
             ) -
             safeNumber(
               sale.grossSalesJPY
+            )
+          );
+      }
+
+      if (
+        sale?.setDiscountJPY !==
+        null &&
+        sale?.setDiscountJPY !==
+        undefined
+      ) {
+        nextSummary.setDiscountJPY =
+          Math.max(
+            0,
+            safeNumber(
+              currentSummary.setDiscountJPY
+            ) -
+            safeNumber(
+              sale.setDiscountJPY
+            )
+          );
+      }
+
+      if (
+        sale?.lineDiscountJPY !==
+        null &&
+        sale?.lineDiscountJPY !==
+        undefined
+      ) {
+        nextSummary.lineDiscountJPY =
+          Math.max(
+            0,
+            safeNumber(
+              currentSummary.lineDiscountJPY
+            ) -
+            safeNumber(
+              sale.lineDiscountJPY
+            )
+          );
+      }
+
+      if (
+        sale?.orderDiscountJPY !==
+        null &&
+        sale?.orderDiscountJPY !==
+        undefined
+      ) {
+        nextSummary.orderDiscountJPY =
+          Math.max(
+            0,
+            safeNumber(
+              currentSummary.orderDiscountJPY
+            ) -
+            safeNumber(
+              sale.orderDiscountJPY
             )
           );
       }

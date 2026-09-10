@@ -101,6 +101,24 @@ export async function listSessionTransactions(
               ?.grossSales || 0
           ),
 
+        setDiscount:
+          Number(
+            item.data()
+              ?.setDiscount || 0
+          ),
+
+        lineDiscount:
+          Number(
+            item.data()
+              ?.lineDiscount || 0
+          ),
+
+        orderDiscount:
+          Number(
+            item.data()
+              ?.orderDiscount || 0
+          ),
+
         discount:
           Number(
             item.data()
