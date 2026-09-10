@@ -230,7 +230,9 @@ function diagnoseDesignMatch({
           explicitMasterDesignId
         ],
         method:
-          "masterDesignId"
+          "masterDesignId",
+        configuredMasterDesignId:
+          explicitMasterDesignId
       };
     }
 
@@ -241,7 +243,9 @@ function diagnoseDesignMatch({
       method:
         "none",
       linkError:
-        "design_link_invalid"
+        "design_link_invalid",
+      configuredMasterDesignId:
+        explicitMasterDesignId
     };
   }
 
@@ -524,6 +528,7 @@ export function emptyPinkoiTshirtCatalog(error = null) {
       priceConflictCount: 0,
       masterStockCount: 0,
       masterStockZeroCount: 0,
+      explicitDesignLinkCount: 0,
       syncEligibleCount: 0,
       zeroStockCatalogCount: 0
     },
@@ -965,6 +970,16 @@ export async function loadPinkoiTshirtCatalog() {
         Number(item.masterStock || 0) === 0
     ).length,
 
+    explicitDesignLinkCount: items.filter(
+      item =>
+        item.masterMatch
+          ?.design
+          ?.status === MATCHED &&
+        item.masterMatch
+          ?.design
+          ?.method === "masterDesignId"
+    ).length,
+
     zeroStockCatalogCount: items.filter(
       item =>
         item.masterMatch.status === MATCHED &&
@@ -1114,6 +1129,8 @@ export async function syncPinkoiTshirtCatalog() {
     duplicateSkuCount: catalog.summary.duplicateSkuCount,
     pricedCount: catalog.summary.priceCount,
     missingPriceCount: catalog.summary.missingPriceCount,
-    priceConflictCount: catalog.summary.priceConflictCount
+    priceConflictCount: catalog.summary.priceConflictCount,
+    explicitDesignLinkCount:
+      catalog.summary.explicitDesignLinkCount
   };
 }
