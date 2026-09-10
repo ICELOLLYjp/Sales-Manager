@@ -89,7 +89,7 @@ async function inventoryCountService() {
   ) {
     inventoryCountServicePromise =
       import(
-        "./services/inventoryCountService.js?v=20260911-event-stock-1"
+        "./services/inventoryCountService.js?v=20260911-event-finalize-1"
       )
         .catch(
           error => {
@@ -138,6 +138,45 @@ async function saveEventClosingInventory(
 
   return await service
     .saveEventClosingInventory(
+      ...args
+    );
+}
+
+
+let eventCloseServicePromise =
+  null;
+
+async function eventCloseService() {
+  if (
+    !eventCloseServicePromise
+  ) {
+    eventCloseServicePromise =
+      import(
+        "./services/eventCloseService.js?v=20260911-event-finalize-1"
+      )
+        .catch(
+          error => {
+            eventCloseServicePromise =
+              null;
+
+            throw new Error(
+              `イベント終了モジュールを読み込めませんでした。js/services/eventCloseService.js の配置を確認してください。 ${error?.message || error}`
+            );
+          }
+        );
+  }
+
+  return await eventCloseServicePromise;
+}
+
+async function finalizeEventSession(
+  ...args
+) {
+  const service =
+    await eventCloseService();
+
+  return await service
+    .finalizeEventSession(
       ...args
     );
 }
@@ -4331,6 +4370,114 @@ function groupEventRemainingTshirts(
     );
 }
 
+function eventPerSkuDifferenceCount({
+  openingItems,
+  closingMap,
+  sales
+}) {
+  return (
+    Array.isArray(
+      openingItems
+    )
+      ? openingItems
+      : []
+  ).reduce(
+    (
+      count,
+      opening
+    ) => {
+      const closing =
+        closingMap.get(
+          opening.variantId
+        );
+
+      if (
+        !closing ||
+        closing.closingQty ===
+          null ||
+        closing.closingQty ===
+          undefined ||
+        closing.closingQty ===
+          ""
+      ) {
+        return count + 1;
+      }
+
+      const reductions =
+        [
+          "loss",
+          "theft",
+          "damage",
+          "gift",
+          "sample"
+        ].reduce(
+          (
+            sum,
+            key
+          ) =>
+            sum +
+            Math.max(
+              0,
+              Number(
+                closing?.[
+                  key
+                ] ||
+                0
+              )
+            ),
+          0
+        );
+
+      const expected =
+        Math.max(
+          0,
+          Number(
+            opening
+              ?.openingQty ||
+            0
+          )
+        ) -
+        Math.max(
+          0,
+          Number(
+            sales
+              ?.exactByVariant
+              ?.get(
+                opening
+                  .variantId
+              ) ||
+            0
+          )
+        ) -
+        reductions +
+        Number(
+          closing
+            ?.stockAdjustment ||
+          0
+        );
+
+      const actual =
+        Math.max(
+          0,
+          Number(
+            closing
+              .closingQty ||
+            0
+          )
+        );
+
+      return (
+        expected ===
+        actual
+      )
+        ? count
+        : count + 1;
+    },
+    0
+  );
+}
+
+
 function countDifferenceLabel(
   value
 ) {
@@ -4538,6 +4685,13 @@ async function renderSessions(
         session =>
           session.status ===
           "archived"
+      );
+
+    const closedSessions =
+      sessions.filter(
+        session =>
+          session.status ===
+          "closed"
       );
 
     view.innerHTML = `
@@ -5197,6 +5351,7 @@ async function renderSessions(
                           data-session-id="${escapeHtml(
                             session.sessionId
                           )}"
+                          data-original-label="削除 / アーカイブ"
                           style="
                             min-height:40px;
                             padding:0 12px;
@@ -5230,6 +5385,180 @@ async function renderSessions(
         }
 
       </section>
+
+
+      ${
+        closedSessions.length
+          ? `
+            <details
+              class="card"
+              open
+              style="
+                margin-top:14px;
+              "
+            >
+              <summary
+                style="
+                  cursor:pointer;
+                  font-weight:800;
+                  font-size:16px;
+                  padding:2px 0 8px;
+                "
+              >
+                終了済みイベント
+                (${closedSessions.length})
+              </summary>
+
+              <div
+                class="muted"
+                style="
+                  margin:6px 0 10px;
+                  line-height:1.5;
+                "
+              >
+                イベント終了後はPOS販売と在庫カウントの編集を停止します。売上・在庫履歴はそのまま確認できます。
+              </div>
+
+              ${closedSessions.map(
+                session => `
+                  <div
+                    style="
+                      padding:12px 0;
+                      border-bottom:1px solid #ecece7;
+                    "
+                  >
+                    <div
+                      style="
+                        display:flex;
+                        justify-content:space-between;
+                        gap:12px;
+                        align-items:flex-start;
+                      "
+                    >
+                      <div
+                        style="
+                          min-width:0;
+                          flex:1;
+                        "
+                      >
+                        <div
+                          style="
+                            font-weight:800;
+                          "
+                        >
+                          ${escapeHtml(
+                            session.eventName
+                          )}
+                        </div>
+
+                        <div
+                          class="muted"
+                          style="
+                            margin-top:4px;
+                            line-height:1.45;
+                          "
+                        >
+                          ${escapeHtml(
+                            [
+                              session.city,
+                              session.country
+                            ]
+                              .filter(Boolean)
+                              .join(", ")
+                          )}
+
+                          <br>
+
+                          ${escapeHtml(
+                            dateText(
+                              session.startDate,
+                              session.endDate
+                            )
+                          )}
+
+                          ${
+                            session
+                              ?.eventCloseSummary
+                              ?.closingTotal !==
+                              undefined
+                              ? `
+                                <br>
+                                終了在庫
+                                ${Number(
+                                  session
+                                    .eventCloseSummary
+                                    .closingTotal ||
+                                  0
+                                )} 点
+                              `
+                              : ""
+                          }
+                        </div>
+                      </div>
+
+                      <div
+                        style="
+                          display:grid;
+                          gap:7px;
+                          min-width:92px;
+                        "
+                      >
+                        <button
+                          type="button"
+                          class="sessionDetailButton button button-secondary"
+                          data-session-id="${escapeHtml(
+                            session.sessionId
+                          )}"
+                          style="
+                            min-height:40px;
+                            padding:0 12px;
+                          "
+                        >
+                          売上詳細
+                        </button>
+
+                        <button
+                          type="button"
+                          class="sessionInventoryCountButton button button-secondary"
+                          data-session-id="${escapeHtml(
+                            session.sessionId
+                          )}"
+                          style="
+                            min-height:40px;
+                            padding:0 12px;
+                          "
+                        >
+                          在庫確認
+                        </button>
+
+                        <button
+                          type="button"
+                          class="sessionLifecycleButton"
+                          data-session-id="${escapeHtml(
+                            session.sessionId
+                          )}"
+                          data-original-label="アーカイブ"
+                          style="
+                            min-height:40px;
+                            padding:0 12px;
+                            border:1px solid #deded9;
+                            border-radius:10px;
+                            background:#fff;
+                            color:#6f3f3f;
+                            font-weight:700;
+                          "
+                        >
+                          アーカイブ
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                `
+              ).join("")}
+            </details>
+          `
+          : ""
+      }
 
 
       ${
@@ -5436,6 +5765,32 @@ async function renderSessions(
                     ),
                   0
                 );
+
+              const perSkuDifferenceCount =
+                eventPerSkuDifferenceCount({
+                  openingItems,
+                  closingMap,
+                  sales
+                });
+
+              const inventorySessionClosed =
+                selectedInventoryCountSession
+                  ?.status ===
+                "closed";
+
+              const eventReadyToClose =
+                !inventorySessionClosed &&
+                Boolean(
+                  inventoryCountData
+                    ?.closing
+                ) &&
+                countSummary.complete &&
+                countSummary.quickSalesTotal ===
+                  0 &&
+                sales.otherUnallocated ===
+                  0 &&
+                perSkuDifferenceCount ===
+                  0;
 
               const currentTotal =
                 eventCurrentInventoryRows
@@ -6537,6 +6892,26 @@ async function renderSessions(
                         </div>
 
                         ${
+                          inventorySessionClosed
+                            ? `
+                              <div
+                                style="
+                                  margin-top:12px;
+                                  padding:12px;
+                                  border:1px solid #d9e4d7;
+                                  border-radius:12px;
+                                  background:#f5faf4;
+                                  line-height:1.5;
+                                  font-weight:700;
+                                "
+                              >
+                                このイベントは終了済みです。在庫確認は閲覧のみで、POS販売・開始在庫・終了在庫の変更はできません。
+                              </div>
+                            `
+                            : ""
+                        }
+
+                        ${
                           countSummary.recordedReductionTotal >
                             0 ||
                           countSummary.stockAdjustmentTotal !==
@@ -6940,9 +7315,124 @@ async function renderSessions(
                             : ""
                         }
 
+                        ${
+                          !inventorySessionClosed
+                            ? `
+                              <div
+                                style="
+                                  margin-top:14px;
+                                  padding:14px;
+                                  border:1px solid ${
+                                    eventReadyToClose
+                                      ? "#d9e4d7"
+                                      : "#ead796"
+                                  };
+                                  border-radius:14px;
+                                  background:${
+                                    eventReadyToClose
+                                      ? "#f5faf4"
+                                      : "#fff8df"
+                                  };
+                                "
+                              >
+                                <div
+                                  style="
+                                    font-weight:800;
+                                    font-size:16px;
+                                  "
+                                >
+                                  イベント終了確定
+                                </div>
+
+                                <div
+                                  style="
+                                    margin-top:7px;
+                                    line-height:1.55;
+                                    font-size:13px;
+                                  "
+                                >
+                                  ${
+                                    eventReadyToClose
+                                      ? `
+                                        終了在庫はすべて入力済みで、SKU別の未分類差異は0です。終了確定するとPOS販売を停止し、紛失・盗難・破損・プレゼント・サンプル・在庫調整を正式実在庫へ一度だけ反映します。
+                                      `
+                                      : `
+                                        終了するには、全SKUの終了実数を入力し、SKU別の差異を0にしてください。
+                                      `
+                                  }
+                                </div>
+
+                                ${
+                                  !eventReadyToClose
+                                    ? `
+                                      <div
+                                        class="muted"
+                                        style="
+                                          margin-top:8px;
+                                          line-height:1.5;
+                                        "
+                                      >
+                                        未入力 ${
+                                          countSummary.incompleteCount
+                                        } SKU /
+                                        Quick未割当 ${
+                                          countSummary.quickSalesTotal
+                                        } 点 /
+                                        開始在庫外SKU販売 ${
+                                          sales.otherUnallocated
+                                        } 点 /
+                                        SKU別差異 ${
+                                          perSkuDifferenceCount
+                                        } 件
+                                      </div>
+                                    `
+                                    : ""
+                                }
+
+                                <button
+                                  id="finalizeEventSessionButton"
+                                  type="button"
+                                  class="button"
+                                  ${
+                                    eventReadyToClose
+                                      ? ""
+                                      : "disabled"
+                                  }
+                                  style="
+                                    width:100%;
+                                    min-height:52px;
+                                    margin-top:12px;
+                                    ${
+                                      eventReadyToClose
+                                        ? ""
+                                        : "opacity:.45;"
+                                    }
+                                  "
+                                >
+                                  イベントを終了して在庫を確定
+                                </button>
+
+                                <div
+                                  id="eventFinalizeMessage"
+                                  class="muted"
+                                  style="
+                                    margin-top:8px;
+                                    line-height:1.5;
+                                  "
+                                ></div>
+                              </div>
+                            `
+                            : ""
+                        }
+
                         <details
                           style="
                             margin-top:14px;
+                            ${
+                              inventorySessionClosed
+                                ? "display:none;"
+                                : ""
+                            }
                           "
                         >
                           <summary
@@ -7315,7 +7805,7 @@ async function renderSessions(
                                             font-size:11px;
                                           "
                                         >
-                                          在庫調整は増加を＋、減少を−で入力できます。ここでは記録だけを行い、実在庫は自動変更しません。
+                                          在庫調整は増加を＋、減少を−で入力できます。「終了在庫・理由を保存」では記録だけを行い、「イベントを終了して在庫を確定」を押した時に正式実在庫へ一度だけ反映します。
                                         </div>
                                       </details>
                                     </div>
@@ -7350,6 +7840,11 @@ async function renderSessions(
                         <details
                           style="
                             margin-top:14px;
+                            ${
+                              inventorySessionClosed
+                                ? "display:none;"
+                                : ""
+                            }
                           "
                         >
                           <summary
@@ -8780,6 +9275,8 @@ async function renderSessions(
                       false;
 
                     button.textContent =
+                      button.dataset
+                        .originalLabel ||
                       "削除 / アーカイブ";
 
                     return;
@@ -8845,6 +9342,8 @@ async function renderSessions(
                   false;
 
                 button.textContent =
+                  button.dataset
+                    .originalLabel ||
                   "削除 / アーカイブ";
 
                 window.alert(
@@ -9913,6 +10412,110 @@ async function renderSessions(
                     : "none";
               }
             );
+        }
+      );
+
+
+    document
+      .querySelector(
+        "#finalizeEventSessionButton"
+      )
+      ?.addEventListener(
+        "click",
+        async event => {
+          if (
+            !selectedInventoryCountSession
+          ) {
+            return;
+          }
+
+          const sessionId =
+            selectedInventoryCountSession
+              .sessionId;
+
+          const button =
+            event.currentTarget;
+
+          const message =
+            document.querySelector(
+              "#eventFinalizeMessage"
+            );
+
+          const confirmed =
+            window.confirm(
+              `「${selectedInventoryCountSession.eventName}」を終了しますか？\n\n終了後はこのイベントでPOS販売できません。\n紛失・盗難・破損・プレゼント・サンプル・在庫調整がある場合は、正式実在庫へ一度だけ反映します。`
+            );
+
+          if (
+            !confirmed
+          ) {
+            return;
+          }
+
+          button.disabled =
+            true;
+
+          button.textContent =
+            "終了処理中";
+
+          if (message) {
+            message.textContent =
+              "";
+          }
+
+          try {
+            const result =
+              await finalizeEventSession({
+                sessionId,
+
+                closedByEmail:
+                  currentUser
+                    ?.email ||
+                  ""
+              });
+
+            if (
+              activeSessionId ===
+              sessionId
+            ) {
+              activeSessionId =
+                "";
+
+              localStorage.removeItem(
+                "icelolly-sales-active-session"
+              );
+            }
+
+            sessionInventoryCountId =
+              "";
+
+            editingSessionId =
+              "";
+
+            await renderSessions(
+              ++renderSequence
+            );
+
+            window.alert(
+              result?.duplicate
+                ? "このイベントはすでに終了済みです。"
+                : `イベントを終了しました。終了在庫 ${result?.closingTotal ?? "-"} 点、正式在庫への調整 ${result?.movementCount ?? 0} 件です。`
+            );
+
+          } catch (error) {
+            button.disabled =
+              false;
+
+            button.textContent =
+              "イベントを終了して在庫を確定";
+
+            if (message) {
+              message.textContent =
+                error.code ||
+                error.message ||
+                String(error);
+            }
+          }
         }
       );
 
