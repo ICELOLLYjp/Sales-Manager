@@ -7,11 +7,78 @@ import { loadTshirtProductVariants, syncTshirtCurrentStockRows } from "./service
 import { listAllProductVariants, registerTshirtVariant, registerGeneralProduct, syncAccessoryCatalogRows } from "./services/productAdminService.js";
 import { CATEGORY_TEMPLATES, getCategoryTemplate } from "./data/categoryTemplates.js";
 import { loadPosPriceConfig, savePosPriceConfig, QUICK_PRICE_CURRENCIES } from "./services/priceBookService.js?v=20260910-multiset-3";
-import { listSalesSessions, createEventSession, updateEventSession, updateEventExpenses, inspectEventSessionRemoval, deleteEventSession, archiveEventSession, restoreArchivedEventSession, SESSION_CURRENCIES } from "./services/sessionService.js?v=20260910-session-lifecycle-1";
+import { listSalesSessions, createEventSession, updateEventSession, updateEventExpenses, SESSION_CURRENCIES } from "./services/sessionService.js";
 import { commitQuickSale, voidSaleTransaction } from "./services/transactionService.js?v=20260910-setdiscount-2";
 import { listSessionTransactions } from "./services/salesHistoryService.js?v=20260910-setdiscount-2";
 import { saveCategoryCost, loadAllCategoryCostHistories, resolveCategoryUnitCost, saveTshirtBodyCost, loadTshirtBodyCostHistories, resolveBodyUnitCost, saveVariantCost, loadVariantCostHistories, calculateResolvedCogs } from "./services/costHistoryService.js";
 import { loadPinkoiTshirtCatalog, syncPinkoiTshirtCatalog } from "./services/pinkoiCatalogService.js";
+let sessionLifecycleModulePromise =
+  null;
+
+async function sessionLifecycleModule() {
+  if (
+    !sessionLifecycleModulePromise
+  ) {
+    sessionLifecycleModulePromise =
+      import(
+        "./services/sessionLifecycleService.js?v=20260910-import-fix-1"
+      );
+  }
+
+  return await sessionLifecycleModulePromise;
+}
+
+async function inspectEventSessionRemoval(
+  sessionId
+) {
+  const module =
+    await sessionLifecycleModule();
+
+  return await module
+    .inspectEventSessionRemoval(
+      sessionId
+    );
+}
+
+async function deleteEventSession(
+  sessionId
+) {
+  const module =
+    await sessionLifecycleModule();
+
+  return await module
+    .deleteEventSession(
+      sessionId
+    );
+}
+
+async function archiveEventSession(
+  sessionId,
+  options
+) {
+  const module =
+    await sessionLifecycleModule();
+
+  return await module
+    .archiveEventSession(
+      sessionId,
+      options
+    );
+}
+
+async function restoreArchivedEventSession(
+  sessionId
+) {
+  const module =
+    await sessionLifecycleModule();
+
+  return await module
+    .restoreArchivedEventSession(
+      sessionId
+    );
+}
+
+
 
 let inventoryCountServicePromise =
   null;
