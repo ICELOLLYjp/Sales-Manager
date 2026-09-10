@@ -6899,6 +6899,56 @@ async function renderPos(
       return;
     }
 
+    function syncPosDiscountInputsFromDom() {
+      const orderDiscountInput =
+        document.querySelector(
+          "#posOrderDiscount"
+        );
+
+      if (
+        orderDiscountInput
+      ) {
+        posOrderDiscount =
+          Math.max(
+            0,
+            Number(
+              orderDiscountInput.value ||
+              0
+            )
+          );
+      }
+
+      document
+        .querySelectorAll(
+          ".posLineDiscountInput"
+        )
+        .forEach(
+          input => {
+            const key =
+              input.dataset.key;
+
+            const item =
+              posCart.get(
+                key
+              );
+
+            if (!item) {
+              return;
+            }
+
+            item.manualDiscount =
+              Math.max(
+                0,
+                Number(
+                  input.value ||
+                  0
+                )
+              );
+          }
+        );
+    }
+
+
     function renderPosBody(
       message = ""
     ) {
@@ -8721,7 +8771,7 @@ async function renderPos(
         .forEach(
           input => {
             input.addEventListener(
-              "change",
+              "input",
               event => {
                 invalidatePendingCheckout();
 
@@ -8747,7 +8797,12 @@ async function renderPos(
                       0
                     )
                   );
+              }
+            );
 
+            input.addEventListener(
+              "change",
+              () => {
                 renderPosBody();
               }
             );
@@ -9113,6 +9168,14 @@ async function renderPos(
             ) {
               return;
             }
+
+            /*
+             * iPhone Safari may not fire change/blur before the
+             * checkout button is tapped. Read the visible discount
+             * fields directly so the saved transaction always matches
+             * the amount shown to the user.
+             */
+            syncPosDiscountInputsFromDom();
 
             const totals =
               posCartTotals();
