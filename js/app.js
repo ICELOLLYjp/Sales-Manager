@@ -10,7 +10,7 @@ import { loadQuickPriceBook, saveQuickPrices, QUICK_PRICE_CURRENCIES } from "./s
 import { listSalesSessions, createEventSession, updateEventSession, updateEventExpenses, SESSION_CURRENCIES } from "./services/sessionService.js";
 import { commitQuickSale } from "./services/transactionService.js";
 import { listSessionTransactions } from "./services/salesHistoryService.js";
-import { saveCategoryCost, loadAllCategoryCostHistories, resolveCategoryUnitCost, calculateCategoryCogs } from "./services/costHistoryService.js";
+import { saveCategoryCost, loadAllCategoryCostHistories, resolveCategoryUnitCost, saveTshirtBodyCost, loadTshirtBodyCostHistories, resolveBodyUnitCost, saveVariantCost, loadVariantCostHistories, calculateResolvedCogs } from "./services/costHistoryService.js";
 
 const view = document.querySelector("#view");
 const syncStatus = document.querySelector("#syncStatus");
@@ -956,12 +956,14 @@ async function renderMorePage(sequence) {
       tshirtOptions,
       accessoryCatalog,
       allVariants,
-      categoryCostHistories
+      categoryCostHistories,
+      tshirtBodyCostHistories
     ] = await Promise.all([
       tshirtAdapter.getMasterOptions(),
       accessoryAdapter.getCatalogSnapshot(),
       listAllProductVariants(),
-      loadAllCategoryCostHistories()
+      loadAllCategoryCostHistories(),
+      loadTshirtBodyCostHistories()
     ]);
 
     if (sequence !== renderSequence) return;
@@ -993,6 +995,88 @@ async function renderMorePage(sequence) {
       row => !registeredAccessoryIds.has(row.variantId)
     );
 
+    const activeVariants =
+      allVariants
+        .filter(
+          item =>
+            item.active !==
+            false
+        )
+        .sort(
+          (
+            a,
+            b
+          ) => {
+            const aLabel =
+              [
+                POS_CATEGORY_LABELS[
+                  a.category
+                ] ||
+                a.category ||
+                "",
+                a.design ||
+                a.displayName ||
+                "",
+                a.body ||
+                "",
+                a.color ||
+                "",
+                a.size ||
+                ""
+              ]
+                .filter(Boolean)
+                .join(" ");
+
+            const bLabel =
+              [
+                POS_CATEGORY_LABELS[
+                  b.category
+                ] ||
+                b.category ||
+                "",
+                b.design ||
+                b.displayName ||
+                "",
+                b.body ||
+                "",
+                b.color ||
+                "",
+                b.size ||
+                ""
+              ]
+                .filter(Boolean)
+                .join(" ");
+
+            return aLabel.localeCompare(
+              bLabel,
+              "ja"
+            );
+          }
+        );
+
+    function variantCostLabel(
+      item
+    ) {
+      return [
+        POS_CATEGORY_LABELS[
+          item.category
+        ] ||
+        item.category ||
+        "",
+        item.design ||
+        item.displayName ||
+        "",
+        item.body ||
+        "",
+        item.color ||
+        "",
+        item.size ||
+        ""
+      ]
+        .filter(Boolean)
+        .join(" / ");
+    }
+
     view.innerHTML = `
       <h1 class="page-title">More</h1>
       <p class="page-note">商品管理</p>
@@ -1013,7 +1097,7 @@ async function renderMorePage(sequence) {
       <section class="card">
 
         <div class="card-title">
-          カテゴリ標準原価
+          商品原価
         </div>
 
         <div
@@ -1023,161 +1107,164 @@ async function renderMorePage(sequence) {
             line-height:1.55;
           "
         >
-          Quick会計の利益計算に使います。原価変更日は履歴として残ります。
+          原価は SKU、TシャツBody、カテゴリ標準原価の順で優先します。適用開始日ごとに履歴を残します。
         </div>
 
 
-        <div
-          style="
-            display:grid;
-            gap:10px;
-          "
+        <details
+          open
         >
-
-          <select
-            id="costCategory"
-            style="${selectStyle()}"
+          <summary
+            style="
+              cursor:pointer;
+              font-weight:800;
+              padding:8px 0;
+            "
           >
-            ${POS_CATEGORY_ORDER.map(
-              category => `
-                <option
-                  value="${category}"
-                >
-                  ${escapeHtml(
-                    POS_CATEGORY_LABELS[
-                      category
-                    ]
-                  )}
-                </option>
-              `
-            ).join("")}
-          </select>
-
+            カテゴリ標準原価
+          </summary>
 
           <div
             style="
               display:grid;
-              grid-template-columns:
-                minmax(0,1fr)
-                minmax(0,1fr);
               gap:10px;
+              margin-top:8px;
             "
           >
 
-            <input
-              id="costAmountJPY"
-              type="number"
-              min="0"
-              step="1"
-              inputmode="numeric"
-              placeholder="1点あたり原価 JPY"
-              style="${inputStyle()}"
+            <select
+              id="costCategory"
+              style="${selectStyle()}"
             >
-
-
-            <input
-              id="costEffectiveFrom"
-              type="date"
-              value="${
-                new Date()
-                  .toISOString()
-                  .slice(0,10)
-              }"
-              style="${inputStyle()}"
-            >
-
-          </div>
-
-
-          <input
-            id="costNote"
-            type="text"
-            placeholder="メモ 任意"
-            style="${inputStyle()}"
-          >
-
-
-          <button
-            id="saveCategoryCostButton"
-            class="button"
-            type="button"
-            style="
-              width:100%;
-              min-height:50px;
-            "
-          >
-            原価を保存
-          </button>
-
-
-          <div
-            id="saveCategoryCostMessage"
-            class="muted"
-          ></div>
-
-        </div>
-
-
-        <div
-          style="
-            margin-top:16px;
-            padding-top:12px;
-            border-top:1px solid #ecece7;
-          "
-        >
-
-          <div
-            class="card-title"
-            style="
-              margin-bottom:6px;
-            "
-          >
-            現在の標準原価
-          </div>
-
-
-          ${POS_CATEGORY_ORDER.map(
-            category => {
-              const currentCost =
-                resolveCategoryUnitCost(
-                  categoryCostHistories,
-                  category,
-                  new Date()
-                    .toISOString()
-                    .slice(0,10)
-                );
-
-              return `
-                <div class="list-row">
-                  <span>
+              ${POS_CATEGORY_ORDER.map(
+                category => `
+                  <option
+                    value="${category}"
+                  >
                     ${escapeHtml(
                       POS_CATEGORY_LABELS[
                         category
                       ]
                     )}
-                  </span>
+                  </option>
+                `
+              ).join("")}
+            </select>
 
-                  <strong>
-                    ${
-                      currentCost === null
-                        ? "未設定"
-                        : formatMoney(
-                            currentCost,
-                            "JPY"
-                          )
-                    }
-                  </strong>
-                </div>
-              `;
-            }
-          ).join("")}
 
-        </div>
+            <div
+              style="
+                display:grid;
+                grid-template-columns:
+                  minmax(0,1fr)
+                  minmax(0,1fr);
+                gap:10px;
+              "
+            >
+
+              <input
+                id="costAmountJPY"
+                type="number"
+                min="0"
+                step="1"
+                inputmode="numeric"
+                placeholder="1点あたり原価 JPY"
+                style="${inputStyle()}"
+              >
+
+
+              <input
+                id="costEffectiveFrom"
+                type="date"
+                value="${
+                  new Date()
+                    .toISOString()
+                    .slice(0,10)
+                }"
+                style="${inputStyle()}"
+              >
+
+            </div>
+
+
+            <input
+              id="costNote"
+              type="text"
+              placeholder="メモ 任意"
+              style="${inputStyle()}"
+            >
+
+
+            <button
+              id="saveCategoryCostButton"
+              class="button"
+              type="button"
+              style="
+                width:100%;
+                min-height:50px;
+              "
+            >
+              カテゴリ原価を保存
+            </button>
+
+
+            <div
+              id="saveCategoryCostMessage"
+              class="muted"
+            ></div>
+
+          </div>
+
+
+          <div
+            style="
+              margin-top:14px;
+            "
+          >
+            ${POS_CATEGORY_ORDER.map(
+              category => {
+                const currentCost =
+                  resolveCategoryUnitCost(
+                    categoryCostHistories,
+                    category,
+                    new Date()
+                      .toISOString()
+                      .slice(0,10)
+                  );
+
+                return `
+                  <div class="list-row">
+                    <span>
+                      ${escapeHtml(
+                        POS_CATEGORY_LABELS[
+                          category
+                        ]
+                      )}
+                    </span>
+
+                    <strong>
+                      ${
+                        currentCost === null
+                          ? "未設定"
+                          : formatMoney(
+                              currentCost,
+                              "JPY"
+                            )
+                      }
+                    </strong>
+                  </div>
+                `;
+              }
+            ).join("")}
+          </div>
+        </details>
 
 
         <details
           style="
-            margin-top:12px;
+            margin-top:14px;
+            padding-top:12px;
+            border-top:1px solid #ecece7;
           "
         >
           <summary
@@ -1187,7 +1274,276 @@ async function renderMorePage(sequence) {
               padding:8px 0;
             "
           >
-            原価履歴を見る
+            Tシャツ Body原価
+          </summary>
+
+          <div
+            style="
+              display:grid;
+              gap:10px;
+              margin-top:8px;
+            "
+          >
+
+            <select
+              id="bodyCostBody"
+              style="${selectStyle()}"
+            >
+              ${optionList(
+                tshirtOptions.bodies
+              )}
+            </select>
+
+
+            <div
+              style="
+                display:grid;
+                grid-template-columns:
+                  minmax(0,1fr)
+                  minmax(0,1fr);
+                gap:10px;
+              "
+            >
+
+              <input
+                id="bodyCostAmountJPY"
+                type="number"
+                min="0"
+                step="1"
+                inputmode="numeric"
+                placeholder="1点あたり原価 JPY"
+                style="${inputStyle()}"
+              >
+
+
+              <input
+                id="bodyCostEffectiveFrom"
+                type="date"
+                value="${
+                  new Date()
+                    .toISOString()
+                    .slice(0,10)
+                }"
+                style="${inputStyle()}"
+              >
+
+            </div>
+
+
+            <input
+              id="bodyCostNote"
+              type="text"
+              placeholder="メモ 任意"
+              style="${inputStyle()}"
+            >
+
+
+            <button
+              id="saveBodyCostButton"
+              class="button"
+              type="button"
+              style="
+                width:100%;
+                min-height:50px;
+              "
+            >
+              Body原価を保存
+            </button>
+
+
+            <div
+              id="saveBodyCostMessage"
+              class="muted"
+            ></div>
+
+          </div>
+
+
+          <div
+            style="
+              margin-top:14px;
+            "
+          >
+            ${tshirtOptions.bodies.map(
+              body => {
+                const currentCost =
+                  resolveBodyUnitCost(
+                    tshirtBodyCostHistories,
+                    body.id,
+                    new Date()
+                      .toISOString()
+                      .slice(0,10)
+                  );
+
+                return `
+                  <div class="list-row">
+                    <span>
+                      ${escapeHtml(
+                        body.name
+                      )}
+                    </span>
+
+                    <strong>
+                      ${
+                        currentCost === null
+                          ? "未設定"
+                          : formatMoney(
+                              currentCost,
+                              "JPY"
+                            )
+                      }
+                    </strong>
+                  </div>
+                `;
+              }
+            ).join("")}
+          </div>
+        </details>
+
+
+        <details
+          style="
+            margin-top:14px;
+            padding-top:12px;
+            border-top:1px solid #ecece7;
+          "
+        >
+          <summary
+            style="
+              cursor:pointer;
+              font-weight:800;
+              padding:8px 0;
+            "
+          >
+            SKU個別原価
+          </summary>
+
+          <div
+            style="
+              display:grid;
+              gap:10px;
+              margin-top:8px;
+            "
+          >
+
+            <select
+              id="skuCostVariant"
+              style="${selectStyle()}"
+            >
+              <option value="">
+                SKUを選択
+              </option>
+
+              ${activeVariants.map(
+                item => `
+                  <option
+                    value="${escapeHtml(
+                      item.variantId ||
+                      item.id
+                    )}"
+                  >
+                    ${escapeHtml(
+                      variantCostLabel(
+                        item
+                      )
+                    )}
+                  </option>
+                `
+              ).join("")}
+            </select>
+
+
+            <div
+              id="skuCurrentCostDisplay"
+              class="muted"
+              style="
+                min-height:22px;
+              "
+            >
+              SKUを選択すると現在の個別原価を表示します。
+            </div>
+
+
+            <div
+              style="
+                display:grid;
+                grid-template-columns:
+                  minmax(0,1fr)
+                  minmax(0,1fr);
+                gap:10px;
+              "
+            >
+
+              <input
+                id="skuCostAmountJPY"
+                type="number"
+                min="0"
+                step="1"
+                inputmode="numeric"
+                placeholder="1点あたり原価 JPY"
+                style="${inputStyle()}"
+              >
+
+
+              <input
+                id="skuCostEffectiveFrom"
+                type="date"
+                value="${
+                  new Date()
+                    .toISOString()
+                    .slice(0,10)
+                }"
+                style="${inputStyle()}"
+              >
+
+            </div>
+
+
+            <input
+              id="skuCostNote"
+              type="text"
+              placeholder="メモ 任意"
+              style="${inputStyle()}"
+            >
+
+
+            <button
+              id="saveSkuCostButton"
+              class="button"
+              type="button"
+              style="
+                width:100%;
+                min-height:50px;
+              "
+            >
+              SKU原価を保存
+            </button>
+
+
+            <div
+              id="saveSkuCostMessage"
+              class="muted"
+            ></div>
+
+          </div>
+        </details>
+
+
+        <details
+          style="
+            margin-top:14px;
+            padding-top:12px;
+            border-top:1px solid #ecece7;
+          "
+        >
+          <summary
+            style="
+              cursor:pointer;
+              font-weight:800;
+              padding:8px 0;
+            "
+          >
+            カテゴリ原価履歴を見る
           </summary>
 
           <div
@@ -1547,6 +1903,247 @@ async function renderMorePage(sequence) {
 
             button.textContent =
               "原価を保存";
+
+            if (messageBox) {
+              messageBox.textContent =
+                error.code ||
+                error.message ||
+                String(error);
+            }
+          }
+        }
+      );
+
+
+    document
+      .querySelector(
+        "#saveBodyCostButton"
+      )
+      ?.addEventListener(
+        "click",
+        async event => {
+          const button =
+            event.currentTarget;
+
+          const messageBox =
+            document.querySelector(
+              "#saveBodyCostMessage"
+            );
+
+          button.disabled =
+            true;
+
+          button.textContent =
+            "保存中";
+
+          if (messageBox) {
+            messageBox.textContent =
+              "";
+          }
+
+          try {
+            await saveTshirtBodyCost({
+              bodyId:
+                document
+                  .querySelector(
+                    "#bodyCostBody"
+                  )
+                  ?.value,
+
+              amountJPY:
+                document
+                  .querySelector(
+                    "#bodyCostAmountJPY"
+                  )
+                  ?.value,
+
+              effectiveFrom:
+                document
+                  .querySelector(
+                    "#bodyCostEffectiveFrom"
+                  )
+                  ?.value,
+
+              note:
+                document
+                  .querySelector(
+                    "#bodyCostNote"
+                  )
+                  ?.value
+            });
+
+            button.textContent =
+              "保存済み";
+
+            setTimeout(
+              () => {
+                render(
+                  "more"
+                );
+              },
+              400
+            );
+
+          } catch (error) {
+            button.disabled =
+              false;
+
+            button.textContent =
+              "Body原価を保存";
+
+            if (messageBox) {
+              messageBox.textContent =
+                error.code ||
+                error.message ||
+                String(error);
+            }
+          }
+        }
+      );
+
+
+    const skuCostVariant =
+      document.querySelector(
+        "#skuCostVariant"
+      );
+
+    const skuCurrentCostDisplay =
+      document.querySelector(
+        "#skuCurrentCostDisplay"
+      );
+
+
+    function refreshSkuCostDisplay() {
+      const variantId =
+        skuCostVariant
+          ?.value ||
+        "";
+
+      const variant =
+        activeVariants.find(
+          item =>
+            (
+              item.variantId ||
+              item.id
+            ) ===
+            variantId
+        );
+
+      if (
+        !skuCurrentCostDisplay
+      ) {
+        return;
+      }
+
+      if (!variant) {
+        skuCurrentCostDisplay.textContent =
+          "SKUを選択すると現在の個別原価を表示します.";
+
+        return;
+      }
+
+      const latestCost =
+        variant.latestCostJPY;
+
+      skuCurrentCostDisplay.textContent =
+        latestCost ===
+          undefined ||
+        latestCost ===
+          null
+          ? "個別原価は未設定です."
+          : (
+              `現在の個別原価: ${formatMoney(
+                Number(
+                  latestCost || 0
+                ),
+                "JPY"
+              )} / 適用開始 ${variant.latestCostEffectiveFrom || ""}`
+            );
+    }
+
+
+    refreshSkuCostDisplay();
+
+
+    skuCostVariant
+      ?.addEventListener(
+        "change",
+        refreshSkuCostDisplay
+      );
+
+
+    document
+      .querySelector(
+        "#saveSkuCostButton"
+      )
+      ?.addEventListener(
+        "click",
+        async event => {
+          const button =
+            event.currentTarget;
+
+          const messageBox =
+            document.querySelector(
+              "#saveSkuCostMessage"
+            );
+
+          button.disabled =
+            true;
+
+          button.textContent =
+            "保存中";
+
+          if (messageBox) {
+            messageBox.textContent =
+              "";
+          }
+
+          try {
+            await saveVariantCost({
+              variantId:
+                skuCostVariant
+                  ?.value,
+
+              amountJPY:
+                document
+                  .querySelector(
+                    "#skuCostAmountJPY"
+                  )
+                  ?.value,
+
+              effectiveFrom:
+                document
+                  .querySelector(
+                    "#skuCostEffectiveFrom"
+                  )
+                  ?.value,
+
+              note:
+                document
+                  .querySelector(
+                    "#skuCostNote"
+                  )
+                  ?.value
+            });
+
+            button.textContent =
+              "保存済み";
+
+            setTimeout(
+              () => {
+                render(
+                  "more"
+                );
+              },
+              400
+            );
+
+          } catch (error) {
+            button.disabled =
+              false;
+
+            button.textContent =
+              "SKU原価を保存";
 
             if (messageBox) {
               messageBox.textContent =
@@ -2043,6 +2640,60 @@ async function renderSessions(
       selectedDetailSession
         ? await loadAllCategoryCostHistories()
         : {};
+
+    const detailVariantIds =
+      selectedDetailSession
+        ? Array.from(
+            new Set(
+              sessionTransactions
+                .flatMap(
+                  transaction =>
+                    transaction.items ||
+                    []
+                )
+                .map(
+                  item =>
+                    String(
+                      item?.variantId ||
+                      ""
+                    ).trim()
+                )
+                .filter(Boolean)
+            )
+          )
+        : [];
+
+    const [
+      tshirtBodyCostHistories,
+      detailVariantCostHistories,
+      detailVariants
+    ] =
+      selectedDetailSession
+        ? await Promise.all([
+            loadTshirtBodyCostHistories(),
+            loadVariantCostHistories(
+              detailVariantIds
+            ),
+            detailVariantIds.length
+              ? listAllProductVariants()
+              : []
+          ])
+        : [
+            {},
+            {},
+            []
+          ];
+
+    const detailVariantsById =
+      new Map(
+        detailVariants.map(
+          item => [
+            item.variantId ||
+            item.id,
+            item
+          ]
+        )
+      );
 
     if (
       sequence !==
@@ -2781,11 +3432,22 @@ async function renderSessions(
                   : 0;
 
               const cogs =
-                calculateCategoryCogs({
+                calculateResolvedCogs({
                   transactions:
                     sessionTransactions,
-                  histories:
+
+                  categoryHistories:
                     categoryCostHistories,
+
+                  bodyHistories:
+                    tshirtBodyCostHistories,
+
+                  variantHistories:
+                    detailVariantCostHistories,
+
+                  variantsById:
+                    detailVariantsById,
+
                   fallbackDate:
                     selectedDetailSession.startDate
                 });
@@ -3257,7 +3919,7 @@ async function renderSessions(
                           line-height:1.55;
                         "
                       >
-                        Quick会計はカテゴリ標準原価を使用します。
+                        原価は SKU、Body、カテゴリ標準原価の順で優先します。Quick会計でSKU未指定の場合はカテゴリ標準原価を使用します。
                       </div>
                     </div>
 
