@@ -429,6 +429,158 @@ function saleMode(items) {
   return "mixed";
 }
 
+
+function sessionEventOpeningMap(
+  session
+) {
+  const openingItems =
+    Array.isArray(
+      session
+        ?.inventoryCount
+        ?.opening
+        ?.items
+    )
+      ? session
+          .inventoryCount
+          .opening
+          .items
+      : [];
+
+  const map =
+    new Map();
+
+  openingItems.forEach(
+    item => {
+      const variantId =
+        String(
+          item?.variantId ||
+          ""
+        ).trim();
+
+      if (!variantId) {
+        return;
+      }
+
+      map.set(
+        variantId,
+        Math.max(
+          0,
+          Math.floor(
+            safeNumber(
+              item?.openingQty
+            )
+          )
+        )
+      );
+    }
+  );
+
+  return map;
+}
+
+function sessionEventSoldMap(
+  session
+) {
+  const source =
+    session
+      ?.inventoryCount
+      ?.soldByVariant;
+
+  if (
+    !source ||
+    typeof source !==
+      "object" ||
+    Array.isArray(
+      source
+    )
+  ) {
+    return {};
+  }
+
+  const result = {};
+
+  Object.entries(
+    source
+  ).forEach(
+    ([
+      variantId,
+      quantity
+    ]) => {
+      const cleanVariantId =
+        String(
+          variantId ||
+          ""
+        ).trim();
+
+      if (!cleanVariantId) {
+        return;
+      }
+
+      result[
+        cleanVariantId
+      ] =
+        Math.max(
+          0,
+          Math.floor(
+            safeNumber(
+              quantity
+            )
+          )
+        );
+    }
+  );
+
+  return result;
+}
+
+function eventSaleQuantityByVariant(
+  items
+) {
+  const result =
+    new Map();
+
+  (
+    Array.isArray(items)
+      ? items
+      : []
+  ).forEach(
+    item => {
+      const variantId =
+        String(
+          item?.variantId ||
+          ""
+        ).trim();
+
+      if (!variantId) {
+        return;
+      }
+
+      const quantity =
+        Math.max(
+          0,
+          Math.floor(
+            safeNumber(
+              item?.quantity
+            )
+          )
+        );
+
+      result.set(
+        variantId,
+        (
+          result.get(
+            variantId
+          ) ||
+          0
+        ) +
+        quantity
+      );
+    }
+  );
+
+  return result;
+}
+
 export async function commitQuickSale({
   transactionId = null,
   sessionId,
@@ -595,6 +747,105 @@ export async function commitQuickSale({
           );
         }
 
+        /*
+         * If an event opening inventory exists, SKU sales are constrained
+         * to that event allocation rather than the company's total stock.
+         * Quick sales remain unallocated and do not change a specific SKU.
+         */
+        const eventOpeningMap =
+          sessionEventOpeningMap(
+            session
+          );
+
+        const eventInventoryEnabled =
+          eventOpeningMap.size >
+          0;
+
+        const eventSaleQtyMap =
+          eventSaleQuantityByVariant(
+            normalizedItems
+          );
+
+        const currentEventSoldByVariant =
+          sessionEventSoldMap(
+            session
+          );
+
+        const nextEventSoldByVariant = {
+          ...currentEventSoldByVariant
+        };
+
+        if (
+          eventInventoryEnabled
+        ) {
+          eventSaleQtyMap.forEach(
+            (
+              saleQuantity,
+              variantId
+            ) => {
+              const openingQuantity =
+                eventOpeningMap.get(
+                  variantId
+                );
+
+              if (
+                openingQuantity ===
+                undefined
+              ) {
+                const error =
+                  new Error(
+                    "このSKUはイベント開始在庫に含まれていません。"
+                  );
+
+                error.code =
+                  "event-stock-not-carried";
+
+                throw error;
+              }
+
+              const soldQuantity =
+                Math.max(
+                  0,
+                  Math.floor(
+                    safeNumber(
+                      currentEventSoldByVariant[
+                        variantId
+                      ]
+                    )
+                  )
+                );
+
+              const availableQuantity =
+                Math.max(
+                  0,
+                  openingQuantity -
+                  soldQuantity
+                );
+
+              if (
+                availableQuantity <
+                saleQuantity
+              ) {
+                const error =
+                  new Error(
+                    `イベント在庫が不足しています。残り ${availableQuantity} 点です。`
+                  );
+
+                error.code =
+                  "event-stock-insufficient";
+
+                throw error;
+              }
+
+              nextEventSoldByVariant[
+                variantId
+              ] =
+                soldQuantity +
+                saleQuantity;
+            }
+          );
+        }
+
         const currency =
           String(
             session?.currency ||
@@ -694,6 +945,8 @@ export async function commitQuickSale({
               if (!item.variantId) {
                 return {
                   ...item,
+                  eventInventoryApplied:
+                    false,
                   inventorySource:
                     null,
                   inventoryKey:
@@ -741,6 +994,9 @@ export async function commitQuickSale({
 
               return {
                 ...item,
+
+                eventInventoryApplied:
+                  eventInventoryEnabled,
 
                 category:
                   variant.category ||
@@ -1177,6 +1433,11 @@ export async function commitQuickSale({
           items:
             finalizedItems,
 
+          eventInventoryMode:
+            eventInventoryEnabled
+              ? "opening_allocation"
+              : "global_only",
+
           inventoryMode:
             reconciliationStatus ===
               "reconciled"
@@ -1277,6 +1538,10 @@ export async function commitQuickSale({
                 inventoryApplied:
                   item.inventoryApplied,
 
+                eventInventoryApplied:
+                  item.eventInventoryApplied ===
+                  true,
+
                 trackingMode:
                   item.trackingMode,
 
@@ -1341,6 +1606,21 @@ export async function commitQuickSale({
           updatedAt:
             serverTimestamp()
         };
+
+        if (
+          eventInventoryEnabled &&
+          eventSaleQtyMap.size
+        ) {
+          sessionUpdate[
+            "inventoryCount.soldByVariant"
+          ] =
+            nextEventSoldByVariant;
+
+          sessionUpdate[
+            "inventoryCount.salesUpdatedAt"
+          ] =
+            serverTimestamp();
+        }
 
         if (fxRateToJPY) {
           sessionUpdate[
@@ -1557,6 +1837,59 @@ export async function voidSaleTransaction({
             item?.inventoryApplied ===
             true
         );
+
+      const eventAppliedItems =
+        items.filter(
+          item =>
+            item
+              ?.eventInventoryApplied ===
+              true &&
+            item?.variantId
+        );
+
+      const currentEventSoldByVariant =
+        sessionEventSoldMap(
+          session
+        );
+
+      const nextEventSoldByVariant = {
+        ...currentEventSoldByVariant
+      };
+
+      eventAppliedItems.forEach(
+        item => {
+          const variantId =
+            String(
+              item?.variantId ||
+              ""
+            ).trim();
+
+          const quantity =
+            Math.max(
+              0,
+              Math.floor(
+                safeNumber(
+                  item?.quantity
+                )
+              )
+            );
+
+          nextEventSoldByVariant[
+            variantId
+          ] =
+            Math.max(
+              0,
+              Math.floor(
+                safeNumber(
+                  nextEventSoldByVariant[
+                    variantId
+                  ]
+                )
+              ) -
+              quantity
+            );
+        }
+      );
 
       const needsTshirt =
         appliedItems.some(
@@ -2026,16 +2359,32 @@ export async function voidSaleTransaction({
           );
       }
 
+      const sessionUpdate = {
+        salesSummary:
+          nextSummary,
+        lastVoidAt:
+          serverTimestamp(),
+        updatedAt:
+          serverTimestamp()
+      };
+
+      if (
+        eventAppliedItems.length
+      ) {
+        sessionUpdate[
+          "inventoryCount.soldByVariant"
+        ] =
+          nextEventSoldByVariant;
+
+        sessionUpdate[
+          "inventoryCount.salesUpdatedAt"
+        ] =
+          serverTimestamp();
+      }
+
       transaction.update(
         sessionRef,
-        {
-          salesSummary:
-            nextSummary,
-          lastVoidAt:
-            serverTimestamp(),
-          updatedAt:
-            serverTimestamp()
-        }
+        sessionUpdate
       );
 
       transaction.update(

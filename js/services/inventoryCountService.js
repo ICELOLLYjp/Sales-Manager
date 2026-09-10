@@ -145,6 +145,46 @@ function normalizeClosingItem(
   };
 }
 
+function normalizeSoldByVariant(
+  value
+) {
+  const source =
+    value &&
+    typeof value === "object" &&
+    !Array.isArray(value)
+      ? value
+      : {};
+
+  const result = {};
+
+  Object.entries(
+    source
+  ).forEach(
+    ([
+      variantId,
+      quantity
+    ]) => {
+      const cleanVariantId =
+        text(
+          variantId
+        );
+
+      if (!cleanVariantId) {
+        return;
+      }
+
+      result[
+        cleanVariantId
+      ] =
+        nonNegativeInt(
+          quantity
+        );
+    }
+  );
+
+  return result;
+}
+
 function normalizeCount(
   value
 ) {
@@ -152,6 +192,11 @@ function normalizeCount(
     value || {};
 
   return {
+    soldByVariant:
+      normalizeSoldByVariant(
+        source?.soldByVariant
+      ),
+
     opening:
       source?.opening
         ? {
@@ -233,7 +278,8 @@ export async function loadEventInventoryCount(
   if (!cleanSessionId) {
     return {
       opening: null,
-      closing: null
+      closing: null,
+      soldByVariant: {}
     };
   }
 
@@ -371,6 +417,15 @@ export async function saveEventOpeningInventory({
        */
       "inventoryCount.closing":
         null,
+
+      "inventoryCount.soldByVariant":
+        current.opening &&
+        overwrite
+          ? (
+              current.soldByVariant ||
+              {}
+            )
+          : {},
 
       "inventoryCount.updatedAt":
         serverTimestamp(),
