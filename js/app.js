@@ -5838,7 +5838,13 @@ async function renderSessions(
                                 >
                                   <div
                                     style="
+                                      position:sticky;
+                                      left:0;
+                                      z-index:4;
                                       padding:9px 10px;
+                                      background:#f7f7f4;
+                                      border-right:1px solid #e7e7e2;
+                                      box-shadow:3px 0 6px rgba(0,0,0,.04);
                                     "
                                   >
                                     Design / Body / Color
@@ -5912,8 +5918,14 @@ async function renderSessions(
                                       >
                                         <div
                                           style="
+                                            position:sticky;
+                                            left:0;
+                                            z-index:3;
                                             padding:10px;
                                             min-width:0;
+                                            background:#fff;
+                                            border-right:1px solid #e7e7e2;
+                                            box-shadow:3px 0 6px rgba(0,0,0,.04);
                                           "
                                         >
                                           <div
@@ -6585,7 +6597,7 @@ async function renderSessions(
                               font-size:12px;
                             "
                           >
-                            開始在庫 − SKU販売 − 記録済み減少 ＋ 在庫調整 で計算しています。
+                            開始在庫 − SKU販売 − 記録済み減少 ＋ 在庫調整 で計算しています。Design / Body / Color列は固定され、サイズだけ横にスクロールできます。
                           </div>
 
                           ${
@@ -14309,8 +14321,14 @@ async function renderPos(
                                 >
                                   <div
                                     style="
+                                      position:sticky;
+                                      left:0;
+                                      z-index:3;
                                       padding:10px;
                                       min-width:0;
+                                      background:#fff;
+                                      border-right:1px solid #e7e7e2;
+                                      box-shadow:3px 0 6px rgba(0,0,0,.04);
                                     "
                                   >
                                     <div
