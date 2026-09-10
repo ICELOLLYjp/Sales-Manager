@@ -6,10 +6,10 @@ import { accessoryAdapter } from "./inventoryAdapters/accessoryAdapter.js";
 import { loadTshirtProductVariants, syncTshirtCurrentStockRows } from "./services/catalogService.js";
 import { listAllProductVariants, registerTshirtVariant, registerGeneralProduct, syncAccessoryCatalogRows } from "./services/productAdminService.js";
 import { CATEGORY_TEMPLATES, getCategoryTemplate } from "./data/categoryTemplates.js";
-import { loadQuickPriceBook, saveQuickPrices, QUICK_PRICE_CURRENCIES } from "./services/priceBookService.js";
+import { loadPosPriceConfig, savePosPriceConfig, QUICK_PRICE_CURRENCIES } from "./services/priceBookService.js?v=20260910-setdiscount-1";
 import { listSalesSessions, createEventSession, updateEventSession, updateEventExpenses, SESSION_CURRENCIES } from "./services/sessionService.js";
-import { commitQuickSale, voidSaleTransaction } from "./services/transactionService.js";
-import { listSessionTransactions } from "./services/salesHistoryService.js";
+import { commitQuickSale, voidSaleTransaction } from "./services/transactionService.js?v=20260910-setdiscount-1";
+import { listSessionTransactions } from "./services/salesHistoryService.js?v=20260910-setdiscount-1";
 import { saveCategoryCost, loadAllCategoryCostHistories, resolveCategoryUnitCost, saveTshirtBodyCost, loadTshirtBodyCostHistories, resolveBodyUnitCost, saveVariantCost, loadVariantCostHistories, calculateResolvedCogs } from "./services/costHistoryService.js";
 import { loadPinkoiTshirtCatalog, syncPinkoiTshirtCatalog } from "./services/pinkoiCatalogService.js";
 
@@ -50,6 +50,7 @@ let posCurrency =
   ) || "JPY";
 
 let posPriceBook = {};
+let posSetOfferBook = {};
 let posPriceBookLoaded = false;
 let posCart = new Map();
 let posOrderDiscount = 0;
@@ -2947,7 +2948,8 @@ function categorySalesSummary(
 
           const sales =
             Number(
-              item.grossLineTotal ||
+              item.netLineTotal ??
+              item.grossLineTotal ??
               (
                 Number(
                   item.unitPrice || 0
@@ -4719,12 +4721,54 @@ async function renderSessions(
                                       transaction.discount > 0
                                         ? `
                                           <div class="muted">
-                                            値引
+                                            値引合計
                                             ${formatMoney(
                                               transaction.discount,
                                               transaction.currency
                                             )}
                                           </div>
+
+                                          ${
+                                            transaction.setDiscount > 0
+                                              ? `
+                                                <div class="muted">
+                                                  セット
+                                                  ${formatMoney(
+                                                    transaction.setDiscount,
+                                                    transaction.currency
+                                                  )}
+                                                </div>
+                                              `
+                                              : ""
+                                          }
+
+                                          ${
+                                            transaction.lineDiscount > 0
+                                              ? `
+                                                <div class="muted">
+                                                  個別
+                                                  ${formatMoney(
+                                                    transaction.lineDiscount,
+                                                    transaction.currency
+                                                  )}
+                                                </div>
+                                              `
+                                              : ""
+                                          }
+
+                                          ${
+                                            transaction.orderDiscount > 0
+                                              ? `
+                                                <div class="muted">
+                                                  会計全体
+                                                  ${formatMoney(
+                                                    transaction.orderDiscount,
+                                                    transaction.currency
+                                                  )}
+                                                </div>
+                                              `
+                                              : ""
+                                          }
                                         `
                                         : ""
                                     }
@@ -5631,48 +5675,410 @@ function posPrice(
   );
 }
 
+function posSetOffer(
+  category
+) {
+  const value =
+    posSetOfferBook
+      ?.[category]
+      ?.[posCurrency] ||
+    {};
+
+  return {
+    quantity:
+      Math.max(
+        0,
+        Math.floor(
+          Number(
+            value.quantity || 0
+          )
+        )
+      ),
+
+    price:
+      Math.max(
+        0,
+        Number(
+          value.price || 0
+        )
+      )
+  };
+}
+
 function posCartTotals() {
+  const cartItems =
+    Array.from(
+      posCart.values()
+    );
+
   let subtotal = 0;
   let quantity = 0;
 
-  posCart.forEach(
-    item => {
-      quantity +=
-        Number(
-          item.quantity || 0
-        );
+  const baseLines =
+    cartItems.map(
+      item => {
+        const lineQuantity =
+          Math.max(
+            0,
+            Number(
+              item.quantity || 0
+            )
+          );
 
-      subtotal +=
-        Number(
-          item.quantity || 0
-        ) *
-        Number(
-          item.unitPrice || 0
+        const unitPrice =
+          Math.max(
+            0,
+            Number(
+              item.unitPrice || 0
+            )
+          );
+
+        const grossLineTotal =
+          lineQuantity *
+          unitPrice;
+
+        quantity +=
+          lineQuantity;
+
+        subtotal +=
+          grossLineTotal;
+
+        return {
+          item,
+          key:
+            item.key,
+          category:
+            item.category,
+          quantity:
+            lineQuantity,
+          unitPrice,
+          grossLineTotal,
+          allocatedSetDiscount:
+            0
+        };
+      }
+    );
+
+  /*
+   * Set offers are shared across items with the same
+   * category AND unit price.
+   *
+   * This allows different accessory SKUs at the same price
+   * to form one set, while avoiding ambiguous set pricing
+   * when a category contains different unit prices.
+   */
+  const groups =
+    new Map();
+
+  baseLines.forEach(
+    line => {
+      const groupKey =
+        [
+          line.category,
+          line.unitPrice
+        ].join("|");
+
+      if (
+        !groups.has(
+          groupKey
+        )
+      ) {
+        groups.set(
+          groupKey,
+          []
+        );
+      }
+
+      groups
+        .get(
+          groupKey
+        )
+        .push(
+          line
         );
     }
   );
 
-  const discount =
+  const setSummaries = [];
+
+  groups.forEach(
+    lines => {
+      const category =
+        lines[0]
+          ?.category;
+
+      const unitPrice =
+        lines[0]
+          ?.unitPrice || 0;
+
+      const offer =
+        posSetOffer(
+          category
+        );
+
+      if (
+        offer.quantity < 2 ||
+        offer.price <= 0 ||
+        unitPrice <= 0
+      ) {
+        return;
+      }
+
+      const regularSetTotal =
+        offer.quantity *
+        unitPrice;
+
+      if (
+        offer.price >=
+        regularSetTotal
+      ) {
+        return;
+      }
+
+      const groupQuantity =
+        lines.reduce(
+          (sum, line) =>
+            sum +
+            line.quantity,
+          0
+        );
+
+      const setCount =
+        Math.floor(
+          groupQuantity /
+          offer.quantity
+        );
+
+      if (
+        setCount <= 0
+      ) {
+        return;
+      }
+
+      const groupSetDiscount =
+        setCount *
+        (
+          regularSetTotal -
+          offer.price
+        );
+
+      let allocated = 0;
+
+      lines.forEach(
+        (
+          line,
+          index
+        ) => {
+          const isLast =
+            index ===
+            lines.length - 1;
+
+          const share =
+            isLast
+              ? (
+                  groupSetDiscount -
+                  allocated
+                )
+              : (
+                  groupSetDiscount *
+                  (
+                    line.quantity /
+                    groupQuantity
+                  )
+                );
+
+          line.allocatedSetDiscount =
+            Math.max(
+              0,
+              Math.min(
+                share,
+                line.grossLineTotal
+              )
+            );
+
+          allocated +=
+            line.allocatedSetDiscount;
+        }
+      );
+
+      setSummaries.push({
+        category,
+        unitPrice,
+        setQuantity:
+          offer.quantity,
+        setPrice:
+          offer.price,
+        setCount,
+        discount:
+          groupSetDiscount
+      });
+    }
+  );
+
+  let setDiscount = 0;
+  let lineDiscount = 0;
+
+  const pricedLines =
+    baseLines.map(
+      line => {
+        const afterSet =
+          Math.max(
+            0,
+            line.grossLineTotal -
+            line.allocatedSetDiscount
+          );
+
+        const manualDiscount =
+          Math.max(
+            0,
+            Math.min(
+              Number(
+                line.item
+                  ?.manualDiscount ||
+                0
+              ),
+              afterSet
+            )
+          );
+
+        const netBeforeOrder =
+          Math.max(
+            0,
+            afterSet -
+            manualDiscount
+          );
+
+        setDiscount +=
+          line.allocatedSetDiscount;
+
+        lineDiscount +=
+          manualDiscount;
+
+        return {
+          ...line,
+          setDiscount:
+            line.allocatedSetDiscount,
+          manualDiscount,
+          netBeforeOrder,
+          orderDiscountAllocated:
+            0,
+          totalLineDiscount:
+            line.allocatedSetDiscount +
+            manualDiscount,
+          netLineTotal:
+            netBeforeOrder
+        };
+      }
+    );
+
+  const beforeOrderDiscount =
+    Math.max(
+      0,
+      subtotal -
+      setDiscount -
+      lineDiscount
+    );
+
+  const orderDiscount =
     Math.max(
       0,
       Math.min(
         Number(
           posOrderDiscount || 0
         ),
-        subtotal
+        beforeOrderDiscount
       )
     );
+
+  if (
+    orderDiscount > 0 &&
+    beforeOrderDiscount > 0
+  ) {
+    let allocatedOrder = 0;
+
+    const eligible =
+      pricedLines.filter(
+        line =>
+          line.netBeforeOrder > 0
+      );
+
+    eligible.forEach(
+      (
+        line,
+        index
+      ) => {
+        const isLast =
+          index ===
+          eligible.length - 1;
+
+        const allocation =
+          isLast
+            ? (
+                orderDiscount -
+                allocatedOrder
+              )
+            : (
+                orderDiscount *
+                (
+                  line.netBeforeOrder /
+                  beforeOrderDiscount
+                )
+              );
+
+        line.orderDiscountAllocated =
+          Math.max(
+            0,
+            Math.min(
+              allocation,
+              line.netBeforeOrder
+            )
+          );
+
+        line.totalLineDiscount +=
+          line.orderDiscountAllocated;
+
+        line.netLineTotal =
+          Math.max(
+            0,
+            line.netBeforeOrder -
+            line.orderDiscountAllocated
+          );
+
+        allocatedOrder +=
+          line.orderDiscountAllocated;
+      }
+    );
+  }
+
+  const discount =
+    setDiscount +
+    lineDiscount +
+    orderDiscount;
 
   return {
     quantity,
     subtotal,
+    setDiscount,
+    lineDiscount,
+    orderDiscount,
     discount,
+    beforeOrderDiscount,
     total:
       Math.max(
         0,
         subtotal -
         discount
-      )
+      ),
+    lines:
+      new Map(
+        pricedLines.map(
+          line => [
+            line.key,
+            line
+          ]
+        )
+      ),
+    setSummaries
   };
 }
 
@@ -5715,6 +6121,8 @@ function addQuickItem(
           1,
         unitPrice:
           price,
+        manualDiscount:
+          0,
         trackingMode:
           "quick"
       }
@@ -5950,6 +6358,9 @@ function addSkuItem(
       unitPrice:
         price,
 
+      manualDiscount:
+        0,
+
       trackingMode:
         "sku",
 
@@ -5995,8 +6406,14 @@ async function renderPos(
     if (
       !posPriceBookLoaded
     ) {
+      const priceConfig =
+        await loadPosPriceConfig();
+
       posPriceBook =
-        await loadQuickPriceBook();
+        priceConfig.prices;
+
+      posSetOfferBook =
+        priceConfig.setOffers;
 
       posPriceBookLoaded =
         true;
@@ -6572,6 +6989,7 @@ async function renderPos(
                       style="
                         margin-top:9px;
                         font-size:14px;
+                        line-height:1.45;
                       "
                     >
                       ${
@@ -6580,6 +6998,28 @@ async function renderPos(
                               price
                             )
                           : "価格未設定"
+                      }
+
+                      ${
+                        (() => {
+                          const offer =
+                            posSetOffer(
+                              category
+                            );
+
+                          return (
+                            offer.quantity >= 2 &&
+                            offer.price > 0
+                          )
+                            ? `
+                              <br>
+                              ${offer.quantity}点
+                              ${formatMoney(
+                                offer.price
+                              )}
+                            `
+                            : "";
+                        })()
                       }
                     </div>
                   </button>
@@ -6890,7 +7330,7 @@ async function renderPos(
             class="muted"
             style="margin-bottom:12px;"
           >
-            会計前に設定しておくと、会計中は商品をタップするだけで追加できます。
+            通常価格に加えて、カテゴリごとに「何点でいくら」のセット価格を設定できます。セット価格は同じカテゴリ・同じ単価の商品に自動適用します。
           </div>
 
 
@@ -6901,49 +7341,141 @@ async function renderPos(
             "
           >
             ${POS_CATEGORY_ORDER.map(
-              category => `
-                <label
-                  style="
-                    display:grid;
-                    grid-template-columns:
-                      minmax(0,1fr)
-                      120px;
-                    gap:10px;
-                    align-items:center;
-                  "
-                >
-                  <span>
-                    ${escapeHtml(
-                      POS_CATEGORY_LABELS[
-                        category
-                      ]
-                    )}
-                  </span>
+              category => {
+                const offer =
+                  posSetOffer(
+                    category
+                  );
 
-                  <input
-                    class="posPriceInput"
-                    data-category="${category}"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    inputmode="decimal"
-                    value="${
-                      posPrice(
-                        category
-                      ) || ""
-                    }"
-                    placeholder="0"
+                return `
+                  <div
                     style="
-                      width:100%;
-                      min-height:44px;
-                      padding:0 10px;
-                      border:1px solid #deded9;
-                      border-radius:10px;
-                      text-align:right;
+                      padding:10px 0;
+                      border-bottom:1px solid #ecece7;
                     "
                   >
-                </label>
-              `
+                    <div
+                      style="
+                        font-weight:700;
+                        margin-bottom:8px;
+                      "
+                    >
+                      ${escapeHtml(
+                        POS_CATEGORY_LABELS[
+                          category
+                        ]
+                      )}
+                    </div>
+
+                    <div
+                      style="
+                        display:grid;
+                        grid-template-columns:
+                          minmax(0,1fr)
+                          120px;
+                        gap:8px;
+                        align-items:center;
+                      "
+                    >
+                      <span class="muted">
+                        通常価格
+                      </span>
+
+                      <input
+                        class="posPriceInput"
+                        data-category="${category}"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        inputmode="decimal"
+                        value="${
+                          posPrice(
+                            category
+                          ) || ""
+                        }"
+                        placeholder="0"
+                        style="
+                          width:100%;
+                          min-height:42px;
+                          padding:0 10px;
+                          border:1px solid #deded9;
+                          border-radius:10px;
+                          text-align:right;
+                        "
+                      >
+                    </div>
+
+                    <div
+                      style="
+                        display:grid;
+                        grid-template-columns:
+                          minmax(0,1fr)
+                          70px
+                          110px;
+                        gap:8px;
+                        align-items:center;
+                        margin-top:8px;
+                      "
+                    >
+                      <span class="muted">
+                        セット価格
+                      </span>
+
+                      <input
+                        class="posSetQuantityInput"
+                        data-category="${category}"
+                        type="number"
+                        min="0"
+                        step="1"
+                        inputmode="numeric"
+                        value="${
+                          offer.quantity || ""
+                        }"
+                        placeholder="個数"
+                        aria-label="${escapeHtml(
+                          POS_CATEGORY_LABELS[
+                            category
+                          ]
+                        )} セット個数"
+                        style="
+                          width:100%;
+                          min-height:42px;
+                          padding:0 8px;
+                          border:1px solid #deded9;
+                          border-radius:10px;
+                          text-align:center;
+                        "
+                      >
+
+                      <input
+                        class="posSetPriceInput"
+                        data-category="${category}"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        inputmode="decimal"
+                        value="${
+                          offer.price || ""
+                        }"
+                        placeholder="合計"
+                        aria-label="${escapeHtml(
+                          POS_CATEGORY_LABELS[
+                            category
+                          ]
+                        )} セット合計価格"
+                        style="
+                          width:100%;
+                          min-height:42px;
+                          padding:0 8px;
+                          border:1px solid #deded9;
+                          border-radius:10px;
+                          text-align:right;
+                        "
+                      >
+                    </div>
+                  </div>
+                `;
+              }
             ).join("")}
           </div>
 
@@ -7044,12 +7576,80 @@ async function renderPos(
                           class="muted"
                           style="
                             margin-top:3px;
+                            line-height:1.5;
                           "
                         >
                           ${formatMoney(
                             item.unitPrice
                           )}
+
+                          ${
+                            (() => {
+                              const pricing =
+                                totals.lines.get(
+                                  item.key
+                                );
+
+                              return (
+                                pricing?.setDiscount >
+                                0
+                              )
+                                ? `
+                                  <br>
+                                  セット値引
+                                  −${formatMoney(
+                                    pricing.setDiscount
+                                  )}
+                                `
+                                : "";
+                            })()
+                          }
                         </div>
+
+                        <label
+                          style="
+                            display:flex;
+                            align-items:center;
+                            gap:6px;
+                            margin-top:7px;
+                          "
+                        >
+                          <span
+                            class="muted"
+                            style="
+                              font-size:12px;
+                              white-space:nowrap;
+                            "
+                          >
+                            個別値引
+                          </span>
+
+                          <input
+                            class="posLineDiscountInput"
+                            data-key="${escapeHtml(
+                              item.key
+                            )}"
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            inputmode="decimal"
+                            value="${
+                              Number(
+                                item.manualDiscount ||
+                                0
+                              ) || ""
+                            }"
+                            placeholder="0"
+                            style="
+                              width:90px;
+                              min-height:36px;
+                              padding:0 8px;
+                              border:1px solid #deded9;
+                              border-radius:9px;
+                              text-align:right;
+                            "
+                          >
+                        </label>
                       </div>
 
 
@@ -7118,10 +7718,23 @@ async function renderPos(
                           font-weight:800;
                         "
                       >
-                        ${formatMoney(
-                          item.quantity *
-                          item.unitPrice
-                        )}
+                        ${
+                          (() => {
+                            const pricing =
+                              totals.lines.get(
+                                item.key
+                              );
+
+                            return formatMoney(
+                              pricing
+                                ?.netBeforeOrder ??
+                              (
+                                item.quantity *
+                                item.unitPrice
+                              )
+                            );
+                          })()
+                        }
                       </div>
                     </div>
                   `
@@ -7161,6 +7774,42 @@ async function renderPos(
             </div>
 
 
+            ${
+              totals.setDiscount > 0
+                ? `
+                  <div class="list-row">
+                    <span>
+                      セット値引
+                    </span>
+
+                    <strong>
+                      −${formatMoney(
+                        totals.setDiscount
+                      )}
+                    </strong>
+                  </div>
+                `
+                : ""
+            }
+
+            ${
+              totals.lineDiscount > 0
+                ? `
+                  <div class="list-row">
+                    <span>
+                      個別値引
+                    </span>
+
+                    <strong>
+                      −${formatMoney(
+                        totals.lineDiscount
+                      )}
+                    </strong>
+                  </div>
+                `
+                : ""
+            }
+
             <label
               class="list-row"
               style="
@@ -7168,7 +7817,7 @@ async function renderPos(
               "
             >
               <span>
-                会計値引
+                会計全体の値引
               </span>
 
               <input
@@ -7703,32 +8352,90 @@ async function renderPos(
 
 
       document
+        .querySelectorAll(
+          ".posLineDiscountInput"
+        )
+        .forEach(
+          input => {
+            input.addEventListener(
+              "change",
+              event => {
+                invalidatePendingCheckout();
+
+                const key =
+                  event.target
+                    .dataset
+                    .key;
+
+                const item =
+                  posCart.get(
+                    key
+                  );
+
+                if (!item) {
+                  return;
+                }
+
+                item.manualDiscount =
+                  Math.max(
+                    0,
+                    Number(
+                      event.target.value ||
+                      0
+                    )
+                  );
+
+                renderPosBody();
+              }
+            );
+          }
+        );
+
+
+      document
         .querySelector(
           "#togglePosPriceSettings"
         )
         ?.addEventListener(
           "click",
-          () => {
+          event => {
             posPriceSettingsOpen =
               !posPriceSettingsOpen;
 
-            renderPosBody();
+            const button =
+              event.currentTarget;
+
+            const panel =
+              document.querySelector(
+                "#posPriceSettings"
+              );
+
+            if (panel) {
+              panel.style.display =
+                posPriceSettingsOpen
+                  ? ""
+                  : "none";
+            }
+
+            if (button) {
+              button.textContent =
+                posPriceSettingsOpen
+                  ? "価格設定を閉じる"
+                  : "価格設定";
+            }
 
             if (
-              posPriceSettingsOpen
+              posPriceSettingsOpen &&
+              panel
             ) {
               requestAnimationFrame(
                 () => {
-                  document
-                    .querySelector(
-                      "#posPriceSettings"
-                    )
-                    ?.scrollIntoView({
-                      behavior:
-                        "smooth",
-                      block:
-                        "start"
-                    });
+                  panel.scrollIntoView({
+                    behavior:
+                      "smooth",
+                    block:
+                      "start"
+                  });
                 }
               );
             }
@@ -7752,6 +8459,7 @@ async function renderPos(
               );
 
             const prices = {};
+            const setOffers = {};
 
             document
               .querySelectorAll(
@@ -7769,6 +8477,47 @@ async function renderPos(
                 }
               );
 
+            POS_CATEGORY_ORDER
+              .forEach(
+                category => {
+                  const quantityInput =
+                    document.querySelector(
+                      `.posSetQuantityInput[data-category="${category}"]`
+                    );
+
+                  const priceInput =
+                    document.querySelector(
+                      `.posSetPriceInput[data-category="${category}"]`
+                    );
+
+                  setOffers[
+                    category
+                  ] = {
+                    quantity:
+                      Math.max(
+                        0,
+                        Math.floor(
+                          Number(
+                            quantityInput
+                              ?.value ||
+                            0
+                          )
+                        )
+                      ),
+
+                    price:
+                      Math.max(
+                        0,
+                        Number(
+                          priceInput
+                            ?.value ||
+                          0
+                        )
+                      )
+                  };
+                }
+              );
+
             button.disabled =
               true;
 
@@ -7776,9 +8525,10 @@ async function renderPos(
               "保存中";
 
             try {
-              await saveQuickPrices(
+              await savePosPriceConfig(
                 posCurrency,
-                prices
+                prices,
+                setOffers
               );
 
               POS_CATEGORY_ORDER
@@ -7794,6 +8544,16 @@ async function renderPos(
                       ] = {};
                     }
 
+                    if (
+                      !posSetOfferBook[
+                        category
+                      ]
+                    ) {
+                      posSetOfferBook[
+                        category
+                      ] = {};
+                    }
+
                     posPriceBook[
                       category
                     ][
@@ -7804,6 +8564,24 @@ async function renderPos(
                           category
                         ] || 0
                       );
+
+                    posSetOfferBook[
+                      category
+                    ][
+                      posCurrency
+                    ] = {
+                      quantity:
+                        setOffers[
+                          category
+                        ]?.quantity ||
+                        0,
+
+                      price:
+                        setOffers[
+                          category
+                        ]?.price ||
+                        0
+                    };
                   }
                 );
 
@@ -7933,33 +8711,65 @@ async function renderPos(
                     Array.from(
                       posCart.values()
                     ).map(
-                      item => ({
-                        lineId:
-                          item.key,
-                        category:
-                          item.category,
-                        label:
-                          item.label,
-                        quantity:
-                          item.quantity,
-                        unitPrice:
-                          item.unitPrice,
-                        trackingMode:
-                          item.trackingMode ||
-                          "quick",
+                      item => {
+                        const pricing =
+                          totals.lines.get(
+                            item.key
+                          );
 
-                        variantId:
-                          item.variantId ||
-                          null,
+                        return {
+                          lineId:
+                            item.key,
+                          category:
+                            item.category,
+                          label:
+                            item.label,
+                          quantity:
+                            item.quantity,
+                          unitPrice:
+                            item.unitPrice,
+                          trackingMode:
+                            item.trackingMode ||
+                            "quick",
 
-                        inventoryKey:
-                          item.inventoryKey ||
-                          null
-                      })
+                          variantId:
+                            item.variantId ||
+                            null,
+
+                          inventoryKey:
+                            item.inventoryKey ||
+                            null,
+
+                          setDiscount:
+                            pricing
+                              ?.setDiscount ||
+                            0,
+
+                          manualDiscount:
+                            pricing
+                              ?.manualDiscount ||
+                            0,
+
+                          setOffer:
+                            (() => {
+                              const offer =
+                                posSetOffer(
+                                  item.category
+                                );
+
+                              return {
+                                quantity:
+                                  offer.quantity,
+                                price:
+                                  offer.price
+                              };
+                            })()
+                        };
+                      }
                     ),
 
                   orderDiscount:
-                    posOrderDiscount,
+                    totals.orderDiscount,
 
                   createdByEmail:
                     currentUser
