@@ -314,39 +314,74 @@ async function renderMorePage(sequence) {
         <div class="card-title">アクセサリー在庫連携</div>
 
         <div class="muted" style="margin-bottom:12px;">
-          accessoryStock/shared の商品カタログを読み込みます。
+          accessoryStock/shared の実在庫を確認します。
         </div>
 
         <div class="list-row">
-          <span>デザイン数</span>
+          <span>Firestore デザイン数</span>
           <strong>${accessoryCatalog.summary.designCount}</strong>
         </div>
 
         <div class="list-row">
-          <span>アクセサリー SKU</span>
-          <strong>${accessoryCatalog.summary.skuCount}</strong>
+          <span>Firestore 在庫ありSKU</span>
+          <strong>${accessoryCatalog.summary.currentStockSkuCount}</strong>
         </div>
 
         <div class="list-row">
-          <span>未登録 SKU</span>
-          <strong>${accessoryUnregistered.length}</strong>
-        </div>
-
-        <div class="list-row">
-          <span>現在在庫 合計</span>
+          <span>Firestore 現在在庫</span>
           <strong>${accessoryCatalog.summary.totalStock}</strong>
         </div>
 
         ${
+          accessoryCatalog.summary.localTotalStock > 0
+            ? `
+              <div class="list-row">
+                <span>この端末の在庫</span>
+                <strong>${accessoryCatalog.summary.localTotalStock}</strong>
+              </div>
+            `
+            : ""
+        }
+
+        ${
+          accessoryCatalog.summary.sourceState === "local_only"
+            ? `
+              <div class="warning" style="margin-top:14px;">
+                この端末にはアクセサリー在庫がありますが、
+                Firestore側は在庫0です。
+                まだ商品登録しません。
+              </div>
+            `
+            : ""
+        }
+
+        ${
+          accessoryCatalog.summary.sourceState === "empty"
+            ? `
+              <div class="warning" style="margin-top:14px;">
+                Firestoreから現在在庫を確認できていません。
+                まだ商品登録しません。
+              </div>
+            `
+            : ""
+        }
+
+        ${
+          accessoryCatalog.summary.sourceState === "cloud_ready" &&
           accessoryUnregistered.length
             ? `
+              <div class="list-row">
+                <span>未登録の在庫SKU</span>
+                <strong>${accessoryUnregistered.length}</strong>
+              </div>
+
               <button
                 id="syncAccessoryCatalogButton"
                 class="button"
                 type="button"
                 style="width:100%;margin-top:14px;"
               >
-                アクセサリーSKUを商品登録
+                現在在庫のアクセサリーSKUを商品登録
               </button>
 
               <div
@@ -355,11 +390,18 @@ async function renderMorePage(sequence) {
                 style="margin-top:10px;"
               ></div>
             `
-            : `
+            : ""
+        }
+
+        ${
+          accessoryCatalog.summary.sourceState === "cloud_ready" &&
+          accessoryUnregistered.length === 0
+            ? `
               <div class="muted" style="margin-top:12px;">
-                アクセサリーSKUはすべて商品登録済みです。
+                現在在庫のアクセサリーSKUはすべて登録済みです。
               </div>
             `
+            : ""
         }
       </section>
 
@@ -472,7 +514,7 @@ async function renderMorePage(sequence) {
         } catch (error) {
           button.disabled = false;
           button.textContent =
-            "アクセサリーSKUを商品登録";
+            "現在在庫のアクセサリーSKUを商品登録";
 
           if (message) {
             message.textContent =
