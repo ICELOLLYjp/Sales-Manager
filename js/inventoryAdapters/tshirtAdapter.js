@@ -3,14 +3,17 @@ import {
 } from "../firebase.js";
 
 
-const MASTER_COLLECTION = "tshirtStock";
+const COLLECTION = "tshirtStock";
+
 const MASTER_DOCUMENT = "master";
+
+const SHARED_DOCUMENT = "shared";
 
 const LEGACY_BODY_ID =
   "body_unassigned";
 
 
-async function getFirestoreModule() {
+async function firestoreModule() {
 
   return await import(
     "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js"
@@ -18,7 +21,9 @@ async function getFirestoreModule() {
 }
 
 
-async function loadMasterDocument() {
+async function loadDocument(
+  documentId
+) {
 
   const {
     db,
@@ -26,7 +31,10 @@ async function loadMasterDocument() {
   } = getFirebaseState();
 
 
-  if (!enabled || !db) {
+  if (
+    !enabled ||
+    !db
+  ) {
 
     throw new Error(
       "Firebase is not connected."
@@ -37,24 +45,27 @@ async function loadMasterDocument() {
   const {
     doc,
     getDoc
-  } = await getFirestoreModule();
+  } = await firestoreModule();
 
 
-  const ref = doc(
-    db,
-    MASTER_COLLECTION,
-    MASTER_DOCUMENT
-  );
+  const ref =
+    doc(
+      db,
+      COLLECTION,
+      documentId
+    );
 
 
   const snapshot =
     await getDoc(ref);
 
 
-  if (!snapshot.exists()) {
+  if (
+    !snapshot.exists()
+  ) {
 
     throw new Error(
-      "tshirtStock/master was not found."
+      `tshirtStock/${documentId} was not found.`
     );
   }
 
@@ -63,29 +74,169 @@ async function loadMasterDocument() {
 }
 
 
-function encodeStockTarget(
+async function loadDocuments() {
+
+  const [
+    master,
+    shared
+  ] = await Promise.all([
+    loadDocument(
+      MASTER_DOCUMENT
+    ),
+
+    loadDocument(
+      SHARED_DOCUMENT
+    )
+  ]);
+
+
+  return {
+    master,
+    shared
+  };
+}
+
+
+function normalize(
+  value
+) {
+
+  return String(
+    value ?? ""
+  )
+    .trim()
+    .toLocaleLowerCase(
+      "en-US"
+    );
+}
+
+
+function findByName(
+  map,
+  name,
+  fields
+) {
+
+  const key =
+    normalize(name);
+
+
+  if (!key) {
+    return null;
+  }
+
+
+  return (
+    Object
+      .values(
+        map || {}
+      )
+      .find(
+        item => {
+
+          return fields.some(
+            field => {
+
+              return (
+                normalize(
+                  item?.[field]
+                ) === key
+              );
+            }
+          );
+        }
+      ) || null
+  );
+}
+
+
+function displayName(
+  map,
+  id,
+  fields
+) {
+
+  const item =
+    map?.[id] || {};
+
+
+  for (
+    const field of fields
+  ) {
+
+    const value =
+      String(
+        item?.[field] || ""
+      ).trim();
+
+
+    if (value) {
+      return value;
+    }
+  }
+
+
+  return id || "";
+}
+
+
+function encodePart(
+  value
+) {
+
+  return encodeURIComponent(
+    String(value || "")
+  );
+}
+
+
+function createStockTargetId(
   bodyId,
   designId,
   colorId,
   sizeId
 ) {
 
-  const values = [
-    bodyId,
-    designId,
-    colorId,
-    sizeId
-  ].map(value =>
-    encodeURIComponent(
-      String(value || "")
-    )
-  );
+  if (
+    !bodyId ||
+    !designId ||
+    !colorId ||
+    !sizeId
+  ) {
+
+    return null;
+  }
 
 
-  return (
-    "tshirt:" +
-    values.join("|")
-  );
+  return [
+    "tshirt:",
+    encodePart(bodyId),
+    "|",
+    encodePart(designId),
+    "|",
+    encodePart(colorId),
+    "|",
+    encodePart(sizeId)
+  ].join("");
+}
+
+
+function createVariantId(
+  bodyId,
+  designId,
+  colorId,
+  sizeId
+) {
+
+  return [
+    "tshirt",
+    encodePart(
+      bodyId || "unassigned"
+    ),
+    encodePart(designId),
+    encodePart(colorId),
+    encodePart(sizeId)
+  ].join("__");
 }
 
 
@@ -94,10 +245,16 @@ function decodeStockTarget(
 ) {
 
   const value =
-    String(stockTargetId || "");
+    String(
+      stockTargetId || ""
+    );
 
 
-  if (!value.startsWith("tshirt:")) {
+  if (
+    !value.startsWith(
+      "tshirt:"
+    )
+  ) {
 
     return null;
   }
@@ -107,12 +264,17 @@ function decodeStockTarget(
     value
       .slice(7)
       .split("|")
-      .map(value =>
-        decodeURIComponent(value)
+      .map(
+        part =>
+          decodeURIComponent(
+            part
+          )
       );
 
 
-  if (parts.length !== 4) {
+  if (
+    parts.length !== 4
+  ) {
 
     return null;
   }
@@ -127,101 +289,429 @@ function decodeStockTarget(
 }
 
 
-function masterName(
-  map,
-  id,
-  fields
-) {
-
-  const item =
-    map?.[id] || {};
-
-
-  for (const field of fields) {
-
-    const value =
-      String(
-        item?.[field] || ""
-      ).trim();
-
-
-    if (value) return value;
-  }
-
-
-  return id;
-}
-
-
-function getSizeOrder(
-  sizes,
+function currentQuantity(
+  master,
+  bodyId,
+  designId,
+  colorId,
   sizeId
 ) {
 
-  return Number(
-    sizes?.[sizeId]?.order || 999
+  if (!bodyId) {
+    return null;
+  }
+
+
+  return Math.max(
+    0,
+    Number(
+      master
+        ?.inventory_v2
+        ?.[bodyId]
+        ?.[designId]
+        ?.[colorId]
+        ?.[sizeId]
+        ?.qty || 0
+    )
   );
 }
 
 
-export const tshirtAdapter = {
+function variantKey(
+  bodyId,
+  designId,
+  colorId,
+  sizeId
+) {
 
-  async getMasterSummary() {
-
-    const master =
-      await loadMasterDocument();
-
-
-    const inventory =
-      master?.inventory_v2 || {};
-
-
-    let total = 0;
-    let skuCount = 0;
+  return [
+    bodyId || "",
+    designId || "",
+    colorId || "",
+    sizeId || ""
+  ].join("\u241f");
+}
 
 
-    Object.entries(inventory)
-      .forEach(
-        ([bodyId, designTree]) => {
+function buildVariant({
+  master,
+  bodyId,
+  designId,
+  colorId,
+  sizeId
+}) {
 
-          if (
-            bodyId ===
-            LEGACY_BODY_ID
-          ) {
+  const masters =
+    master?.masters || {};
+
+
+  const bodies =
+    masters?.bodies || {};
+
+
+  const designs =
+    masters?.designs || {};
+
+
+  const colors =
+    masters?.colors || {};
+
+
+  const sizes =
+    masters?.sizes || {};
+
+
+  const quantity =
+    currentQuantity(
+      master,
+      bodyId,
+      designId,
+      colorId,
+      sizeId
+    );
+
+
+  let inventoryStatus =
+    "tracked";
+
+
+  let catalogStatus =
+    "out_of_stock";
+
+
+  if (!bodyId) {
+
+    inventoryStatus =
+      "not_initialized";
+
+    catalogStatus =
+      "not_initialized";
+
+  } else if (
+    quantity > 0
+  ) {
+
+    catalogStatus =
+      "in_stock";
+  }
+
+
+  return {
+
+    variantId:
+      createVariantId(
+        bodyId,
+        designId,
+        colorId,
+        sizeId
+      ),
+
+    productId:
+      "tshirt",
+
+    category:
+      "tshirt",
+
+    sku:
+      createVariantId(
+        bodyId,
+        designId,
+        colorId,
+        sizeId
+      ),
+
+    bodyId:
+      bodyId || null,
+
+    designId:
+      designId || null,
+
+    colorId:
+      colorId || null,
+
+    sizeId:
+      sizeId || null,
+
+    body:
+      bodyId
+        ? displayName(
+            bodies,
+            bodyId,
+            [
+              "managementName",
+              "salesName"
+            ]
+          )
+        : "Body未設定",
+
+    design:
+      displayName(
+        designs,
+        designId,
+        [
+          "managementName",
+          "legacyKey",
+          "salesName"
+        ]
+      ),
+
+    color:
+      displayName(
+        colors,
+        colorId,
+        [
+          "managementName",
+          "legacyKey",
+          "pinkoiName"
+        ]
+      ),
+
+    size:
+      displayName(
+        sizes,
+        sizeId,
+        [
+          "managementName",
+          "salesName"
+        ]
+      ),
+
+    sizeOrder:
+      Number(
+        sizes?.[sizeId]
+          ?.order || 999
+      ),
+
+    quantity,
+
+    stockTargetId:
+      createStockTargetId(
+        bodyId,
+        designId,
+        colorId,
+        sizeId
+      ),
+
+    inventorySource:
+      "tshirt",
+
+    inventoryStatus,
+
+    catalogStatus,
+
+    active:
+      true,
+
+    source:
+      "tshirtStock"
+  };
+}
+
+
+function buildCatalog(
+  master,
+  shared
+) {
+
+  const masters =
+    master?.masters || {};
+
+
+  const designs =
+    masters?.designs || {};
+
+
+  const colors =
+    masters?.colors || {};
+
+
+  const sizes =
+    masters?.sizes || {};
+
+
+  const variants =
+    new Map();
+
+
+  const sortedSizes =
+    Object
+      .values(
+        sizes
+      )
+      .sort(
+        (a, b) =>
+          Number(
+            a?.order || 999
+          ) -
+          Number(
+            b?.order || 999
+          )
+      );
+
+
+  const sharedDesigns =
+    shared?.designs || {};
+
+
+  Object.entries(
+    sharedDesigns
+  ).forEach(
+    ([
+      designName,
+      sharedDesign
+    ]) => {
+
+      const design =
+        findByName(
+          designs,
+          designName,
+          [
+            "legacyKey",
+            "managementName",
+            "salesName"
+          ]
+        );
+
+
+      if (!design) {
+        return;
+      }
+
+
+      const sharedColors =
+        Array.isArray(
+          sharedDesign?.colors
+        )
+          ? sharedDesign.colors
+          : [];
+
+
+      sharedColors.forEach(
+        colorName => {
+
+          const color =
+            findByName(
+              colors,
+              colorName,
+              [
+                "legacyKey",
+                "managementName",
+                "pinkoiName"
+              ]
+            );
+
+
+          if (!color) {
             return;
           }
 
 
-          Object.values(
-            designTree || {}
+          const bodyId =
+            color?.bodyId || null;
+
+
+          sortedSizes.forEach(
+            size => {
+
+              const item =
+                buildVariant({
+                  master,
+                  bodyId,
+                  designId:
+                    design.id,
+                  colorId:
+                    color.id,
+                  sizeId:
+                    size.id
+                });
+
+
+              const key =
+                variantKey(
+                  item.bodyId,
+                  item.designId,
+                  item.colorId,
+                  item.sizeId
+                );
+
+
+              variants.set(
+                key,
+                item
+              );
+            }
+          );
+        }
+      );
+    }
+  );
+
+
+  Object.entries(
+    master?.inventory_v2 || {}
+  ).forEach(
+    ([
+      bodyId,
+      designTree
+    ]) => {
+
+      if (
+        bodyId ===
+        LEGACY_BODY_ID
+      ) {
+
+        return;
+      }
+
+
+      Object.entries(
+        designTree || {}
+      ).forEach(
+        ([
+          designId,
+          colorTree
+        ]) => {
+
+
+          Object.entries(
+            colorTree || {}
           ).forEach(
-            colorTree => {
+            ([
+              colorId,
+              sizeTree
+            ]) => {
 
-              Object.values(
-                colorTree || {}
+
+              Object.entries(
+                sizeTree || {}
               ).forEach(
-                sizeTree => {
-
-                  Object.values(
-                    sizeTree || {}
-                  ).forEach(
-                    cell => {
-
-                      const qty =
-                        Math.max(
-                          0,
-                          Number(
-                            cell?.qty || 0
-                          )
-                        );
+                ([
+                  sizeId
+                ]) => {
 
 
-                      if (qty > 0) {
+                  const item =
+                    buildVariant({
+                      master,
+                      bodyId,
+                      designId,
+                      colorId,
+                      sizeId
+                    });
 
-                        total += qty;
-                        skuCount += 1;
-                      }
-                    }
+
+                  const key =
+                    variantKey(
+                      bodyId,
+                      designId,
+                      colorId,
+                      sizeId
+                    );
+
+
+                  variants.set(
+                    key,
+                    item
                   );
                 }
               );
@@ -229,224 +719,196 @@ export const tshirtAdapter = {
           );
         }
       );
+    }
+  );
+
+
+  const rows =
+    Array.from(
+      variants.values()
+    );
+
+
+  rows.sort(
+    (a, b) => {
+
+      return (
+        a.body.localeCompare(
+          b.body,
+          "ja"
+        ) ||
+
+        a.design.localeCompare(
+          b.design,
+          "ja"
+        ) ||
+
+        a.color.localeCompare(
+          b.color,
+          "ja"
+        ) ||
+
+        a.sizeOrder -
+          b.sizeOrder
+      );
+    }
+  );
+
+
+  return rows;
+}
+
+
+function buildSummary(
+  master,
+  rows
+) {
+
+  const totalStock =
+    rows.reduce(
+      (
+        total,
+        item
+      ) => {
+
+        return (
+          total +
+          Math.max(
+            0,
+            Number(
+              item.quantity || 0
+            )
+          )
+        );
+      },
+      0
+    );
+
+
+  const inStockSkuCount =
+    rows.filter(
+      item =>
+        item.catalogStatus ===
+        "in_stock"
+    ).length;
+
+
+  const outOfStockSkuCount =
+    rows.filter(
+      item =>
+        item.catalogStatus ===
+        "out_of_stock"
+    ).length;
+
+
+  const notInitializedCount =
+    rows.filter(
+      item =>
+        item.catalogStatus ===
+        "not_initialized"
+    ).length;
+
+
+  return {
+
+    source:
+      "tshirtStock/master",
+
+    catalogSource:
+      "tshirtStock/master + tshirtStock/shared",
+
+    schemaVersion:
+      Number(
+        master?.schemaVersion || 0
+      ),
+
+    inventoryAuthority:
+      master?.inventoryAuthority ||
+      "",
+
+    totalStock,
+
+    catalogSkuCount:
+      rows.length,
+
+    inStockSkuCount,
+
+    outOfStockSkuCount,
+
+    notInitializedCount,
+
+    updatedAt:
+      master?.updatedAt ||
+      null
+  };
+}
+
+
+export const tshirtAdapter = {
+
+  async getCatalogSnapshot() {
+
+    const {
+      master,
+      shared
+    } =
+      await loadDocuments();
+
+
+    const rows =
+      buildCatalog(
+        master,
+        shared
+      );
 
 
     return {
-      source:
-        "tshirtStock/master",
 
-      inventoryAuthority:
-        master?.inventoryAuthority || "",
-
-      schemaVersion:
-        Number(
-          master?.schemaVersion || 0
+      summary:
+        buildSummary(
+          master,
+          rows
         ),
 
-      total,
-
-      skuCount,
-
-      updatedAt:
-        master?.updatedAt || null
+      rows
     };
   },
 
 
-  async listInventoryRows(
-    options = {}
-  ) {
+  async listCatalogRows() {
 
-    const includeZero =
-      Boolean(
-        options.includeZero
-      );
+    const snapshot =
+      await this
+        .getCatalogSnapshot();
 
 
-    const master =
-      await loadMasterDocument();
+    return snapshot.rows;
+  },
 
 
-    const masters =
-      master?.masters || {};
+  async listInventoryRows() {
+
+    const rows =
+      await this
+        .listCatalogRows();
 
 
-    const bodies =
-      masters?.bodies || {};
-
-
-    const designs =
-      masters?.designs || {};
-
-
-    const colors =
-      masters?.colors || {};
-
-
-    const sizes =
-      masters?.sizes || {};
-
-
-    const inventory =
-      master?.inventory_v2 || {};
-
-
-    const rows = [];
-
-
-    Object.entries(
-      inventory
-    ).forEach(
-      ([bodyId, designTree]) => {
-
-        if (
-          bodyId ===
-          LEGACY_BODY_ID
-        ) {
-          return;
-        }
-
-
-        Object.entries(
-          designTree || {}
-        ).forEach(
-          ([designId, colorTree]) => {
-
-
-            Object.entries(
-              colorTree || {}
-            ).forEach(
-              ([colorId, sizeTree]) => {
-
-
-                Object.entries(
-                  sizeTree || {}
-                ).forEach(
-                  ([sizeId, cell]) => {
-
-
-                    const quantity =
-                      Math.max(
-                        0,
-                        Number(
-                          cell?.qty || 0
-                        )
-                      );
-
-
-                    if (
-                      !includeZero &&
-                      quantity <= 0
-                    ) {
-                      return;
-                    }
-
-
-                    rows.push({
-
-                      stockTargetId:
-                        encodeStockTarget(
-                          bodyId,
-                          designId,
-                          colorId,
-                          sizeId
-                        ),
-
-                      bodyId,
-                      designId,
-                      colorId,
-                      sizeId,
-
-                      body:
-                        masterName(
-                          bodies,
-                          bodyId,
-                          [
-                            "managementName",
-                            "salesName"
-                          ]
-                        ),
-
-                      design:
-                        masterName(
-                          designs,
-                          designId,
-                          [
-                            "managementName",
-                            "legacyKey",
-                            "salesName"
-                          ]
-                        ),
-
-                      color:
-                        masterName(
-                          colors,
-                          colorId,
-                          [
-                            "managementName",
-                            "legacyKey",
-                            "pinkoiName"
-                          ]
-                        ),
-
-                      size:
-                        masterName(
-                          sizes,
-                          sizeId,
-                          [
-                            "managementName",
-                            "salesName"
-                          ]
-                        ),
-
-                      sizeOrder:
-                        getSizeOrder(
-                          sizes,
-                          sizeId
-                        ),
-
-                      quantity,
-
-                      inventorySource:
-                        "tshirt"
-                    });
-                  }
-                );
-              }
-            );
-          }
-        );
-      }
+    return rows.filter(
+      item =>
+        item.catalogStatus ===
+        "in_stock"
     );
+  },
 
 
-    rows.sort(
-      (a, b) => {
+  async getMasterSummary() {
 
-        return (
-          a.body.localeCompare(
-            b.body,
-            "ja"
-          ) ||
-
-          a.design.localeCompare(
-            b.design,
-            "ja"
-          ) ||
-
-          a.color.localeCompare(
-            b.color,
-            "ja"
-          ) ||
-
-          a.sizeOrder -
-          b.sizeOrder
-        );
-      }
-    );
+    const snapshot =
+      await this
+        .getCatalogSnapshot();
 
 
-    return rows;
+    return snapshot.summary;
   },
 
 
@@ -461,31 +923,23 @@ export const tshirtAdapter = {
 
 
     if (!target) {
-
       return null;
     }
 
 
     const master =
-      await loadMasterDocument();
-
-
-    const quantity =
-      Math.max(
-        0,
-        Number(
-          master
-            ?.inventory_v2
-            ?.[target.bodyId]
-            ?.[target.designId]
-            ?.[target.colorId]
-            ?.[target.sizeId]
-            ?.qty || 0
-        )
+      await loadDocument(
+        MASTER_DOCUMENT
       );
 
 
-    return quantity;
+    return currentQuantity(
+      master,
+      target.bodyId,
+      target.designId,
+      target.colorId,
+      target.sizeId
+    );
   },
 
 
@@ -506,7 +960,7 @@ export const tshirtAdapter = {
 
 
     throw new Error(
-      "Tシャツ在庫は現在読み取り専用です。販売による在庫更新は次のPhaseで有効化します。"
+      "Tシャツ在庫は現在読み取り専用です。"
     );
   },
 
@@ -522,24 +976,36 @@ export const tshirtAdapter = {
 
 
     if (!target) {
-
       return false;
     }
 
 
     const master =
-      await loadMasterDocument();
+      await loadDocument(
+        MASTER_DOCUMENT
+      );
 
 
-    const cell =
+    return Boolean(
       master
-        ?.inventory_v2
-        ?.[target.bodyId]
-        ?.[target.designId]
-        ?.[target.colorId]
-        ?.[target.sizeId];
+        ?.masters
+        ?.bodies
+        ?.[target.bodyId] &&
 
+      master
+        ?.masters
+        ?.designs
+        ?.[target.designId] &&
 
-    return Boolean(cell);
+      master
+        ?.masters
+        ?.colors
+        ?.[target.colorId] &&
+
+      master
+        ?.masters
+        ?.sizes
+        ?.[target.sizeId]
+    );
   }
 };
