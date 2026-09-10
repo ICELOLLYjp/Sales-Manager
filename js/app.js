@@ -6,7 +6,7 @@ import { accessoryAdapter } from "./inventoryAdapters/accessoryAdapter.js";
 import { loadTshirtProductVariants, syncTshirtCurrentStockRows } from "./services/catalogService.js";
 import { listAllProductVariants, registerTshirtVariant, registerGeneralProduct, syncAccessoryCatalogRows } from "./services/productAdminService.js";
 import { CATEGORY_TEMPLATES, getCategoryTemplate } from "./data/categoryTemplates.js";
-import { loadPosPriceConfig, savePosPriceConfig, QUICK_PRICE_CURRENCIES } from "./services/priceBookService.js?v=20260911-bodyprices-1";
+import { loadPosPriceConfig, savePosPriceConfig, QUICK_PRICE_CURRENCIES } from "./services/priceBookService.js?v=20260911-mixmatch-1";
 import { listSalesSessions, createEventSession, updateEventSession, updateEventExpenses, SESSION_CURRENCIES } from "./services/sessionService.js";
 import { commitQuickSale, voidSaleTransaction } from "./services/transactionService.js?v=20260911-event-stock-1";
 import { listSessionTransactions } from "./services/salesHistoryService.js?v=20260910-setdiscount-2";
@@ -258,6 +258,7 @@ let posPriceBook = {};
 let posSetOfferBook = {};
 let posTshirtBodyPriceBook = {};
 let posTshirtBodySetOfferBook = {};
+let posTshirtMixMatchDiscountBook = {};
 let posPriceBookLoaded = false;
 let posCart = new Map();
 let posOrderDiscount = 0;
@@ -10022,6 +10023,169 @@ function posTshirtBodySetOfferRows(
   );
 }
 
+function posTshirtMixMatchDiscountRows() {
+  const raw =
+    posTshirtMixMatchDiscountBook
+      ?.[posCurrency];
+
+  const source =
+    Array.isArray(raw)
+      ? raw
+      : (
+          raw &&
+          typeof raw === "object"
+        )
+        ? [raw]
+        : [];
+
+  return source.map(
+    offer => ({
+      quantity:
+        Math.max(
+          0,
+          Math.floor(
+            Number(
+              offer?.quantity ||
+              0
+            )
+          )
+        ),
+
+      discount:
+        Math.max(
+          0,
+          Number(
+            offer?.discount ||
+            0
+          )
+        )
+    })
+  );
+}
+
+function posTshirtMixMatchDiscounts() {
+  return posTshirtMixMatchDiscountRows()
+    .filter(
+      offer =>
+        offer.quantity >= 2 &&
+        offer.discount > 0
+    )
+    .sort(
+      (a, b) =>
+        a.quantity -
+        b.quantity ||
+        a.discount -
+        b.discount
+    );
+}
+
+function posPromotionGroup(
+  category
+) {
+  if (
+    category === "sticker" ||
+    category === "postcard"
+  ) {
+    return "sticker_postcard";
+  }
+
+  if (
+    category === "pierce" ||
+    category === "earring"
+  ) {
+    return "earrings";
+  }
+
+  if (
+    category === "drop_pierce" ||
+    category === "drop_earring"
+  ) {
+    return "drop_earrings";
+  }
+
+  if (
+    category === "art_print"
+  ) {
+    return "art_print";
+  }
+
+  return category;
+}
+
+function posCanonicalSetCategory(
+  promotionGroup
+) {
+  if (
+    promotionGroup ===
+    "sticker_postcard"
+  ) {
+    return "sticker";
+  }
+
+  if (
+    promotionGroup ===
+    "earrings"
+  ) {
+    return "earring";
+  }
+
+  if (
+    promotionGroup ===
+    "drop_earrings"
+  ) {
+    return "drop_earring";
+  }
+
+  return promotionGroup;
+}
+
+function posSetOffersForGroup(
+  lines
+) {
+  const promotionGroup =
+    posPromotionGroup(
+      lines?.[0]?.category
+    );
+
+  const canonicalCategory =
+    posCanonicalSetCategory(
+      promotionGroup
+    );
+
+  const canonicalOffers =
+    posSetOffers(
+      canonicalCategory
+    );
+
+  if (
+    canonicalOffers.length
+  ) {
+    return canonicalOffers;
+  }
+
+  for (
+    const line of (
+      Array.isArray(lines)
+        ? lines
+        : []
+    )
+  ) {
+    const offers =
+      posSetOffersForCartLine(
+        line
+      );
+
+    if (
+      offers.length
+    ) {
+      return offers;
+    }
+  }
+
+  return [];
+}
+
+
 function posTshirtBodySetOffers(
   bodyId
 ) {
@@ -10411,6 +10575,168 @@ function optimalSetPlan(
   };
 }
 
+function optimalFixedDiscountPlan(
+  quantity,
+  rules
+) {
+  const totalQuantity =
+    Math.max(
+      0,
+      Math.floor(
+        Number(
+          quantity || 0
+        )
+      )
+    );
+
+  const validRules =
+    (
+      Array.isArray(rules)
+        ? rules
+        : []
+    )
+      .filter(
+        rule =>
+          rule.quantity >= 2 &&
+          rule.discount > 0
+      );
+
+  const dp =
+    Array(
+      totalQuantity + 1
+    ).fill(null);
+
+  dp[0] = {
+    discount: 0,
+    previous: null,
+    action: null
+  };
+
+  for (
+    let count = 1;
+    count <= totalQuantity;
+    count += 1
+  ) {
+    let best = {
+      discount:
+        dp[count - 1].discount,
+
+      previous:
+        count - 1,
+
+      action: {
+        type: "single"
+      }
+    };
+
+    validRules.forEach(
+      rule => {
+        if (
+          rule.quantity >
+          count
+        ) {
+          return;
+        }
+
+        const candidate =
+          dp[
+            count -
+            rule.quantity
+          ].discount +
+          rule.discount;
+
+        if (
+          candidate >
+          best.discount +
+          0.000001
+        ) {
+          best = {
+            discount:
+              candidate,
+
+            previous:
+              count -
+              rule.quantity,
+
+            action: {
+              type: "discount",
+              quantity:
+                rule.quantity,
+              discount:
+                rule.discount
+            }
+          };
+        }
+      }
+    );
+
+    dp[count] =
+      best;
+  }
+
+  const applicationMap =
+    new Map();
+
+  let cursor =
+    totalQuantity;
+
+  while (
+    cursor > 0
+  ) {
+    const node =
+      dp[cursor];
+
+    if (
+      !node ||
+      node.previous ===
+        null
+    ) {
+      break;
+    }
+
+    if (
+      node.action?.type ===
+      "discount"
+    ) {
+      const key =
+        `${node.action.quantity}|${node.action.discount}`;
+
+      const current =
+        applicationMap.get(
+          key
+        ) || {
+          quantity:
+            node.action.quantity,
+          discount:
+            node.action.discount,
+          count: 0
+        };
+
+      current.count += 1;
+
+      applicationMap.set(
+        key,
+        current
+      );
+    }
+
+    cursor =
+      node.previous;
+  }
+
+  return {
+    discount:
+      dp[
+        totalQuantity
+      ].discount,
+
+    applications:
+      Array.from(
+        applicationMap.values()
+      )
+  };
+}
+
 function capturePosPriceSettingsFromDom() {
   document
     .querySelectorAll(
@@ -10594,6 +10920,41 @@ function capturePosPriceSettingsFromDom() {
           );
       }
     );
+
+
+  posTshirtMixMatchDiscountBook[
+    posCurrency
+  ] =
+    Array.from(
+      document.querySelectorAll(
+        ".posTshirtMixDiscountRow"
+      )
+    )
+      .map(
+        row => ({
+          quantity:
+            Math.max(
+              0,
+              Math.floor(
+                Number(
+                  row.querySelector(
+                    ".posTshirtMixDiscountQuantityInput"
+                  )?.value || 0
+                )
+              )
+            ),
+
+          discount:
+            Math.max(
+              0,
+              Number(
+                row.querySelector(
+                  ".posTshirtMixDiscountAmountInput"
+                )?.value || 0
+              )
+            )
+        })
+      );
 }
 
 function posCartTotals() {
@@ -10650,22 +11011,154 @@ function posCartTotals() {
       }
     );
 
+  const setSummaries = [];
+
   /*
-   * Set offers are shared across items with the same
-   * category AND unit price.
+   * T-shirts can be mixed across Body / Color / Size.
+   * The promotion is a fixed discount (e.g. any 2 T-shirts = SGD 8 off),
+   * so it works even when the unit prices are different.
+   */
+  const tshirtMixRules =
+    posTshirtMixMatchDiscounts();
+
+  if (
+    tshirtMixRules.length
+  ) {
+    const tshirtLines =
+      baseLines.filter(
+        line =>
+          line.category ===
+          "tshirt"
+      );
+
+    const tshirtQuantity =
+      tshirtLines.reduce(
+        (sum, line) =>
+          sum +
+          line.quantity,
+        0
+      );
+
+    const tshirtGross =
+      tshirtLines.reduce(
+        (sum, line) =>
+          sum +
+          line.grossLineTotal,
+        0
+      );
+
+    const plan =
+      optimalFixedDiscountPlan(
+        tshirtQuantity,
+        tshirtMixRules
+      );
+
+    const totalDiscount =
+      Math.max(
+        0,
+        Math.min(
+          plan.discount,
+          tshirtGross
+        )
+      );
+
+    if (
+      totalDiscount > 0 &&
+      tshirtGross > 0
+    ) {
+      let allocated = 0;
+
+      tshirtLines.forEach(
+        (
+          line,
+          index
+        ) => {
+          const isLast =
+            index ===
+            tshirtLines.length -
+            1;
+
+          const share =
+            isLast
+              ? (
+                  totalDiscount -
+                  allocated
+                )
+              : (
+                  totalDiscount *
+                  (
+                    line.grossLineTotal /
+                    tshirtGross
+                  )
+                );
+
+          line.allocatedSetDiscount =
+            Math.max(
+              0,
+              Math.min(
+                share,
+                line.grossLineTotal
+              )
+            );
+
+          allocated +=
+            line.allocatedSetDiscount;
+        }
+      );
+
+      plan.applications.forEach(
+        application => {
+          setSummaries.push({
+            category:
+              "tshirt",
+            promotionGroup:
+              "tshirt_mix_match",
+            promotionType:
+              "fixed_discount",
+            setQuantity:
+              application.quantity,
+            setCount:
+              application.count,
+            discount:
+              application.discount *
+              application.count
+          });
+        }
+      );
+    }
+  }
+
+  /*
+   * Same-promotion items at the same unit price can be mixed.
+   * Current groups:
+   * Sticker + Postcard
+   * Pierce + Earring
+   * Drop Pierce + Drop Earring
+   * Art Print
    *
-   * This allows different accessory SKUs at the same price
-   * to form one set, while avoiding ambiguous set pricing
-   * when a category contains different unit prices.
+   * T-shirts are handled above when a cross-body discount rule exists.
    */
   const groups =
     new Map();
 
   baseLines.forEach(
     line => {
+      if (
+        line.category ===
+          "tshirt" &&
+        tshirtMixRules.length
+      ) {
+        return;
+      }
+
+      const promotionGroup =
+        posPromotionGroup(
+          line.category
+        );
+
       const groupKey =
         [
-          line.category,
+          promotionGroup,
           line.unitPrice
         ].join("|");
 
@@ -10690,8 +11183,6 @@ function posCartTotals() {
     }
   );
 
-  const setSummaries = [];
-
   groups.forEach(
     lines => {
       const category =
@@ -10703,8 +11194,8 @@ function posCartTotals() {
           ?.unitPrice || 0;
 
       const offers =
-        posSetOffersForCartLine(
-          lines[0]
+        posSetOffersForGroup(
+          lines
         );
 
       if (
@@ -10790,6 +11281,12 @@ function posCartTotals() {
           application => {
             setSummaries.push({
               category,
+              promotionGroup:
+                posPromotionGroup(
+                  category
+                ),
+              promotionType:
+                "set_total",
               unitPrice,
               setQuantity:
                 application.quantity,
@@ -11532,6 +12029,10 @@ async function renderPos(
         priceConfig.bodySetOffers ||
         {};
 
+      posTshirtMixMatchDiscountBook =
+        priceConfig.tshirtMixMatchDiscounts ||
+        {};
+
       posPriceBookLoaded =
         true;
     }
@@ -12220,7 +12721,7 @@ async function renderPos(
             class="muted"
             style="margin-bottom:12px;"
           >
-            TシャツはBodyごとに価格を設定できます。その他の商品はカテゴリごとに通常価格とセット価格を設定します。iPhoneではこの「価格設定」をタップして開閉できます。
+            TシャツはBodyごとに通常価格を設定し、割引はBody・Color・Sizeをまたいで組み合わせできます。Sticker + Postcard、Pierce + Earring、Drop Pierce + Drop Earring も同じ割引グループとして組み合わせできます。
           </div>
 
 
@@ -12273,199 +12774,213 @@ async function renderPos(
                       </div>
 
                       ${TSHIRT_PRICE_BODY_ORDER.map(
-                        body => {
-                          const bodyOffers =
-                            posTshirtBodySetOfferRows(
-                              body.id
-                            );
-
-                          const displayBodyOffers =
-                            bodyOffers.length
-                              ? bodyOffers
-                              : [
-                                  {
-                                    quantity: 0,
-                                    price: 0
-                                  }
-                                ];
-
-                          return `
+                        body => `
+                          <div
+                            style="
+                              padding:11px;
+                              margin-top:8px;
+                              border:1px solid #ecece7;
+                              border-radius:12px;
+                              background:#fafaf8;
+                            "
+                          >
                             <div
                               style="
-                                padding:11px;
-                                margin-top:8px;
-                                border:1px solid #ecece7;
-                                border-radius:12px;
-                                background:#fafaf8;
+                                display:grid;
+                                grid-template-columns:
+                                  minmax(0,1fr)
+                                  120px;
+                                gap:8px;
+                                align-items:center;
                               "
                             >
-                              <div
-                                style="
-                                  font-weight:800;
-                                  margin-bottom:8px;
-                                "
-                              >
-                                ${escapeHtml(
-                                  body.label
-                                )}
-                              </div>
-
-                              <div
-                                style="
-                                  display:grid;
-                                  grid-template-columns:
-                                    minmax(0,1fr)
-                                    120px;
-                                  gap:8px;
-                                  align-items:center;
-                                "
-                              >
-                                <span class="muted">
-                                  通常価格
-                                </span>
-
-                                <input
-                                  class="posTshirtBodyPriceInput"
-                                  data-body-id="${body.id}"
-                                  type="number"
-                                  min="0"
-                                  step="0.01"
-                                  inputmode="decimal"
-                                  value="${
-                                    posTshirtBodyPrice(
-                                      body.id
-                                    ) || ""
-                                  }"
-                                  placeholder="0"
+                              <div>
+                                <div
                                   style="
-                                    width:100%;
-                                    min-height:42px;
-                                    padding:0 10px;
-                                    border:1px solid #deded9;
-                                    border-radius:10px;
-                                    text-align:right;
+                                    font-weight:800;
                                   "
                                 >
-                              </div>
+                                  ${escapeHtml(
+                                    body.label
+                                  )}
+                                </div>
 
-                              <div
-                                style="
-                                  margin-top:9px;
-                                "
-                              >
                                 <div
                                   class="muted"
                                   style="
+                                    margin-top:2px;
                                     font-size:12px;
-                                    margin-bottom:5px;
                                   "
                                 >
-                                  セット価格
+                                  通常価格
                                 </div>
+                              </div>
 
-                                ${displayBodyOffers.map(
-                                  (
-                                    offer,
-                                    index
-                                  ) => `
-                                    <div
-                                      class="posTshirtBodySetOfferRow"
-                                      data-body-id="${body.id}"
-                                      data-index="${index}"
-                                      style="
-                                        display:grid;
-                                        grid-template-columns:
-                                          68px
-                                          minmax(0,1fr)
-                                          52px;
-                                        gap:7px;
-                                        align-items:center;
-                                        margin-top:7px;
-                                      "
-                                    >
-                                      <input
-                                        class="posTshirtBodySetQuantityInput"
-                                        type="number"
-                                        min="0"
-                                        step="1"
-                                        inputmode="numeric"
-                                        value="${
-                                          offer.quantity ||
-                                          ""
-                                        }"
-                                        placeholder="個数"
-                                        style="
-                                          width:100%;
-                                          min-height:40px;
-                                          padding:0 7px;
-                                          border:1px solid #deded9;
-                                          border-radius:9px;
-                                          text-align:center;
-                                        "
-                                      >
+                              <input
+                                class="posTshirtBodyPriceInput"
+                                data-body-id="${body.id}"
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                inputmode="decimal"
+                                value="${
+                                  posTshirtBodyPrice(
+                                    body.id
+                                  ) || ""
+                                }"
+                                placeholder="0"
+                                style="
+                                  width:100%;
+                                  min-height:42px;
+                                  padding:0 10px;
+                                  border:1px solid #deded9;
+                                  border-radius:10px;
+                                  text-align:right;
+                                "
+                              >
+                            </div>
+                          </div>
+                        `
+                      ).join("")}
 
-                                      <input
-                                        class="posTshirtBodySetPriceInput"
-                                        type="number"
-                                        min="0"
-                                        step="0.01"
-                                        inputmode="decimal"
-                                        value="${
-                                          offer.price ||
-                                          ""
-                                        }"
-                                        placeholder="セット合計"
-                                        style="
-                                          width:100%;
-                                          min-height:40px;
-                                          padding:0 8px;
-                                          border:1px solid #deded9;
-                                          border-radius:9px;
-                                          text-align:right;
-                                        "
-                                      >
+                      <div
+                        style="
+                          padding:12px;
+                          margin-top:10px;
+                          border:1px solid #d9e4d7;
+                          border-radius:12px;
+                          background:#f5faf4;
+                        "
+                      >
+                        <div
+                          style="
+                            font-weight:800;
+                          "
+                        >
+                          Tシャツ組み合わせ割引
+                        </div>
 
-                                      <button
-                                        type="button"
-                                        class="posRemoveTshirtBodySetOfferButton"
-                                        data-body-id="${body.id}"
-                                        data-index="${index}"
-                                        style="
-                                          min-height:40px;
-                                          border:1px solid #deded9;
-                                          border-radius:9px;
-                                          background:#fff;
-                                          font-size:12px;
-                                          font-weight:700;
-                                        "
-                                      >
-                                        削除
-                                      </button>
-                                    </div>
-                                  `
-                                ).join("")}
+                        <div
+                          class="muted"
+                          style="
+                            margin-top:3px;
+                            font-size:12px;
+                            line-height:1.45;
+                          "
+                        >
+                          Pigment / Organic / Made in Japan を自由に組み合わせて適用します。
+                        </div>
 
-                                <button
-                                  type="button"
-                                  class="posAddTshirtBodySetOfferButton"
-                                  data-body-id="${body.id}"
+                        ${
+                          (
+                            posTshirtMixMatchDiscountRows()
+                              .length
+                              ? posTshirtMixMatchDiscountRows()
+                              : [
+                                  {
+                                    quantity: 0,
+                                    discount: 0
+                                  }
+                                ]
+                          )
+                            .map(
+                              (
+                                offer,
+                                index
+                              ) => `
+                                <div
+                                  class="posTshirtMixDiscountRow"
+                                  data-index="${index}"
                                   style="
-                                    width:100%;
-                                    min-height:38px;
+                                    display:grid;
+                                    grid-template-columns:
+                                      76px
+                                      minmax(0,1fr)
+                                      52px;
+                                    gap:7px;
+                                    align-items:center;
                                     margin-top:8px;
-                                    border:1px solid #deded9;
-                                    border-radius:9px;
-                                    background:#fff;
-                                    font-weight:700;
                                   "
                                 >
-                                  ＋ セット価格を追加
-                                </button>
-                              </div>
-                            </div>
-                          `;
+                                  <input
+                                    class="posTshirtMixDiscountQuantityInput"
+                                    type="number"
+                                    min="0"
+                                    step="1"
+                                    inputmode="numeric"
+                                    value="${
+                                      offer.quantity ||
+                                      ""
+                                    }"
+                                    placeholder="個数"
+                                    style="
+                                      width:100%;
+                                      min-height:40px;
+                                      padding:0 7px;
+                                      border:1px solid #deded9;
+                                      border-radius:9px;
+                                      text-align:center;
+                                    "
+                                  >
+
+                                  <input
+                                    class="posTshirtMixDiscountAmountInput"
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    inputmode="decimal"
+                                    value="${
+                                      offer.discount ||
+                                      ""
+                                    }"
+                                    placeholder="値引額"
+                                    style="
+                                      width:100%;
+                                      min-height:40px;
+                                      padding:0 8px;
+                                      border:1px solid #deded9;
+                                      border-radius:9px;
+                                      text-align:right;
+                                    "
+                                  >
+
+                                  <button
+                                    type="button"
+                                    class="posRemoveTshirtMixDiscountButton"
+                                    data-index="${index}"
+                                    style="
+                                      min-height:40px;
+                                      border:1px solid #deded9;
+                                      border-radius:9px;
+                                      background:#fff;
+                                      font-size:12px;
+                                      font-weight:700;
+                                    "
+                                  >
+                                    削除
+                                  </button>
+                                </div>
+                              `
+                            )
+                            .join("")
                         }
-                      ).join("")}
+
+                        <button
+                          type="button"
+                          id="posAddTshirtMixDiscountButton"
+                          style="
+                            width:100%;
+                            min-height:38px;
+                            margin-top:8px;
+                            border:1px solid #deded9;
+                            border-radius:9px;
+                            background:#fff;
+                            font-weight:700;
+                          "
+                        >
+                          ＋ 組み合わせ割引を追加
+                        </button>
+                      </div>
                     </div>
                   `;
                 }
@@ -12665,6 +13180,19 @@ async function renderPos(
             ).join("")}
           </div>
 
+
+          <div
+            style="
+              margin-top:12px;
+              padding:10px 12px;
+              border-radius:10px;
+              background:#f7f7f4;
+              font-size:12px;
+              line-height:1.5;
+            "
+          >
+            組み合わせ対象：Sticker + Postcard / Pierce + Earring / Drop Pierce + Drop Earring。Tシャツは3 Bodyすべて混在できます。
+          </div>
 
           <button
             id="savePosPrices"
@@ -14359,6 +14887,79 @@ async function renderPos(
 
 
       document
+        .querySelector(
+          "#posAddTshirtMixDiscountButton"
+        )
+        ?.addEventListener(
+          "click",
+          () => {
+            capturePosPriceSettingsFromDom();
+
+            const current =
+              posTshirtMixMatchDiscountRows();
+
+            current.push({
+              quantity: 0,
+              discount: 0
+            });
+
+            posTshirtMixMatchDiscountBook[
+              posCurrency
+            ] = current;
+
+            posPriceSettingsOpen =
+              true;
+
+            renderPosBody();
+          }
+        );
+
+
+      document
+        .querySelectorAll(
+          ".posRemoveTshirtMixDiscountButton"
+        )
+        .forEach(
+          button => {
+            button.addEventListener(
+              "click",
+              () => {
+                capturePosPriceSettingsFromDom();
+
+                const index =
+                  Math.max(
+                    0,
+                    Math.floor(
+                      Number(
+                        button.dataset.index ||
+                        0
+                      )
+                    )
+                  );
+
+                const current =
+                  posTshirtMixMatchDiscountRows();
+
+                current.splice(
+                  index,
+                  1
+                );
+
+                posTshirtMixMatchDiscountBook[
+                  posCurrency
+                ] = current;
+
+                posPriceSettingsOpen =
+                  true;
+
+                renderPosBody();
+              }
+            );
+          }
+        );
+
+
+      document
         .querySelectorAll(
           ".posAddTshirtBodySetOfferButton"
         )
@@ -14665,25 +15266,17 @@ async function renderPos(
             };
 
             const presetBodySetOffers = {
-              Vintage: [
-                {
-                  quantity: 2,
-                  price: 96
-                }
-              ],
-              Organic: [
-                {
-                  quantity: 2,
-                  price: 102
-                }
-              ],
-              MIJ: [
-                {
-                  quantity: 2,
-                  price: 136
-                }
-              ]
+              Vintage: [],
+              Organic: [],
+              MIJ: []
             };
+
+            const presetTshirtMixDiscounts = [
+              {
+                quantity: 2,
+                discount: 8
+              }
+            ];
 
             POS_CATEGORY_ORDER
               .forEach(
@@ -14782,11 +15375,23 @@ async function renderPos(
                 }
               );
 
+            posTshirtMixMatchDiscountBook
+              .SGD =
+                presetTshirtMixDiscounts
+                  .map(
+                    offer => ({
+                      quantity:
+                        offer.quantity,
+                      discount:
+                        offer.discount
+                    })
+                  );
+
             posPriceSettingsOpen =
               true;
 
             renderPosBody(
-              "今回のSGD価格を入力しました。「SGD の価格を保存」で確定してください。"
+              "今回のSGD価格と組み合わせ割引を入力しました。「SGD の価格を保存」で確定してください。"
             );
           }
         );
@@ -14811,6 +15416,7 @@ async function renderPos(
             const setOffers = {};
             const bodyPrices = {};
             const bodySetOffers = {};
+            const tshirtMixMatchDiscounts = [];
 
             document
               .querySelectorAll(
@@ -14935,6 +15541,50 @@ async function renderPos(
                 }
               );
 
+            Array.from(
+              document.querySelectorAll(
+                ".posTshirtMixDiscountRow"
+              )
+            )
+              .map(
+                row => ({
+                  quantity:
+                    Math.max(
+                      0,
+                      Math.floor(
+                        Number(
+                          row.querySelector(
+                            ".posTshirtMixDiscountQuantityInput"
+                          )?.value || 0
+                        )
+                      )
+                    ),
+
+                  discount:
+                    Math.max(
+                      0,
+                      Number(
+                        row.querySelector(
+                          ".posTshirtMixDiscountAmountInput"
+                        )?.value || 0
+                      )
+                    )
+                })
+              )
+              .filter(
+                offer =>
+                  offer.quantity >= 2 &&
+                  offer.discount > 0
+              )
+              .forEach(
+                offer => {
+                  tshirtMixMatchDiscounts
+                    .push(
+                      offer
+                    );
+                }
+              );
+
             button.disabled =
               true;
 
@@ -14947,7 +15597,8 @@ async function renderPos(
                 prices,
                 setOffers,
                 bodyPrices,
-                bodySetOffers
+                bodySetOffers,
+                tshirtMixMatchDiscounts
               );
 
               POS_CATEGORY_ORDER
@@ -15059,6 +15710,19 @@ async function renderPos(
                       );
                   }
                 );
+
+              posTshirtMixMatchDiscountBook[
+                posCurrency
+              ] =
+                tshirtMixMatchDiscounts
+                  .map(
+                    offer => ({
+                      quantity:
+                        offer.quantity,
+                      discount:
+                        offer.discount
+                    })
+                  );
 
               if (messageBox) {
                 messageBox.textContent =
