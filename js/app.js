@@ -11,6 +11,7 @@ import { listSalesSessions, createEventSession, updateEventSession, updateEventE
 import { commitQuickSale } from "./services/transactionService.js";
 import { listSessionTransactions } from "./services/salesHistoryService.js";
 import { saveCategoryCost, loadAllCategoryCostHistories, resolveCategoryUnitCost, saveTshirtBodyCost, loadTshirtBodyCostHistories, resolveBodyUnitCost, saveVariantCost, loadVariantCostHistories, calculateResolvedCogs } from "./services/costHistoryService.js";
+import { loadPinkoiTshirtCatalog, syncPinkoiTshirtCatalog } from "./services/pinkoiCatalogService.js";
 
 const view = document.querySelector("#view");
 const syncStatus = document.querySelector("#syncStatus");
@@ -968,13 +969,15 @@ async function renderMorePage(sequence) {
       accessoryCatalog,
       allVariants,
       categoryCostHistories,
-      tshirtBodyCostHistories
+      tshirtBodyCostHistories,
+      pinkoiTshirtCatalog
     ] = await Promise.all([
       tshirtAdapter.getMasterOptions(),
       accessoryAdapter.getCatalogSnapshot(),
       listAllProductVariants(),
       loadAllCategoryCostHistories(),
-      loadTshirtBodyCostHistories()
+      loadTshirtBodyCostHistories(),
+      loadPinkoiTshirtCatalog()
     ]);
 
     if (sequence !== renderSequence) return;
@@ -1104,6 +1107,141 @@ async function renderMorePage(sequence) {
           `).join("")}
         </div>
       </section>
+
+      <section class="card">
+
+        <div class="card-title">
+          Pinkoi Tシャツ連携
+        </div>
+
+        <div
+          class="muted"
+          style="
+            margin-bottom:12px;
+            line-height:1.55;
+          "
+        >
+          TシャツのSKUと日本価格はPinkoi Inventoryを基準にします。実在庫はこれまで通り tshirtStock/master が正式マスターです。
+        </div>
+
+
+        <div class="list-row">
+          <span>
+            Pinkoi Inventory
+          </span>
+
+          <strong>
+            ${pinkoiTshirtCatalog.summary.inventoryDocuments}
+          </strong>
+        </div>
+
+
+        <div class="list-row">
+          <span>
+            masterに対応したSKU
+          </span>
+
+          <strong>
+            ${pinkoiTshirtCatalog.summary.mappedVariants}
+          </strong>
+        </div>
+
+
+        <div class="list-row">
+          <span>
+            Pinkoi SKUあり
+          </span>
+
+          <strong>
+            ${pinkoiTshirtCatalog.summary.skuCount}
+          </strong>
+        </div>
+
+
+        <div class="list-row">
+          <span>
+            日本価格あり
+          </span>
+
+          <strong>
+            ${pinkoiTshirtCatalog.summary.pricedCount}
+          </strong>
+        </div>
+
+
+        <div class="list-row">
+          <span>
+            在庫0の登録SKU
+          </span>
+
+          <strong>
+            ${pinkoiTshirtCatalog.summary.zeroStockCatalogCount}
+          </strong>
+        </div>
+
+
+        <div class="list-row">
+          <span>
+            未対応
+          </span>
+
+          <strong>
+            ${pinkoiTshirtCatalog.summary.unmappedVariants}
+          </strong>
+        </div>
+
+
+        ${
+          pinkoiTshirtCatalog.summary.unmappedVariants > 0
+            ? `
+              <div
+                class="warning"
+                style="
+                  margin-top:12px;
+                "
+              >
+                masterと対応できないPinkoi SKUがあります。未対応SKUはSales Managerへ登録しません。
+              </div>
+            `
+            : ""
+        }
+
+
+        <button
+          id="syncPinkoiTshirtButton"
+          class="button"
+          type="button"
+          style="
+            width:100%;
+            min-height:52px;
+            margin-top:14px;
+          "
+        >
+          PinkoiからSKU・日本価格を更新
+        </button>
+
+
+        <div
+          id="syncPinkoiTshirtMessage"
+          class="muted"
+          style="
+            margin-top:10px;
+          "
+        ></div>
+
+
+        <div
+          class="muted"
+          style="
+            margin-top:12px;
+            line-height:1.55;
+          "
+        >
+          現地イベント価格はSales Manager側で別管理します。
+        </div>
+
+      </section>
+
 
       <section class="card">
 
@@ -1765,11 +1903,24 @@ async function renderMorePage(sequence) {
         }
       </section>
 
-      <section class="card">
-        <div class="card-title">Tシャツ SKU追加</div>
+      <details
+        class="card"
+        style="
+          display:block;
+        "
+      >
+        <summary
+          style="
+            cursor:pointer;
+            font-weight:800;
+            padding:2px 0 10px;
+          "
+        >
+          Tシャツ SKU手動追加
+        </summary>
 
         <div class="muted" style="margin-bottom:14px;">
-          在庫0でも実際に販売する組み合わせだけ登録します。
+          通常はPinkoi連携を使います。Pinkoiにまだ存在しないSKUを一時的に追加する場合だけ使用します。
         </div>
 
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;">
@@ -1793,7 +1944,7 @@ async function renderMorePage(sequence) {
         </button>
 
         <div id="registerTshirtMessage" class="muted" style="margin-top:10px;"></div>
-      </section>
+      </details>
 
       <section class="card">
         <div class="card-title">その他の商品を追加</div>
@@ -1838,6 +1989,71 @@ async function renderMorePage(sequence) {
         </button>
       </section>
     `;
+
+    document
+      .querySelector(
+        "#syncPinkoiTshirtButton"
+      )
+      ?.addEventListener(
+        "click",
+        async event => {
+          const button =
+            event.currentTarget;
+
+          const messageBox =
+            document.querySelector(
+              "#syncPinkoiTshirtMessage"
+            );
+
+          button.disabled =
+            true;
+
+          button.textContent =
+            "更新中";
+
+          if (messageBox) {
+            messageBox.textContent =
+              "";
+          }
+
+          try {
+            const result =
+              await syncPinkoiTshirtCatalog();
+
+            button.textContent =
+              "更新済み";
+
+            if (messageBox) {
+              messageBox.textContent =
+                `${result.processed} SKUを更新しました。SKUあり ${result.skuCount}、日本価格あり ${result.pricedCount}、未対応 ${result.unmapped}。`;
+            }
+
+            setTimeout(
+              () => {
+                render(
+                  "more"
+                );
+              },
+              700
+            );
+
+          } catch (error) {
+            button.disabled =
+              false;
+
+            button.textContent =
+              "PinkoiからSKU・日本価格を更新";
+
+            if (messageBox) {
+              messageBox.textContent =
+                error.code ||
+                error.message ||
+                String(error);
+            }
+          }
+        }
+      );
+
 
     document
       .querySelector(
@@ -5188,7 +5404,11 @@ function skuDisplayDetail(
     return [
       row.body,
       row.color,
-      row.size
+      row.size,
+      row.pinkoiSku ||
+      row.sku
+        ? `SKU ${row.pinkoiSku || row.sku}`
+        : ""
     ]
       .filter(Boolean)
       .join(" / ");
@@ -5202,14 +5422,42 @@ function skuDisplayDetail(
   );
 }
 
+function skuSalePrice(
+  row
+) {
+  if (
+    row?.category ===
+      "tshirt" &&
+    posCurrency ===
+      "JPY"
+  ) {
+    const pinkoiPrice =
+      Number(
+        row?.pinkoiPriceJPY ||
+        row?.defaultPriceJPY ||
+        0
+      );
+
+    if (
+      pinkoiPrice > 0
+    ) {
+      return pinkoiPrice;
+    }
+  }
+
+  return posPrice(
+    row?.category
+  );
+}
+
 function addSkuItem(
   row
 ) {
   invalidatePendingCheckout();
 
   const price =
-    posPrice(
-      row.category
+    skuSalePrice(
+      row
     );
 
   if (
@@ -5219,7 +5467,10 @@ function addSkuItem(
       success:
         false,
       message:
-        `${POS_CATEGORY_LABELS[row.category]} の ${posCurrency} 価格を先に設定してください。`
+        row.category === "tshirt" &&
+        posCurrency === "JPY"
+          ? "Pinkoi側の日本価格を確認してください。"
+          : `${POS_CATEGORY_LABELS[row.category]} の ${posCurrency} 価格を先に設定してください。`
     };
   }
 
@@ -5379,14 +5630,16 @@ async function renderPos(
       const [
         tshirtInventory,
         accessoryInventory,
-        registeredVariants
+        registeredVariants,
+        pinkoiTshirtCatalog
       ] =
         await Promise.all([
           tshirtAdapter
             .getInventorySnapshot(),
           accessoryAdapter
             .getCatalogSnapshot(),
-          listAllProductVariants()
+          listAllProductVariants(),
+          loadPinkoiTshirtCatalog()
         ]);
 
       const registeredMap =
@@ -5406,16 +5659,42 @@ async function renderPos(
             row =>
               registeredMap.has(
                 row.variantId
-              )
+              ) ||
+              pinkoiTshirtCatalog
+                .byVariantId
+                .has(
+                  row.variantId
+                )
           )
           .map(
-            row => ({
-              ...row,
-              inventoryKey:
-                row.stockTargetId,
-              inventorySource:
-                "tshirt"
-            })
+            row => {
+              const registered =
+                registeredMap.get(
+                  row.variantId
+                ) || {};
+
+              const pinkoi =
+                pinkoiTshirtCatalog
+                  .byVariantId
+                  .get(
+                    row.variantId
+                  ) || {};
+
+              return {
+                ...registered,
+                ...row,
+                ...pinkoi,
+
+                quantity:
+                  row.quantity,
+
+                inventoryKey:
+                  row.stockTargetId,
+
+                inventorySource:
+                  "tshirt"
+              };
+            }
           );
 
       const accessoryRows =
@@ -6130,11 +6409,17 @@ async function renderPos(
                                       font-weight:800;
                                     "
                                   >
-                                    ${formatMoney(
-                                      posPrice(
-                                        row.category
-                                      )
-                                    )}
+                                    ${
+                                      skuSalePrice(
+                                        row
+                                      ) > 0
+                                        ? formatMoney(
+                                            skuSalePrice(
+                                              row
+                                            )
+                                          )
+                                        : "価格未設定"
+                                    }
                                   </div>
 
                                   <div
@@ -6572,7 +6857,7 @@ async function renderPos(
               line-height:1.6;
             "
           >
-            Quickはカテゴリ単位で売上だけを記録します。SKUモードで選んだTシャツとアクセサリーは、会計確定と同時に実在庫を減らし、販売履歴も同じtransaction IDで保存します。
+            Quickはカテゴリ単位で売上だけを記録します。SKUモードのTシャツはPinkoi SKUを表示し、JPYではPinkoi日本価格を使用します。SKU販売は会計確定と同時に実在庫を減らします。
           </div>
 
         </section>
