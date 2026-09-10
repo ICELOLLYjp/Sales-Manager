@@ -999,7 +999,9 @@ async function renderMorePage(sequence) {
               masterStockCount: 0,
               masterStockZeroCount: 0,
               syncEligibleCount: 0,
-              zeroStockCatalogCount: 0
+              zeroStockCatalogCount: 0,
+              explicitDesignLinkCount: 0,
+              compatibilityAliasCount: 0
             },
             items: [],
             variants: [],
@@ -1234,6 +1236,16 @@ async function renderMorePage(sequence) {
                 <strong>${pinkoiTshirtCatalog.summary.syncEligibleCount}</strong>
               </div>
 
+              <div class="list-row">
+                <span>Design明示リンク</span>
+                <strong>${pinkoiTshirtCatalog.summary.explicitDesignLinkCount || 0}</strong>
+              </div>
+
+              <div class="list-row">
+                <span>既存Design互換</span>
+                <strong>${pinkoiTshirtCatalog.summary.compatibilityAliasCount || 0}</strong>
+              </div>
+
               ${
                 pinkoiTshirtCatalog.summary.ambiguousCount > 0
                   ? `
@@ -1332,6 +1344,23 @@ async function renderMorePage(sequence) {
                                       item.masterMatch.reasons || []
                                     ).join(", ") ||
                                     "なし"
+                                  )}
+                                  <br>
+
+                                  Design照合:
+                                  ${escapeHtml(
+                                    item.masterMatch
+                                      ?.design
+                                      ?.method ||
+                                    "none"
+                                  )}
+                                  <br>
+
+                                  masterDesignId:
+                                  ${escapeHtml(
+                                    item.explicitLinks
+                                      ?.masterDesignId ||
+                                    "未設定"
                                   )}
                                   <br>
 
@@ -1455,7 +1484,7 @@ async function renderMorePage(sequence) {
                   line-height:1.55;
                 "
               >
-                同期対象は、SKUあり、重複なし、Body / Design / Color / Size がすべて matched のSKUだけです。診断表示だけではFirestoreを書き換えません。
+                同期対象は、SKUあり、重複なし、Body / Design / Color / Size がすべて matched のSKUだけです。Designは masterDesignId を最優先します。診断表示だけではFirestoreを書き換えません。
               </div>
             `
         }
