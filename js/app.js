@@ -7,7 +7,7 @@ import { loadTshirtProductVariants, syncTshirtCurrentStockRows } from "./service
 import { listAllProductVariants, registerTshirtVariant, registerGeneralProduct, syncAccessoryCatalogRows } from "./services/productAdminService.js";
 import { CATEGORY_TEMPLATES, getCategoryTemplate } from "./data/categoryTemplates.js";
 import { loadQuickPriceBook, saveQuickPrices, QUICK_PRICE_CURRENCIES } from "./services/priceBookService.js";
-import { listSalesSessions, createEventSession, SESSION_CURRENCIES } from "./services/sessionService.js";
+import { listSalesSessions, createEventSession, updateEventSession, SESSION_CURRENCIES } from "./services/sessionService.js";
 import { commitQuickSale } from "./services/transactionService.js";
 
 const view = document.querySelector("#view");
@@ -61,6 +61,12 @@ let pendingCheckoutTransactionId =
 
 let lastCheckoutResult =
   null;
+
+let editingSessionId =
+  "";
+
+let posPriceSettingsOpen =
+  false;
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -898,6 +904,251 @@ async function renderInventory(sequence) {
       );
 
 
+    document
+      .querySelectorAll(
+        ".sessionEditButton"
+      )
+      .forEach(
+        button => {
+          button.addEventListener(
+            "click",
+            () => {
+              editingSessionId =
+                button.dataset.sessionId ||
+                "";
+
+              renderSessions(
+                ++renderSequence
+              ).then(
+                () => {
+                  document
+                    .querySelector(
+                      "#sessionEditCard"
+                    )
+                    ?.scrollIntoView({
+                      behavior:
+                        "smooth",
+                      block:
+                        "start"
+                    });
+                }
+              );
+            }
+          );
+        }
+      );
+
+
+    document
+      .querySelector(
+        "#cancelSessionEditButton"
+      )
+      ?.addEventListener(
+        "click",
+        () => {
+          editingSessionId =
+            "";
+
+          renderSessions(
+            ++renderSequence
+          );
+        }
+      );
+
+
+    const editCurrencySelect =
+      document.querySelector(
+        "#editSessionCurrency"
+      );
+
+    const editRateInput =
+      document.querySelector(
+        "#editSessionFxRate"
+      );
+
+
+    function refreshEditRateField() {
+      if (
+        !editCurrencySelect ||
+        !editRateInput
+      ) {
+        return;
+      }
+
+      if (
+        editCurrencySelect.value ===
+        "JPY"
+      ) {
+        editRateInput.value =
+          "1";
+
+        editRateInput.disabled =
+          true;
+      } else {
+        editRateInput.disabled =
+          false;
+
+        if (
+          editRateInput.value ===
+          "1"
+        ) {
+          editRateInput.value =
+            "";
+        }
+      }
+    }
+
+
+    refreshEditRateField();
+
+
+    editCurrencySelect
+      ?.addEventListener(
+        "change",
+        refreshEditRateField
+      );
+
+
+    document
+      .querySelector(
+        "#saveSessionEditButton"
+      )
+      ?.addEventListener(
+        "click",
+        async event => {
+          const button =
+            event.currentTarget;
+
+          const messageBox =
+            document.querySelector(
+              "#saveSessionEditMessage"
+            );
+
+          const before =
+            openSessions.find(
+              session =>
+                session.sessionId ===
+                editingSessionId
+            );
+
+          button.disabled =
+            true;
+
+          button.textContent =
+            "保存中";
+
+          if (messageBox) {
+            messageBox.textContent =
+              "";
+          }
+
+          try {
+            const updated =
+              await updateEventSession(
+                editingSessionId,
+                {
+                  eventName:
+                    document
+                      .querySelector(
+                        "#editSessionEventName"
+                      )
+                      ?.value,
+
+                  country:
+                    document
+                      .querySelector(
+                        "#editSessionCountry"
+                      )
+                      ?.value,
+
+                  city:
+                    document
+                      .querySelector(
+                        "#editSessionCity"
+                      )
+                      ?.value,
+
+                  startDate:
+                    document
+                      .querySelector(
+                        "#editSessionStartDate"
+                      )
+                      ?.value,
+
+                  endDate:
+                    document
+                      .querySelector(
+                        "#editSessionEndDate"
+                      )
+                      ?.value,
+
+                  currency:
+                    editCurrencySelect
+                      ?.value ||
+                    "JPY",
+
+                  fxRateToJPY:
+                    editRateInput
+                      ?.value ||
+                    null
+                }
+              );
+
+            if (
+              updated.sessionId ===
+              activeSessionId
+            ) {
+              if (
+                before &&
+                before.currency !==
+                updated.currency
+              ) {
+                posCart =
+                  new Map();
+
+                posOrderDiscount =
+                  0;
+
+                invalidatePendingCheckout();
+
+                lastCheckoutResult =
+                  null;
+              }
+
+              posCurrency =
+                updated.currency;
+
+              localStorage.setItem(
+                "icelolly-sales-pos-currency",
+                posCurrency
+              );
+            }
+
+            editingSessionId =
+              "";
+
+            await renderSessions(
+              ++renderSequence
+            );
+
+          } catch (error) {
+            button.disabled =
+              false;
+
+            button.textContent =
+              "変更を保存";
+
+            if (messageBox) {
+              messageBox.textContent =
+                error.code ||
+                error.message ||
+                String(error);
+            }
+          }
+        }
+      );
+
+
     syncStatus.textContent =
       "Firebase";
 
@@ -1634,6 +1885,234 @@ async function renderSessions(
       </section>
 
 
+      ${
+        editingSessionId
+          ? (() => {
+              const editing =
+                openSessions.find(
+                  session =>
+                    session.sessionId ===
+                    editingSessionId
+                );
+
+              if (!editing) {
+                return "";
+              }
+
+              return `
+                <section
+                  class="card"
+                  id="sessionEditCard"
+                >
+
+                  <div
+                    style="
+                      display:flex;
+                      justify-content:space-between;
+                      gap:10px;
+                      align-items:center;
+                      margin-bottom:12px;
+                    "
+                  >
+                    <div class="card-title">
+                      イベントを編集
+                    </div>
+
+                    <button
+                      id="cancelSessionEditButton"
+                      class="button button-secondary"
+                      type="button"
+                      style="
+                        min-height:38px;
+                        padding:0 14px;
+                      "
+                    >
+                      キャンセル
+                    </button>
+                  </div>
+
+
+                  <div
+                    style="
+                      display:grid;
+                      gap:10px;
+                    "
+                  >
+
+                    <input
+                      id="editSessionEventName"
+                      type="text"
+                      value="${escapeHtml(
+                        editing.eventName
+                      )}"
+                      placeholder="イベント名"
+                      style="${inputStyle()}"
+                    >
+
+
+                    <div
+                      style="
+                        display:grid;
+                        grid-template-columns:
+                          repeat(
+                            2,
+                            minmax(0,1fr)
+                          );
+                        gap:10px;
+                      "
+                    >
+
+                      <input
+                        id="editSessionCountry"
+                        type="text"
+                        value="${escapeHtml(
+                          editing.country
+                        )}"
+                        placeholder="国"
+                        style="${inputStyle()}"
+                      >
+
+                      <input
+                        id="editSessionCity"
+                        type="text"
+                        value="${escapeHtml(
+                          editing.city
+                        )}"
+                        placeholder="都市"
+                        style="${inputStyle()}"
+                      >
+
+                    </div>
+
+
+                    <div
+                      style="
+                        display:grid;
+                        grid-template-columns:
+                          repeat(
+                            2,
+                            minmax(0,1fr)
+                          );
+                        gap:10px;
+                      "
+                    >
+
+                      <label>
+                        <div
+                          class="muted"
+                          style="margin-bottom:5px;"
+                        >
+                          開始日
+                        </div>
+
+                        <input
+                          id="editSessionStartDate"
+                          type="date"
+                          value="${escapeHtml(
+                            editing.startDate
+                          )}"
+                          style="${inputStyle()}"
+                        >
+                      </label>
+
+
+                      <label>
+                        <div
+                          class="muted"
+                          style="margin-bottom:5px;"
+                        >
+                          終了日
+                        </div>
+
+                        <input
+                          id="editSessionEndDate"
+                          type="date"
+                          value="${escapeHtml(
+                            editing.endDate
+                          )}"
+                          style="${inputStyle()}"
+                        >
+                      </label>
+
+                    </div>
+
+
+                    <div
+                      style="
+                        display:grid;
+                        grid-template-columns:
+                          120px
+                          minmax(0,1fr);
+                        gap:10px;
+                      "
+                    >
+
+                      <select
+                        id="editSessionCurrency"
+                        style="${selectStyle()}"
+                      >
+                        ${SESSION_CURRENCIES.map(
+                          currency => `
+                            <option
+                              value="${currency}"
+                              ${
+                                currency ===
+                                editing.currency
+                                  ? "selected"
+                                  : ""
+                              }
+                            >
+                              ${currency}
+                            </option>
+                          `
+                        ).join("")}
+                      </select>
+
+
+                      <input
+                        id="editSessionFxRate"
+                        type="number"
+                        min="0"
+                        step="0.0001"
+                        inputmode="decimal"
+                        value="${
+                          editing.fxRateToJPY ??
+                          ""
+                        }"
+                        placeholder="1通貨あたりの円換算レート"
+                        style="${inputStyle()}"
+                      >
+
+                    </div>
+
+
+                    <button
+                      id="saveSessionEditButton"
+                      class="button"
+                      type="button"
+                      style="
+                        width:100%;
+                        min-height:52px;
+                      "
+                    >
+                      変更を保存
+                    </button>
+
+
+                    <div
+                      id="saveSessionEditMessage"
+                      class="muted"
+                    ></div>
+
+                  </div>
+
+                </section>
+              `;
+            })()
+          : ""
+      }
+
+
       <section class="card">
 
         <div
@@ -1789,30 +2268,51 @@ async function renderSessions(
                       </div>
 
 
-                      <button
-                        type="button"
-                        class="sessionUseButton button ${
-                          session.sessionId ===
-                          activeSessionId
-                            ? "button-secondary"
-                            : ""
-                        }"
-                        data-session-id="${escapeHtml(
-                          session.sessionId
-                        )}"
+                      <div
                         style="
+                          display:grid;
+                          gap:7px;
                           min-width:92px;
-                          min-height:44px;
-                          padding:0 12px;
                         "
                       >
-                        ${
-                          session.sessionId ===
-                          activeSessionId
-                            ? "使用中"
-                            : "POSで使用"
-                        }
-                      </button>
+                        <button
+                          type="button"
+                          class="sessionUseButton button ${
+                            session.sessionId ===
+                            activeSessionId
+                              ? "button-secondary"
+                              : ""
+                          }"
+                          data-session-id="${escapeHtml(
+                            session.sessionId
+                          )}"
+                          style="
+                            min-height:44px;
+                            padding:0 12px;
+                          "
+                        >
+                          ${
+                            session.sessionId ===
+                            activeSessionId
+                              ? "使用中"
+                              : "POSで使用"
+                          }
+                        </button>
+
+                        <button
+                          type="button"
+                          class="sessionEditButton button button-secondary"
+                          data-session-id="${escapeHtml(
+                            session.sessionId
+                          )}"
+                          style="
+                            min-height:40px;
+                            padding:0 12px;
+                          "
+                        >
+                          編集
+                        </button>
+                      </div>
 
                     </div>
 
@@ -2653,7 +3153,11 @@ async function renderPos(
                 padding:0 14px;
               "
             >
-              価格設定
+              ${
+                posPriceSettingsOpen
+                  ? "価格設定を閉じる"
+                  : "価格設定"
+              }
             </button>
           </div>
 
@@ -2773,7 +3277,13 @@ async function renderPos(
         <section
           id="posPriceSettings"
           class="card"
-          hidden
+          style="
+            ${
+              posPriceSettingsOpen
+                ? ""
+                : "display:none;"
+            }
+          "
         >
 
           <div class="card-title">
@@ -3308,19 +3818,27 @@ async function renderPos(
                   );
 
                 if (!success) {
+                  posPriceSettingsOpen =
+                    true;
+
                   renderPosBody(
                     `${POS_CATEGORY_LABELS[category]} の ${posCurrency} 価格を先に設定してください。`
                   );
 
-                  const panel =
-                    document.querySelector(
-                      "#posPriceSettings"
-                    );
-
-                  if (panel) {
-                    panel.hidden =
-                      false;
-                  }
+                  requestAnimationFrame(
+                    () => {
+                      document
+                        .querySelector(
+                          "#posPriceSettings"
+                        )
+                        ?.scrollIntoView({
+                          behavior:
+                            "smooth",
+                          block:
+                            "start"
+                        });
+                    }
+                  );
 
                   return;
                 }
@@ -3363,14 +3881,28 @@ async function renderPos(
         ?.addEventListener(
           "click",
           () => {
-            const panel =
-              document.querySelector(
-                "#posPriceSettings"
-              );
+            posPriceSettingsOpen =
+              !posPriceSettingsOpen;
 
-            if (panel) {
-              panel.hidden =
-                !panel.hidden;
+            renderPosBody();
+
+            if (
+              posPriceSettingsOpen
+            ) {
+              requestAnimationFrame(
+                () => {
+                  document
+                    .querySelector(
+                      "#posPriceSettings"
+                    )
+                    ?.scrollIntoView({
+                      behavior:
+                        "smooth",
+                      block:
+                        "start"
+                    });
+                }
+              );
             }
           }
         );
@@ -3456,8 +3988,12 @@ async function renderPos(
                 "保存済み";
 
               setTimeout(
-                () =>
-                  renderPosBody(),
+                () => {
+                  posPriceSettingsOpen =
+                    false;
+
+                  renderPosBody();
+                },
                 500
               );
 
