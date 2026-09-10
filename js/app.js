@@ -5160,7 +5160,7 @@ async function renderSessions(
                             line-height:1.5;
                           "
                         >
-                          Tシャツはデザインを縦、サイズを横に並べています。Body・Colorが違う場合は別行です。在庫0はグレー表示され入力できません。「この色を全在庫追加」はその行だけ、「デザイン全体を追加」は同じDesignの全Body・全Color・全Sizeをまとめて入力します。
+                          Tシャツはデザインを縦、サイズを横に並べています。Body・Colorが違う場合は別行です。在庫0はグレー表示され入力できません。「この色を全在庫追加」は各色ごとに表示し、「デザイン全体を追加」は同じDesignにつき1つだけ表示します。
                         </div>
 
                         <div
@@ -5232,7 +5232,17 @@ async function renderSessions(
                                 ${groupEventTshirtCarryRows(
                                   eventCurrentInventoryRows
                                 ).map(
-                                  group => {
+                                  (
+                                    group,
+                                    groupIndex,
+                                    allGroups
+                                  ) => {
+                                    const isFirstDesignRow =
+                                      groupIndex === 0 ||
+                                      allGroups[
+                                        groupIndex - 1
+                                      ].design !==
+                                        group.design;
                                     const groupSearch =
                                       [
                                         group.design,
@@ -5309,7 +5319,11 @@ async function renderSessions(
                                             style="
                                               display:grid;
                                               grid-template-columns:
-                                                repeat(2,minmax(0,1fr));
+                                                ${
+                                                  isFirstDesignRow
+                                                    ? "repeat(2,minmax(0,1fr))"
+                                                    : "minmax(0,1fr)"
+                                                };
                                               gap:6px;
                                               margin-top:7px;
                                             "
@@ -5331,26 +5345,32 @@ async function renderSessions(
                                               この色を全在庫追加
                                             </button>
 
-                                            <button
-                                              type="button"
-                                              class="eventCarryDesignAllStockButton"
-                                              data-design-key="${escapeHtml(
-                                                group.design
-                                              )}"
-                                              style="
-                                                min-height:32px;
-                                                padding:0 8px;
-                                                border:1px solid #deded9;
-                                                border-radius:8px;
-                                                background:#1f1f1f;
-                                                color:#fff;
-                                                font-size:10px;
-                                                font-weight:700;
-                                                line-height:1.25;
-                                              "
-                                            >
-                                              デザイン全体を追加
-                                            </button>
+                                            ${
+                                              isFirstDesignRow
+                                                ? `
+                                                  <button
+                                                    type="button"
+                                                    class="eventCarryDesignAllStockButton"
+                                                    data-design-key="${escapeHtml(
+                                                      group.design
+                                                    )}"
+                                                    style="
+                                                      min-height:32px;
+                                                      padding:0 8px;
+                                                      border:1px solid #deded9;
+                                                      border-radius:8px;
+                                                      background:#1f1f1f;
+                                                      color:#fff;
+                                                      font-size:10px;
+                                                      font-weight:700;
+                                                      line-height:1.25;
+                                                    "
+                                                  >
+                                                    デザイン全体を追加
+                                                  </button>
+                                                `
+                                                : ""
+                                            }
                                           </div>
                                         </div>
 
