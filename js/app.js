@@ -8,7 +8,7 @@ import { listAllProductVariants, registerTshirtVariant, registerGeneralProduct, 
 import { CATEGORY_TEMPLATES, getCategoryTemplate } from "./data/categoryTemplates.js";
 import { loadPosPriceConfig, savePosPriceConfig, QUICK_PRICE_CURRENCIES } from "./services/priceBookService.js?v=20260910-multiset-3";
 import { listSalesSessions, createEventSession, updateEventSession, updateEventExpenses, SESSION_CURRENCIES } from "./services/sessionService.js";
-import { commitQuickSale, voidSaleTransaction } from "./services/transactionService.js?v=20260910-setdiscount-2";
+import { commitQuickSale, voidSaleTransaction } from "./services/transactionService.js?v=20260911-event-stock-1";
 import { listSessionTransactions } from "./services/salesHistoryService.js?v=20260910-setdiscount-2";
 import { saveCategoryCost, loadAllCategoryCostHistories, resolveCategoryUnitCost, saveTshirtBodyCost, loadTshirtBodyCostHistories, resolveBodyUnitCost, saveVariantCost, loadVariantCostHistories, calculateResolvedCogs } from "./services/costHistoryService.js";
 import { loadPinkoiTshirtCatalog, syncPinkoiTshirtCatalog } from "./services/pinkoiCatalogService.js";
@@ -89,7 +89,7 @@ async function inventoryCountService() {
   ) {
     inventoryCountServicePromise =
       import(
-        "./services/inventoryCountService.js?v=20260910-eventcount-2"
+        "./services/inventoryCountService.js?v=20260911-event-stock-1"
       )
         .catch(
           error => {
@@ -10828,10 +10828,162 @@ function skuSalePrice(
   );
 }
 
+const POS_TSHIRT_SIZE_ORDER = [
+  "S",
+  "M",
+  "L",
+  "XL",
+  "XXL"
+];
+
+function posTshirtSizeRank(
+  value
+) {
+  const clean =
+    String(
+      value ||
+      ""
+    ).trim();
+
+  const index =
+    POS_TSHIRT_SIZE_ORDER
+      .indexOf(
+        clean
+      );
+
+  return index >= 0
+    ? index
+    : 999;
+}
+
+function groupPosTshirtRows(
+  rows
+) {
+  const groups =
+    new Map();
+
+  (
+    Array.isArray(rows)
+      ? rows
+      : []
+  )
+    .filter(
+      row =>
+        row.category ===
+        "tshirt"
+    )
+    .forEach(
+      row => {
+        const key =
+          [
+            row.design || "",
+            row.body || "",
+            row.color || ""
+          ].join("||");
+
+        if (
+          !groups.has(
+            key
+          )
+        ) {
+          groups.set(
+            key,
+            {
+              key,
+              design:
+                row.design ||
+                "Tシャツ",
+              body:
+                row.body ||
+                "",
+              color:
+                row.color ||
+                "",
+              items: []
+            }
+          );
+        }
+
+        groups
+          .get(
+            key
+          )
+          .items
+          .push(
+            row
+          );
+      }
+    );
+
+  return Array.from(
+    groups.values()
+  )
+    .map(
+      group => ({
+        ...group,
+        items:
+          group.items
+            .slice()
+            .sort(
+              (a, b) =>
+                posTshirtSizeRank(
+                  a.size
+                ) -
+                posTshirtSizeRank(
+                  b.size
+                ) ||
+                String(
+                  a.size || ""
+                ).localeCompare(
+                  String(
+                    b.size || ""
+                  ),
+                  "ja"
+                )
+            )
+      })
+    )
+    .sort(
+      (a, b) =>
+        a.design.localeCompare(
+          b.design,
+          "ja"
+        ) ||
+        a.body.localeCompare(
+          b.body,
+          "ja"
+        ) ||
+        a.color.localeCompare(
+          b.color,
+          "ja"
+        )
+    );
+}
+
 function addSkuItem(
   row
 ) {
   invalidatePendingCheckout();
+
+  const availableStock =
+    Math.max(
+      0,
+      Number(
+        row?.quantity ||
+        0
+      )
+    );
+
+  if (
+    availableStock <= 0
+  ) {
+    return {
+      success:
+        false,
+      message:
+        `${skuDisplayLabel(row)} の在庫は 0 点です。`
+    };
+  }
 
   const price =
     skuSalePrice(
@@ -11010,6 +11162,21 @@ async function renderPos(
 
     let posSkuRows = [];
 
+    let posEventInventoryCount = {
+      opening: null,
+      closing: null,
+      soldByVariant: {}
+    };
+
+    let posUsesEventOpeningInventory =
+      false;
+
+    let posEventOpeningTotal =
+      0;
+
+    let posEventOpeningSkuCount =
+      0;
+
     if (
       posMode ===
       "sku"
@@ -11018,7 +11185,8 @@ async function renderPos(
         tshirtInventory,
         accessoryInventory,
         registeredVariants,
-        pinkoiTshirtCatalog
+        pinkoiTshirtCatalog,
+        eventInventoryCount
       ] =
         await Promise.all([
           tshirtAdapter
@@ -11026,8 +11194,24 @@ async function renderPos(
           accessoryAdapter
             .getCatalogSnapshot(),
           listAllProductVariants(),
-          loadPinkoiTshirtCatalog()
+          loadPinkoiTshirtCatalog(),
+          activeSession
+            ? loadEventInventoryCount(
+                activeSession.sessionId
+              )
+            : Promise.resolve({
+                opening: null,
+                closing: null,
+                soldByVariant: {}
+              })
         ]);
+
+      posEventInventoryCount =
+        eventInventoryCount || {
+          opening: null,
+          closing: null,
+          soldByVariant: {}
+        };
 
       const registeredMap =
         new Map(
@@ -11102,10 +11286,146 @@ async function renderPos(
             })
           );
 
-      posSkuRows = [
+      const allSkuRows = [
         ...tshirtRows,
         ...accessoryRows
       ];
+
+      const eventOpeningItems =
+        Array.isArray(
+          posEventInventoryCount
+            ?.opening
+            ?.items
+        )
+          ? posEventInventoryCount
+              .opening
+              .items
+          : [];
+
+      const eventOpeningMap =
+        new Map(
+          eventOpeningItems.map(
+            item => [
+              item.variantId,
+              Math.max(
+                0,
+                Math.floor(
+                  Number(
+                    item.openingQty ||
+                    0
+                  )
+                )
+              )
+            ]
+          )
+        );
+
+      const soldByVariant =
+        posEventInventoryCount
+          ?.soldByVariant &&
+        typeof posEventInventoryCount
+          .soldByVariant ===
+          "object"
+          ? posEventInventoryCount
+              .soldByVariant
+          : {};
+
+      posUsesEventOpeningInventory =
+        Boolean(
+          activeSession &&
+          eventOpeningMap.size
+        );
+
+      posEventOpeningSkuCount =
+        eventOpeningMap.size;
+
+      posEventOpeningTotal =
+        Array.from(
+          eventOpeningMap.values()
+        ).reduce(
+          (sum, quantity) =>
+            sum +
+            quantity,
+          0
+        );
+
+      posSkuRows =
+        posUsesEventOpeningInventory
+          ? allSkuRows
+              .filter(
+                row =>
+                  eventOpeningMap.has(
+                    row.variantId
+                  )
+              )
+              .map(
+                row => {
+                  const openingQty =
+                    eventOpeningMap.get(
+                      row.variantId
+                    ) ||
+                    0;
+
+                  const soldQty =
+                    Math.max(
+                      0,
+                      Math.floor(
+                        Number(
+                          soldByVariant[
+                            row.variantId
+                          ] ||
+                          0
+                        )
+                      )
+                    );
+
+                  return {
+                    ...row,
+
+                    globalQuantity:
+                      Number(
+                        row.quantity ||
+                        0
+                      ),
+
+                    eventOpeningQty:
+                      openingQty,
+
+                    eventSoldQty:
+                      soldQty,
+
+                    eventInventoryActive:
+                      true,
+
+                    quantity:
+                      Math.max(
+                        0,
+                        openingQty -
+                        soldQty
+                      )
+                  };
+                }
+              )
+          : allSkuRows.map(
+              row => ({
+                ...row,
+
+                globalQuantity:
+                  Number(
+                    row.quantity ||
+                    0
+                  ),
+
+                eventOpeningQty:
+                  null,
+
+                eventSoldQty:
+                  0,
+
+                eventInventoryActive:
+                  false
+              })
+            );
     }
 
     if (
@@ -11886,6 +12206,51 @@ async function renderPos(
                 </div>
 
 
+                ${
+                  activeSession
+                    ? (
+                        posUsesEventOpeningInventory
+                          ? `
+                            <div
+                              style="
+                                padding:10px 12px;
+                                margin-bottom:10px;
+                                border:1px solid #d9e4d7;
+                                border-radius:12px;
+                                background:#f5faf4;
+                                font-size:13px;
+                                line-height:1.5;
+                              "
+                            >
+                              イベント開始在庫を使用中：
+                              <strong>
+                                ${posEventOpeningTotal}点
+                              </strong>
+                              /
+                              ${posEventOpeningSkuCount} SKU
+                              <br>
+                              SKU在庫は「開始在庫 − このイベントのSKU販売」で表示します。
+                            </div>
+                          `
+                          : `
+                            <div
+                              style="
+                                padding:10px 12px;
+                                margin-bottom:10px;
+                                border:1px solid #ead796;
+                                border-radius:12px;
+                                background:#fff8df;
+                                font-size:13px;
+                                line-height:1.5;
+                              "
+                            >
+                              このイベントは開始在庫が未設定です。現在は会社全体の実在庫を表示しています。
+                            </div>
+                          `
+                      )
+                    : ""
+                }
+
                 <div
                   style="
                     display:grid;
@@ -12005,7 +12370,265 @@ async function renderPos(
                             text-align:center;
                           "
                         >
-                          在庫のある登録済みSKUがありません。
+                          ${
+                            posUsesEventOpeningInventory
+                              ? "イベント開始在庫に登録された該当SKUがありません。"
+                              : "在庫のある登録済みSKUがありません。"
+                          }
+                        </div>
+                      `;
+                    }
+
+                    if (
+                      posSkuCategory ===
+                      "tshirt"
+                    ) {
+                      const groups =
+                        groupPosTshirtRows(
+                          rows
+                        );
+
+                      return `
+                        <div
+                          style="
+                            overflow-x:auto;
+                            border:1px solid #ecece7;
+                            border-radius:14px;
+                          "
+                        >
+                          <div
+                            style="
+                              min-width:650px;
+                            "
+                          >
+                            <div
+                              style="
+                                display:grid;
+                                grid-template-columns:
+                                  minmax(210px,1.9fr)
+                                  repeat(5,82px);
+                                background:#f7f7f4;
+                                border-bottom:1px solid #ecece7;
+                                font-size:12px;
+                                font-weight:800;
+                              "
+                            >
+                              <div
+                                style="
+                                  padding:9px 10px;
+                                "
+                              >
+                                Design / Body / Color
+                              </div>
+
+                              ${POS_TSHIRT_SIZE_ORDER.map(
+                                size => `
+                                  <div
+                                    style="
+                                      padding:9px 4px;
+                                      text-align:center;
+                                    "
+                                  >
+                                    ${size}
+                                  </div>
+                                `
+                              ).join("")}
+                            </div>
+
+                            ${groups.map(
+                              group => `
+                                <div
+                                  style="
+                                    display:grid;
+                                    grid-template-columns:
+                                      minmax(210px,1.9fr)
+                                      repeat(5,82px);
+                                    border-bottom:1px solid #ecece7;
+                                  "
+                                >
+                                  <div
+                                    style="
+                                      padding:10px;
+                                      min-width:0;
+                                    "
+                                  >
+                                    <div
+                                      style="
+                                        font-weight:800;
+                                      "
+                                    >
+                                      ${escapeHtml(
+                                        group.design
+                                      )}
+                                    </div>
+
+                                    <div
+                                      class="muted"
+                                      style="
+                                        margin-top:3px;
+                                        font-size:12px;
+                                        line-height:1.4;
+                                      "
+                                    >
+                                      ${escapeHtml(
+                                        [
+                                          group.body,
+                                          group.color
+                                        ]
+                                          .filter(Boolean)
+                                          .join(" / ")
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  ${POS_TSHIRT_SIZE_ORDER.map(
+                                    size => {
+                                      const row =
+                                        group.items.find(
+                                          item =>
+                                            item.size ===
+                                            size
+                                        );
+
+                                      if (!row) {
+                                        return `
+                                          <div
+                                            style="
+                                              padding:8px 4px;
+                                              border-left:1px solid #f0f0ec;
+                                              background:#f3f3f0;
+                                              color:#b7b7b2;
+                                              display:flex;
+                                              align-items:center;
+                                              justify-content:center;
+                                            "
+                                          >
+                                            —
+                                          </div>
+                                        `;
+                                      }
+
+                                      const cartQty =
+                                        posCart
+                                          .get(
+                                            `sku:${row.variantId}`
+                                          )
+                                          ?.quantity ||
+                                        0;
+
+                                      const soldOut =
+                                        Number(
+                                          row.quantity ||
+                                          0
+                                        ) <= 0;
+
+                                      const price =
+                                        skuSalePrice(
+                                          row
+                                        );
+
+                                      return `
+                                        <button
+                                          class="posSkuItem"
+                                          data-variant-id="${escapeHtml(
+                                            row.variantId
+                                          )}"
+                                          type="button"
+                                          ${soldOut ? "disabled" : ""}
+                                          style="
+                                            min-height:74px;
+                                            padding:6px 4px;
+                                            border:0;
+                                            border-left:1px solid #f0f0ec;
+                                            background:${
+                                              soldOut
+                                                ? "#f3f3f0"
+                                                : (
+                                                    cartQty > 0
+                                                      ? "#f6f6f2"
+                                                      : "#fff"
+                                                  )
+                                            };
+                                            color:${
+                                              soldOut
+                                                ? "#aaa"
+                                                : "#1f1f1f"
+                                            };
+                                            text-align:center;
+                                            touch-action:manipulation;
+                                            opacity:${
+                                              soldOut
+                                                ? ".65"
+                                                : "1"
+                                            };
+                                          "
+                                        >
+                                          <div
+                                            style="
+                                              font-size:11px;
+                                              color:inherit;
+                                            "
+                                          >
+                                            ${
+                                              soldOut
+                                                ? "在庫0"
+                                                : `在${row.quantity}`
+                                            }
+                                          </div>
+
+                                          <div
+                                            style="
+                                              margin-top:4px;
+                                              font-size:11px;
+                                              font-weight:800;
+                                              line-height:1.2;
+                                            "
+                                          >
+                                            ${
+                                              price > 0
+                                                ? escapeHtml(
+                                                    formatMoney(
+                                                      price
+                                                    )
+                                                  )
+                                                : "価格未設定"
+                                            }
+                                          </div>
+
+                                          ${
+                                            cartQty > 0
+                                              ? `
+                                                <div
+                                                  style="
+                                                    margin-top:4px;
+                                                    font-size:10px;
+                                                    font-weight:800;
+                                                  "
+                                                >
+                                                  会計 ${cartQty}
+                                                </div>
+                                              `
+                                              : ""
+                                          }
+                                        </button>
+                                      `;
+                                    }
+                                  ).join("")}
+                                </div>
+                              `
+                            ).join("")}
+                          </div>
+                        </div>
+
+                        <div
+                          class="muted"
+                          style="
+                            margin-top:8px;
+                            font-size:12px;
+                            line-height:1.45;
+                          "
+                        >
+                          TシャツはDesignを縦、Sizeを横に表示しています。在庫0はグレー表示です。
                         </div>
                       `;
                     }
@@ -12026,6 +12649,12 @@ async function renderPos(
                                 )
                                 ?.quantity || 0;
 
+                            const soldOut =
+                              Number(
+                                row.quantity ||
+                                0
+                              ) <= 0;
+
                             return `
                               <button
                                 class="posSkuItem"
@@ -12033,13 +12662,28 @@ async function renderPos(
                                   row.variantId
                                 )}"
                                 type="button"
+                                ${soldOut ? "disabled" : ""}
                                 style="
                                   width:100%;
                                   min-height:66px;
                                   padding:10px 12px;
                                   border:1px solid #deded9;
                                   border-radius:13px;
-                                  background:white;
+                                  background:${
+                                    soldOut
+                                      ? "#f3f3f0"
+                                      : "white"
+                                  };
+                                  color:${
+                                    soldOut
+                                      ? "#aaa"
+                                      : "#1f1f1f"
+                                  };
+                                  opacity:${
+                                    soldOut
+                                      ? ".68"
+                                      : "1"
+                                  };
                                   text-align:left;
                                   display:grid;
                                   grid-template-columns:
