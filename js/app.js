@@ -904,251 +904,6 @@ async function renderInventory(sequence) {
       );
 
 
-    document
-      .querySelectorAll(
-        ".sessionEditButton"
-      )
-      .forEach(
-        button => {
-          button.addEventListener(
-            "click",
-            () => {
-              editingSessionId =
-                button.dataset.sessionId ||
-                "";
-
-              renderSessions(
-                ++renderSequence
-              ).then(
-                () => {
-                  document
-                    .querySelector(
-                      "#sessionEditCard"
-                    )
-                    ?.scrollIntoView({
-                      behavior:
-                        "smooth",
-                      block:
-                        "start"
-                    });
-                }
-              );
-            }
-          );
-        }
-      );
-
-
-    document
-      .querySelector(
-        "#cancelSessionEditButton"
-      )
-      ?.addEventListener(
-        "click",
-        () => {
-          editingSessionId =
-            "";
-
-          renderSessions(
-            ++renderSequence
-          );
-        }
-      );
-
-
-    const editCurrencySelect =
-      document.querySelector(
-        "#editSessionCurrency"
-      );
-
-    const editRateInput =
-      document.querySelector(
-        "#editSessionFxRate"
-      );
-
-
-    function refreshEditRateField() {
-      if (
-        !editCurrencySelect ||
-        !editRateInput
-      ) {
-        return;
-      }
-
-      if (
-        editCurrencySelect.value ===
-        "JPY"
-      ) {
-        editRateInput.value =
-          "1";
-
-        editRateInput.disabled =
-          true;
-      } else {
-        editRateInput.disabled =
-          false;
-
-        if (
-          editRateInput.value ===
-          "1"
-        ) {
-          editRateInput.value =
-            "";
-        }
-      }
-    }
-
-
-    refreshEditRateField();
-
-
-    editCurrencySelect
-      ?.addEventListener(
-        "change",
-        refreshEditRateField
-      );
-
-
-    document
-      .querySelector(
-        "#saveSessionEditButton"
-      )
-      ?.addEventListener(
-        "click",
-        async event => {
-          const button =
-            event.currentTarget;
-
-          const messageBox =
-            document.querySelector(
-              "#saveSessionEditMessage"
-            );
-
-          const before =
-            openSessions.find(
-              session =>
-                session.sessionId ===
-                editingSessionId
-            );
-
-          button.disabled =
-            true;
-
-          button.textContent =
-            "保存中";
-
-          if (messageBox) {
-            messageBox.textContent =
-              "";
-          }
-
-          try {
-            const updated =
-              await updateEventSession(
-                editingSessionId,
-                {
-                  eventName:
-                    document
-                      .querySelector(
-                        "#editSessionEventName"
-                      )
-                      ?.value,
-
-                  country:
-                    document
-                      .querySelector(
-                        "#editSessionCountry"
-                      )
-                      ?.value,
-
-                  city:
-                    document
-                      .querySelector(
-                        "#editSessionCity"
-                      )
-                      ?.value,
-
-                  startDate:
-                    document
-                      .querySelector(
-                        "#editSessionStartDate"
-                      )
-                      ?.value,
-
-                  endDate:
-                    document
-                      .querySelector(
-                        "#editSessionEndDate"
-                      )
-                      ?.value,
-
-                  currency:
-                    editCurrencySelect
-                      ?.value ||
-                    "JPY",
-
-                  fxRateToJPY:
-                    editRateInput
-                      ?.value ||
-                    null
-                }
-              );
-
-            if (
-              updated.sessionId ===
-              activeSessionId
-            ) {
-              if (
-                before &&
-                before.currency !==
-                updated.currency
-              ) {
-                posCart =
-                  new Map();
-
-                posOrderDiscount =
-                  0;
-
-                invalidatePendingCheckout();
-
-                lastCheckoutResult =
-                  null;
-              }
-
-              posCurrency =
-                updated.currency;
-
-              localStorage.setItem(
-                "icelolly-sales-pos-currency",
-                posCurrency
-              );
-            }
-
-            editingSessionId =
-              "";
-
-            await renderSessions(
-              ++renderSequence
-            );
-
-          } catch (error) {
-            button.disabled =
-              false;
-
-            button.textContent =
-              "変更を保存";
-
-            if (messageBox) {
-              messageBox.textContent =
-                error.code ||
-                error.message ||
-                String(error);
-            }
-          }
-        }
-      );
-
-
     syncStatus.textContent =
       "Firebase";
 
@@ -1916,6 +1671,18 @@ async function renderSessions(
                   >
                     <div class="card-title">
                       イベントを編集
+                      <span
+                        class="muted"
+                        style="
+                          margin-left:8px;
+                          font-size:12px;
+                          font-weight:400;
+                        "
+                      >
+                        ${escapeHtml(
+                          editing.eventName
+                        )}
+                      </span>
                     </div>
 
                     <button
@@ -2583,6 +2350,254 @@ async function renderSessions(
               );
             }
           );
+        }
+      );
+
+
+    document
+      .querySelectorAll(
+        ".sessionEditButton"
+      )
+      .forEach(
+        button => {
+          button.addEventListener(
+            "click",
+            () => {
+              editingSessionId =
+                button.dataset.sessionId ||
+                "";
+
+              renderSessions(
+                ++renderSequence
+              );
+
+              setTimeout(
+                () => {
+                  document
+                    .querySelector(
+                      "#sessionEditCard"
+                    )
+                    ?.scrollIntoView({
+                      behavior:
+                        "smooth",
+                      block:
+                        "start"
+                    });
+                },
+                100
+              );
+            }
+          );
+        }
+      );
+
+
+    document
+      .querySelector(
+        "#cancelSessionEditButton"
+      )
+      ?.addEventListener(
+        "click",
+        () => {
+          editingSessionId =
+            "";
+
+          renderSessions(
+            ++renderSequence
+          );
+        }
+      );
+
+
+    const editCurrencySelect =
+      document.querySelector(
+        "#editSessionCurrency"
+      );
+
+    const editRateInput =
+      document.querySelector(
+        "#editSessionFxRate"
+      );
+
+
+    function refreshEditRateField() {
+      if (
+        !editCurrencySelect ||
+        !editRateInput
+      ) {
+        return;
+      }
+
+      if (
+        editCurrencySelect.value ===
+        "JPY"
+      ) {
+        editRateInput.value =
+          "1";
+
+        editRateInput.disabled =
+          true;
+      } else {
+        editRateInput.disabled =
+          false;
+
+        if (
+          editRateInput.value ===
+          "1"
+        ) {
+          editRateInput.value =
+            "";
+        }
+      }
+    }
+
+
+    refreshEditRateField();
+
+
+    editCurrencySelect
+      ?.addEventListener(
+        "change",
+        refreshEditRateField
+      );
+
+
+    document
+      .querySelector(
+        "#saveSessionEditButton"
+      )
+      ?.addEventListener(
+        "click",
+        async event => {
+          const button =
+            event.currentTarget;
+
+          const messageBox =
+            document.querySelector(
+              "#saveSessionEditMessage"
+            );
+
+          const before =
+            openSessions.find(
+              session =>
+                session.sessionId ===
+                editingSessionId
+            );
+
+          button.disabled =
+            true;
+
+          button.textContent =
+            "保存中";
+
+          if (messageBox) {
+            messageBox.textContent =
+              "";
+          }
+
+          try {
+            const updated =
+              await updateEventSession(
+                editingSessionId,
+                {
+                  eventName:
+                    document
+                      .querySelector(
+                        "#editSessionEventName"
+                      )
+                      ?.value,
+
+                  country:
+                    document
+                      .querySelector(
+                        "#editSessionCountry"
+                      )
+                      ?.value,
+
+                  city:
+                    document
+                      .querySelector(
+                        "#editSessionCity"
+                      )
+                      ?.value,
+
+                  startDate:
+                    document
+                      .querySelector(
+                        "#editSessionStartDate"
+                      )
+                      ?.value,
+
+                  endDate:
+                    document
+                      .querySelector(
+                        "#editSessionEndDate"
+                      )
+                      ?.value,
+
+                  currency:
+                    editCurrencySelect
+                      ?.value ||
+                    "JPY",
+
+                  fxRateToJPY:
+                    editRateInput
+                      ?.value ||
+                    null
+                }
+              );
+
+            if (
+              updated.sessionId ===
+              activeSessionId
+            ) {
+              if (
+                before &&
+                before.currency !==
+                updated.currency
+              ) {
+                posCart =
+                  new Map();
+
+                posOrderDiscount =
+                  0;
+
+                invalidatePendingCheckout();
+
+                lastCheckoutResult =
+                  null;
+              }
+
+              posCurrency =
+                updated.currency;
+
+              localStorage.setItem(
+                "icelolly-sales-pos-currency",
+                posCurrency
+              );
+            }
+
+            editingSessionId =
+              "";
+
+            await renderSessions(
+              ++renderSequence
+            );
+
+          } catch (error) {
+            button.disabled =
+              false;
+
+            button.textContent =
+              "変更を保存";
+
+            if (messageBox) {
+              messageBox.textContent =
+                error.code ||
+                error.message ||
+                String(error);
+            }
+          }
         }
       );
 
