@@ -6,6 +6,7 @@ import { accessoryAdapter } from "./inventoryAdapters/accessoryAdapter.js";
 import { loadTshirtProductVariants, syncTshirtCurrentStockRows } from "./services/catalogService.js";
 import { listAllProductVariants, registerTshirtVariant, registerGeneralProduct, syncAccessoryCatalogRows } from "./services/productAdminService.js";
 import { CATEGORY_TEMPLATES, getCategoryTemplate } from "./data/categoryTemplates.js";
+import { loadQuickPriceBook, saveQuickPrices, QUICK_PRICE_CURRENCIES } from "./services/priceBookService.js";
 
 const view = document.querySelector("#view");
 const syncStatus = document.querySelector("#syncStatus");
@@ -15,6 +16,38 @@ let currentUser = null;
 let authError = null;
 let currentRoute = "dashboard";
 let renderSequence = 0;
+
+const POS_CATEGORY_ORDER = [
+  "tshirt",
+  "pierce",
+  "earring",
+  "drop_pierce",
+  "drop_earring",
+  "sticker",
+  "postcard",
+  "art_print"
+];
+
+const POS_CATEGORY_LABELS = {
+  tshirt: "Tシャツ",
+  pierce: "ピアス",
+  earring: "イヤリング",
+  drop_pierce: "ドロップタイプピアス",
+  drop_earring: "ドロップタイプイヤリング",
+  sticker: "ステッカー",
+  postcard: "ポストカード",
+  art_print: "アートプリント"
+};
+
+let posCurrency =
+  localStorage.getItem(
+    "icelolly-sales-pos-currency"
+  ) || "JPY";
+
+let posPriceBook = {};
+let posPriceBookLoaded = false;
+let posCart = new Map();
+let posOrderDiscount = 0;
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -1343,6 +1376,1086 @@ async function renderMorePage(sequence) {
   }
 }
 
+function formatMoney(
+  value,
+  currency = posCurrency
+) {
+  const amount =
+    Number(value || 0);
+
+  try {
+    return new Intl.NumberFormat(
+      currency === "JPY"
+        ? "ja-JP"
+        : "en-US",
+      {
+        style:
+          "currency",
+        currency,
+        maximumFractionDigits:
+          currency === "JPY"
+            ? 0
+            : 2
+      }
+    ).format(amount);
+  } catch (error) {
+    return `${currency} ${amount}`;
+  }
+}
+
+function posPrice(
+  category
+) {
+  return Number(
+    posPriceBook
+      ?.[category]
+      ?.[posCurrency] || 0
+  );
+}
+
+function posCartTotals() {
+  let subtotal = 0;
+  let quantity = 0;
+
+  posCart.forEach(
+    item => {
+      quantity +=
+        Number(
+          item.quantity || 0
+        );
+
+      subtotal +=
+        Number(
+          item.quantity || 0
+        ) *
+        Number(
+          item.unitPrice || 0
+        );
+    }
+  );
+
+  const discount =
+    Math.max(
+      0,
+      Math.min(
+        Number(
+          posOrderDiscount || 0
+        ),
+        subtotal
+      )
+    );
+
+  return {
+    quantity,
+    subtotal,
+    discount,
+    total:
+      Math.max(
+        0,
+        subtotal -
+        discount
+      )
+  };
+}
+
+function addQuickItem(
+  category
+) {
+  const price =
+    posPrice(
+      category
+    );
+
+  if (
+    price <= 0
+  ) {
+    return false;
+  }
+
+  const existing =
+    posCart.get(
+      category
+    );
+
+  if (existing) {
+    existing.quantity += 1;
+  } else {
+    posCart.set(
+      category,
+      {
+        key:
+          category,
+        category,
+        label:
+          POS_CATEGORY_LABELS[
+            category
+          ] ||
+          category,
+        quantity:
+          1,
+        unitPrice:
+          price,
+        trackingMode:
+          "quick"
+      }
+    );
+  }
+
+  return true;
+}
+
+function changeQuickQuantity(
+  category,
+  change
+) {
+  const item =
+    posCart.get(
+      category
+    );
+
+  if (!item) {
+    return;
+  }
+
+  item.quantity =
+    Math.max(
+      0,
+      Number(
+        item.quantity || 0
+      ) +
+      Number(
+        change || 0
+      )
+    );
+
+  if (
+    item.quantity <= 0
+  ) {
+    posCart.delete(
+      category
+    );
+  }
+}
+
+async function renderPos(
+  sequence
+) {
+  view.innerHTML = `
+    <h1 class="page-title">
+      EVENT POS
+    </h1>
+
+    <p class="page-note">
+      Quick会計を読み込んでいます
+    </p>
+  `;
+
+  try {
+    if (
+      !posPriceBookLoaded
+    ) {
+      posPriceBook =
+        await loadQuickPriceBook();
+
+      posPriceBookLoaded =
+        true;
+    }
+
+    if (
+      sequence !==
+      renderSequence
+    ) {
+      return;
+    }
+
+    function renderPosBody(
+      message = ""
+    ) {
+      const totals =
+        posCartTotals();
+
+      view.innerHTML = `
+        <div
+          style="
+            display:flex;
+            justify-content:space-between;
+            gap:12px;
+            align-items:flex-start;
+            margin-bottom:14px;
+          "
+        >
+          <div>
+            <h1
+              class="page-title"
+              style="margin-bottom:4px;"
+            >
+              EVENT POS
+            </h1>
+
+            <p
+              class="page-note"
+              style="margin:0;"
+            >
+              Quick
+            </p>
+          </div>
+
+          <select
+            id="posCurrency"
+            style="
+              min-height:44px;
+              padding:0 12px;
+              border:1px solid #deded9;
+              border-radius:12px;
+              background:white;
+              font-weight:700;
+            "
+          >
+            ${QUICK_PRICE_CURRENCIES.map(
+              currency => `
+                <option
+                  value="${currency}"
+                  ${
+                    currency ===
+                    posCurrency
+                      ? "selected"
+                      : ""
+                  }
+                >
+                  ${currency}
+                </option>
+              `
+            ).join("")}
+          </select>
+        </div>
+
+
+        ${
+          message
+            ? `
+              <div
+                class="warning"
+                style="margin-bottom:14px;"
+              >
+                ${escapeHtml(
+                  message
+                )}
+              </div>
+            `
+            : ""
+        }
+
+
+        <section class="card">
+
+          <div
+            style="
+              display:flex;
+              justify-content:space-between;
+              align-items:center;
+              gap:10px;
+              margin-bottom:12px;
+            "
+          >
+            <div class="card-title">
+              商品をタップ
+            </div>
+
+            <button
+              id="togglePosPriceSettings"
+              class="button button-secondary"
+              type="button"
+              style="
+                min-height:38px;
+                padding:0 14px;
+              "
+            >
+              価格設定
+            </button>
+          </div>
+
+
+          <div
+            style="
+              display:grid;
+              grid-template-columns:
+                repeat(
+                  2,
+                  minmax(0,1fr)
+                );
+              gap:10px;
+            "
+          >
+            ${POS_CATEGORY_ORDER.map(
+              category => {
+                const price =
+                  posPrice(
+                    category
+                  );
+
+                const cartQty =
+                  posCart
+                    .get(
+                      category
+                    )
+                    ?.quantity || 0;
+
+                return `
+                  <button
+                    type="button"
+                    class="posQuickCategory"
+                    data-category="${category}"
+                    ${
+                      price <= 0
+                        ? "data-no-price=\"true\""
+                        : ""
+                    }
+                    style="
+                      position:relative;
+                      min-height:92px;
+                      padding:14px 12px;
+                      border:1px solid #deded9;
+                      border-radius:16px;
+                      background:white;
+                      text-align:left;
+                      touch-action:manipulation;
+                    "
+                  >
+                    ${
+                      cartQty > 0
+                        ? `
+                          <span
+                            style="
+                              position:absolute;
+                              right:9px;
+                              top:9px;
+                              min-width:28px;
+                              height:28px;
+                              padding:0 7px;
+                              border-radius:14px;
+                              background:#1f1f1f;
+                              color:white;
+                              display:flex;
+                              align-items:center;
+                              justify-content:center;
+                              font-size:14px;
+                              font-weight:800;
+                            "
+                          >
+                            ${cartQty}
+                          </span>
+                        `
+                        : ""
+                    }
+
+                    <div
+                      style="
+                        font-weight:800;
+                        font-size:16px;
+                        line-height:1.25;
+                        padding-right:30px;
+                      "
+                    >
+                      ${escapeHtml(
+                        POS_CATEGORY_LABELS[
+                          category
+                        ]
+                      )}
+                    </div>
+
+                    <div
+                      class="muted"
+                      style="
+                        margin-top:9px;
+                        font-size:14px;
+                      "
+                    >
+                      ${
+                        price > 0
+                          ? formatMoney(
+                              price
+                            )
+                          : "価格未設定"
+                      }
+                    </div>
+                  </button>
+                `;
+              }
+            ).join("")}
+          </div>
+
+        </section>
+
+
+        <section
+          id="posPriceSettings"
+          class="card"
+          hidden
+        >
+
+          <div class="card-title">
+            ${posCurrency} Quick価格
+          </div>
+
+          <div
+            class="muted"
+            style="margin-bottom:12px;"
+          >
+            会計前に設定しておくと、会計中は商品をタップするだけで追加できます。
+          </div>
+
+
+          <div
+            style="
+              display:grid;
+              gap:10px;
+            "
+          >
+            ${POS_CATEGORY_ORDER.map(
+              category => `
+                <label
+                  style="
+                    display:grid;
+                    grid-template-columns:
+                      minmax(0,1fr)
+                      120px;
+                    gap:10px;
+                    align-items:center;
+                  "
+                >
+                  <span>
+                    ${escapeHtml(
+                      POS_CATEGORY_LABELS[
+                        category
+                      ]
+                    )}
+                  </span>
+
+                  <input
+                    class="posPriceInput"
+                    data-category="${category}"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    inputmode="decimal"
+                    value="${
+                      posPrice(
+                        category
+                      ) || ""
+                    }"
+                    placeholder="0"
+                    style="
+                      width:100%;
+                      min-height:44px;
+                      padding:0 10px;
+                      border:1px solid #deded9;
+                      border-radius:10px;
+                      text-align:right;
+                    "
+                  >
+                </label>
+              `
+            ).join("")}
+          </div>
+
+
+          <button
+            id="savePosPrices"
+            class="button"
+            type="button"
+            style="
+              width:100%;
+              margin-top:14px;
+            "
+          >
+            ${posCurrency} の価格を保存
+          </button>
+
+
+          <div
+            id="posPriceMessage"
+            class="muted"
+            style="margin-top:10px;"
+          ></div>
+
+        </section>
+
+
+        <section class="card">
+
+          <div
+            style="
+              display:flex;
+              justify-content:space-between;
+              align-items:center;
+              gap:10px;
+              margin-bottom:10px;
+            "
+          >
+            <div class="card-title">
+              会計
+            </div>
+
+            <div
+              style="
+                font-weight:800;
+              "
+            >
+              ${totals.quantity} 点
+            </div>
+          </div>
+
+
+          ${
+            posCart.size
+              ? Array.from(
+                  posCart.values()
+                ).map(
+                  item => `
+                    <div
+                      class="list-row"
+                      style="
+                        gap:10px;
+                      "
+                    >
+                      <div
+                        style="
+                          min-width:0;
+                          flex:1;
+                        "
+                      >
+                        <div
+                          style="
+                            font-weight:700;
+                          "
+                        >
+                          ${escapeHtml(
+                            item.label
+                          )}
+                        </div>
+
+                        <div
+                          class="muted"
+                          style="
+                            margin-top:3px;
+                          "
+                        >
+                          ${formatMoney(
+                            item.unitPrice
+                          )}
+                        </div>
+                      </div>
+
+
+                      <div
+                        style="
+                          display:flex;
+                          align-items:center;
+                          gap:6px;
+                        "
+                      >
+                        <button
+                          class="posQtyButton"
+                          data-category="${item.category}"
+                          data-change="-1"
+                          type="button"
+                          style="
+                            width:42px;
+                            height:42px;
+                            border:1px solid #deded9;
+                            border-radius:12px;
+                            background:white;
+                            font-size:22px;
+                          "
+                        >
+                          −
+                        </button>
+
+                        <div
+                          style="
+                            min-width:34px;
+                            text-align:center;
+                            font-weight:800;
+                            font-size:18px;
+                          "
+                        >
+                          ${item.quantity}
+                        </div>
+
+                        <button
+                          class="posQtyButton"
+                          data-category="${item.category}"
+                          data-change="1"
+                          type="button"
+                          style="
+                            width:42px;
+                            height:42px;
+                            border:1px solid #deded9;
+                            border-radius:12px;
+                            background:white;
+                            font-size:22px;
+                          "
+                        >
+                          ＋
+                        </button>
+                      </div>
+
+
+                      <div
+                        style="
+                          min-width:90px;
+                          text-align:right;
+                          font-weight:800;
+                        "
+                      >
+                        ${formatMoney(
+                          item.quantity *
+                          item.unitPrice
+                        )}
+                      </div>
+                    </div>
+                  `
+                ).join("")
+              : `
+                <div
+                  class="muted"
+                  style="
+                    padding:16px 0;
+                    text-align:center;
+                  "
+                >
+                  商品をタップするとここに追加されます。
+                </div>
+              `
+          }
+
+
+          <div
+            style="
+              margin-top:12px;
+              padding-top:12px;
+              border-top:1px solid #ecece7;
+            "
+          >
+
+            <div class="list-row">
+              <span>
+                小計
+              </span>
+
+              <strong>
+                ${formatMoney(
+                  totals.subtotal
+                )}
+              </strong>
+            </div>
+
+
+            <label
+              class="list-row"
+              style="
+                align-items:center;
+              "
+            >
+              <span>
+                会計値引
+              </span>
+
+              <input
+                id="posOrderDiscount"
+                type="number"
+                min="0"
+                step="0.01"
+                inputmode="decimal"
+                value="${
+                  posOrderDiscount ||
+                  ""
+                }"
+                placeholder="0"
+                style="
+                  width:120px;
+                  min-height:42px;
+                  padding:0 10px;
+                  border:1px solid #deded9;
+                  border-radius:10px;
+                  text-align:right;
+                "
+              >
+            </label>
+
+
+            <div
+              class="list-row"
+              style="
+                font-size:22px;
+              "
+            >
+              <strong>
+                TOTAL
+              </strong>
+
+              <strong>
+                ${formatMoney(
+                  totals.total
+                )}
+              </strong>
+            </div>
+
+          </div>
+
+
+          <button
+            id="posCheckoutButton"
+            type="button"
+            class="button"
+            disabled
+            style="
+              width:100%;
+              margin-top:14px;
+              min-height:56px;
+              font-size:17px;
+              opacity:.55;
+            "
+          >
+            セッション連携後に会計確定
+          </button>
+
+
+          ${
+            posCart.size
+              ? `
+                <button
+                  id="clearPosCart"
+                  type="button"
+                  class="button button-secondary"
+                  style="
+                    width:100%;
+                    margin-top:10px;
+                    min-height:48px;
+                  "
+                >
+                  この会計をクリア
+                </button>
+              `
+              : ""
+          }
+
+
+          <div
+            class="muted"
+            style="
+              margin-top:12px;
+              line-height:1.6;
+            "
+          >
+            今回は会計画面と価格設定までです。売上記録と在庫減少は販売セッションを接続してから有効にします。
+          </div>
+
+        </section>
+      `;
+
+
+      document
+        .querySelector(
+          "#posCurrency"
+        )
+        ?.addEventListener(
+          "change",
+          event => {
+            posCurrency =
+              event.target.value;
+
+            localStorage.setItem(
+              "icelolly-sales-pos-currency",
+              posCurrency
+            );
+
+            posCart =
+              new Map();
+
+            posOrderDiscount =
+              0;
+
+            renderPosBody();
+          }
+        );
+
+
+      document
+        .querySelectorAll(
+          ".posQuickCategory"
+        )
+        .forEach(
+          button => {
+            button.addEventListener(
+              "click",
+              () => {
+                const category =
+                  button.dataset.category;
+
+                const success =
+                  addQuickItem(
+                    category
+                  );
+
+                if (!success) {
+                  renderPosBody(
+                    `${POS_CATEGORY_LABELS[category]} の ${posCurrency} 価格を先に設定してください。`
+                  );
+
+                  const panel =
+                    document.querySelector(
+                      "#posPriceSettings"
+                    );
+
+                  if (panel) {
+                    panel.hidden =
+                      false;
+                  }
+
+                  return;
+                }
+
+                renderPosBody();
+              }
+            );
+          }
+        );
+
+
+      document
+        .querySelectorAll(
+          ".posQtyButton"
+        )
+        .forEach(
+          button => {
+            button.addEventListener(
+              "click",
+              () => {
+                changeQuickQuantity(
+                  button.dataset.category,
+                  Number(
+                    button.dataset.change ||
+                    0
+                  )
+                );
+
+                renderPosBody();
+              }
+            );
+          }
+        );
+
+
+      document
+        .querySelector(
+          "#togglePosPriceSettings"
+        )
+        ?.addEventListener(
+          "click",
+          () => {
+            const panel =
+              document.querySelector(
+                "#posPriceSettings"
+              );
+
+            if (panel) {
+              panel.hidden =
+                !panel.hidden;
+            }
+          }
+        );
+
+
+      document
+        .querySelector(
+          "#savePosPrices"
+        )
+        ?.addEventListener(
+          "click",
+          async event => {
+            const button =
+              event.currentTarget;
+
+            const messageBox =
+              document.querySelector(
+                "#posPriceMessage"
+              );
+
+            const prices = {};
+
+            document
+              .querySelectorAll(
+                ".posPriceInput"
+              )
+              .forEach(
+                input => {
+                  prices[
+                    input.dataset.category
+                  ] =
+                    Number(
+                      input.value ||
+                      0
+                    );
+                }
+              );
+
+            button.disabled =
+              true;
+
+            button.textContent =
+              "保存中";
+
+            try {
+              await saveQuickPrices(
+                posCurrency,
+                prices
+              );
+
+              POS_CATEGORY_ORDER
+                .forEach(
+                  category => {
+                    if (
+                      !posPriceBook[
+                        category
+                      ]
+                    ) {
+                      posPriceBook[
+                        category
+                      ] = {};
+                    }
+
+                    posPriceBook[
+                      category
+                    ][
+                      posCurrency
+                    ] =
+                      Number(
+                        prices[
+                          category
+                        ] || 0
+                      );
+                  }
+                );
+
+              if (messageBox) {
+                messageBox.textContent =
+                  `${posCurrency} の価格を保存しました。`;
+              }
+
+              button.textContent =
+                "保存済み";
+
+              setTimeout(
+                () =>
+                  renderPosBody(),
+                500
+              );
+
+            } catch (error) {
+              button.disabled =
+                false;
+
+              button.textContent =
+                `${posCurrency} の価格を保存`;
+
+              if (messageBox) {
+                messageBox.textContent =
+                  error.code ||
+                  error.message ||
+                  String(error);
+              }
+            }
+          }
+        );
+
+
+      document
+        .querySelector(
+          "#posOrderDiscount"
+        )
+        ?.addEventListener(
+          "input",
+          event => {
+            posOrderDiscount =
+              Math.max(
+                0,
+                Number(
+                  event.target.value ||
+                  0
+                )
+              );
+          }
+        );
+
+
+      document
+        .querySelector(
+          "#posOrderDiscount"
+        )
+        ?.addEventListener(
+          "change",
+          () => {
+            renderPosBody();
+          }
+        );
+
+
+      document
+        .querySelector(
+          "#clearPosCart"
+        )
+        ?.addEventListener(
+          "click",
+          () => {
+            const confirmed =
+              window.confirm(
+                "この会計内容をクリアしますか？"
+              );
+
+            if (!confirmed) {
+              return;
+            }
+
+            posCart =
+              new Map();
+
+            posOrderDiscount =
+              0;
+
+            renderPosBody();
+          }
+        );
+    }
+
+
+    renderPosBody();
+
+    syncStatus.textContent =
+      "Firebase";
+
+
+  } catch (error) {
+    console.error(
+      error
+    );
+
+    view.innerHTML = `
+      <h1 class="page-title">
+        EVENT POS
+      </h1>
+
+      <div class="warning">
+        ${escapeHtml(
+          error.code ||
+          error.message ||
+          error
+        )}
+      </div>
+    `;
+  }
+}
+
 async function render(route = currentRoute) {
   currentRoute = route;
   const sequence = ++renderSequence;
@@ -1366,10 +2479,7 @@ async function render(route = currentRoute) {
     );
 
   } else if (route === "pos") {
-    view.innerHTML = simplePage(
-      "EVENT POS",
-      "Quick / Semi / Full SKU"
-    );
+    await renderPos(sequence);
 
   } else if (route === "inventory") {
     await renderInventory(sequence);
