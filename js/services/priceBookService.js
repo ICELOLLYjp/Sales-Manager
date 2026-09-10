@@ -46,26 +46,71 @@ function cleanPrice(value) {
   return number;
 }
 
-function cleanSetOffer(value) {
-  const quantity =
-    Math.max(
-      0,
-      Math.floor(
-        Number(
-          value?.quantity || 0
+function cleanSetOffers(value) {
+  const source =
+    Array.isArray(value)
+      ? value
+      : (
+          value &&
+          typeof value === "object"
         )
-      )
-    );
+        ? [value]
+        : [];
 
-  const price =
-    cleanPrice(
-      value?.price
-    );
+  const seen =
+    new Set();
 
-  return {
-    quantity,
-    price
-  };
+  return source
+    .map(
+      offer => ({
+        quantity:
+          Math.max(
+            0,
+            Math.floor(
+              Number(
+                offer?.quantity || 0
+              )
+            )
+          ),
+
+        price:
+          cleanPrice(
+            offer?.price
+          )
+      })
+    )
+    .filter(
+      offer =>
+        offer.quantity >= 2 &&
+        offer.price > 0
+    )
+    .filter(
+      offer => {
+        const key =
+          `${offer.quantity}|${offer.price}`;
+
+        if (
+          seen.has(
+            key
+          )
+        ) {
+          return false;
+        }
+
+        seen.add(
+          key
+        );
+
+        return true;
+      }
+    )
+    .sort(
+      (a, b) =>
+        a.quantity -
+        b.quantity ||
+        a.price -
+        b.price
+    );
 }
 
 
@@ -110,7 +155,7 @@ export async function loadPosPriceConfig() {
               );
 
             setOffers[categoryId][currency] =
-              cleanSetOffer(
+              cleanSetOffers(
                 data?.setOffers?.[
                   currency
                 ]
@@ -179,7 +224,7 @@ export async function savePosPriceConfig(
 
           setOffers: {
             [currency]:
-              cleanSetOffer(
+              cleanSetOffers(
                 setOffers?.[
                   categoryId
                 ]
