@@ -9,6 +9,7 @@ import { CATEGORY_TEMPLATES, getCategoryTemplate } from "./data/categoryTemplate
 import { loadQuickPriceBook, saveQuickPrices, QUICK_PRICE_CURRENCIES } from "./services/priceBookService.js";
 import { listSalesSessions, createEventSession, updateEventSession, SESSION_CURRENCIES } from "./services/sessionService.js";
 import { commitQuickSale } from "./services/transactionService.js";
+import { listSessionTransactions } from "./services/salesHistoryService.js";
 
 const view = document.querySelector("#view");
 const syncStatus = document.querySelector("#syncStatus");
@@ -67,6 +68,9 @@ let editingSessionId =
 
 let posPriceSettingsOpen =
   false;
+
+let sessionDetailId =
+  "";
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -1426,6 +1430,162 @@ function dateText(
   );
 }
 
+function sessionDayCount(
+  startDate,
+  endDate
+) {
+  if (!startDate) {
+    return 1;
+  }
+
+  const start =
+    new Date(
+      `${startDate}T00:00:00`
+    );
+
+  const end =
+    new Date(
+      `${endDate || startDate}T00:00:00`
+    );
+
+  const diff =
+    Math.floor(
+      (
+        end.getTime() -
+        start.getTime()
+      ) /
+      86400000
+    ) + 1;
+
+  return Math.max(
+    1,
+    diff
+  );
+}
+
+function transactionTimeText(
+  value
+) {
+  if (!value) {
+    return "";
+  }
+
+  try {
+    const date =
+      typeof value.toDate ===
+      "function"
+        ? value.toDate()
+        : (
+            value.seconds
+              ? new Date(
+                  Number(
+                    value.seconds
+                  ) * 1000
+                )
+              : null
+          );
+
+    if (!date) {
+      return "";
+    }
+
+    return new Intl.DateTimeFormat(
+      "ja-JP",
+      {
+        month:
+          "2-digit",
+        day:
+          "2-digit",
+        hour:
+          "2-digit",
+        minute:
+          "2-digit"
+      }
+    ).format(date);
+
+  } catch (error) {
+    return "";
+  }
+}
+
+function categorySalesSummary(
+  transactions
+) {
+  const map =
+    new Map();
+
+  transactions.forEach(
+    transaction => {
+      (
+        transaction.items ||
+        []
+      ).forEach(
+        item => {
+          const category =
+            item.category ||
+            "other";
+
+          const label =
+            item.label ||
+            POS_CATEGORY_LABELS[
+              category
+            ] ||
+            category;
+
+          const quantity =
+            Number(
+              item.quantity || 0
+            );
+
+          const sales =
+            Number(
+              item.grossLineTotal ||
+              (
+                Number(
+                  item.unitPrice || 0
+                ) *
+                quantity
+              )
+            );
+
+          const current =
+            map.get(
+              category
+            ) || {
+              category,
+              label,
+              quantity:
+                0,
+              sales:
+                0
+            };
+
+          current.quantity +=
+            quantity;
+
+          current.sales +=
+            sales;
+
+          map.set(
+            category,
+            current
+          );
+        }
+      );
+    }
+  );
+
+  return Array
+    .from(
+      map.values()
+    )
+    .sort(
+      (a, b) =>
+        b.sales -
+        a.sales
+    );
+}
+
 async function renderSessions(
   sequence
 ) {
@@ -1442,6 +1602,20 @@ async function renderSessions(
   try {
     const sessions =
       await listSalesSessions();
+
+    const selectedDetailSession =
+      sessions.find(
+        session =>
+          session.sessionId ===
+          sessionDetailId
+      ) || null;
+
+    const sessionTransactions =
+      selectedDetailSession
+        ? await listSessionTransactions(
+            selectedDetailSession.sessionId
+          )
+        : [];
 
     if (
       sequence !==
@@ -2079,6 +2253,20 @@ async function renderSessions(
                         >
                           編集
                         </button>
+
+                        <button
+                          type="button"
+                          class="sessionDetailButton button button-secondary"
+                          data-session-id="${escapeHtml(
+                            session.sessionId
+                          )}"
+                          style="
+                            min-height:40px;
+                            padding:0 12px;
+                          "
+                        >
+                          売上詳細
+                        </button>
                       </div>
 
                     </div>
@@ -2100,6 +2288,427 @@ async function renderSessions(
         }
 
       </section>
+
+
+      ${
+        selectedDetailSession
+          ? (() => {
+              const summary =
+                selectedDetailSession
+                  .salesSummary || {};
+
+              const netSales =
+                Number(
+                  summary.netSales || 0
+                );
+
+              const transactionCount =
+                Number(
+                  summary.transactionCount || 0
+                );
+
+              const itemCount =
+                Number(
+                  summary.itemCount || 0
+                );
+
+              const dayCount =
+                sessionDayCount(
+                  selectedDetailSession.startDate,
+                  selectedDetailSession.endDate
+                );
+
+              const averageOrder =
+                transactionCount > 0
+                  ? netSales /
+                    transactionCount
+                  : 0;
+
+              const salesPerDay =
+                dayCount > 0
+                  ? netSales /
+                    dayCount
+                  : 0;
+
+              const categories =
+                categorySalesSummary(
+                  sessionTransactions
+                );
+
+              return `
+                <section
+                  class="card"
+                  id="sessionSalesDetail"
+                >
+
+                  <div
+                    style="
+                      display:flex;
+                      justify-content:space-between;
+                      gap:10px;
+                      align-items:flex-start;
+                      margin-bottom:12px;
+                    "
+                  >
+                    <div>
+                      <div class="card-title">
+                        売上詳細
+                      </div>
+
+                      <div
+                        style="
+                          margin-top:4px;
+                          font-weight:800;
+                        "
+                      >
+                        ${escapeHtml(
+                          selectedDetailSession.eventName
+                        )}
+                      </div>
+                    </div>
+
+                    <button
+                      id="closeSessionDetailButton"
+                      class="button button-secondary"
+                      type="button"
+                      style="
+                        min-height:38px;
+                        padding:0 14px;
+                      "
+                    >
+                      閉じる
+                    </button>
+                  </div>
+
+
+                  <div
+                    class="grid grid-2"
+                    style="
+                      margin-bottom:14px;
+                    "
+                  >
+
+                    <div
+                      style="
+                        padding:14px;
+                        border:1px solid #ecece7;
+                        border-radius:14px;
+                      "
+                    >
+                      <div
+                        style="
+                          font-size:22px;
+                          font-weight:800;
+                        "
+                      >
+                        ${formatMoney(
+                          netSales,
+                          selectedDetailSession.currency
+                        )}
+                      </div>
+
+                      <div class="muted">
+                        総売上
+                      </div>
+                    </div>
+
+
+                    <div
+                      style="
+                        padding:14px;
+                        border:1px solid #ecece7;
+                        border-radius:14px;
+                      "
+                    >
+                      <div
+                        style="
+                          font-size:22px;
+                          font-weight:800;
+                        "
+                      >
+                        ${transactionCount}
+                      </div>
+
+                      <div class="muted">
+                        会計数
+                      </div>
+                    </div>
+
+
+                    <div
+                      style="
+                        padding:14px;
+                        border:1px solid #ecece7;
+                        border-radius:14px;
+                      "
+                    >
+                      <div
+                        style="
+                          font-size:22px;
+                          font-weight:800;
+                        "
+                      >
+                        ${formatMoney(
+                          averageOrder,
+                          selectedDetailSession.currency
+                        )}
+                      </div>
+
+                      <div class="muted">
+                        客単価
+                      </div>
+                    </div>
+
+
+                    <div
+                      style="
+                        padding:14px;
+                        border:1px solid #ecece7;
+                        border-radius:14px;
+                      "
+                    >
+                      <div
+                        style="
+                          font-size:22px;
+                          font-weight:800;
+                        "
+                      >
+                        ${formatMoney(
+                          salesPerDay,
+                          selectedDetailSession.currency
+                        )}
+                      </div>
+
+                      <div class="muted">
+                        1日あたり売上
+                      </div>
+                    </div>
+
+                  </div>
+
+
+                  <div class="list-row">
+                    <span>
+                      販売点数
+                    </span>
+
+                    <strong>
+                      ${itemCount}
+                    </strong>
+                  </div>
+
+
+                  <div class="list-row">
+                    <span>
+                      値引
+                    </span>
+
+                    <strong>
+                      ${formatMoney(
+                        Number(
+                          summary.discount || 0
+                        ),
+                        selectedDetailSession.currency
+                      )}
+                    </strong>
+                  </div>
+
+
+                  ${
+                    selectedDetailSession.fxRateToJPY
+                      ? `
+                        <div class="list-row">
+                          <span>
+                            円換算売上
+                          </span>
+
+                          <strong>
+                            ${formatMoney(
+                              Number(
+                                summary.netSalesJPY || 0
+                              ),
+                              "JPY"
+                            )}
+                          </strong>
+                        </div>
+                      `
+                      : ""
+                  }
+
+
+                  ${
+                    categories.length
+                      ? `
+                        <div
+                          style="
+                            margin-top:14px;
+                            padding-top:12px;
+                            border-top:1px solid #ecece7;
+                          "
+                        >
+                          <div
+                            class="card-title"
+                            style="
+                              margin-bottom:6px;
+                            "
+                          >
+                            カテゴリ別
+                          </div>
+
+                          ${categories.map(
+                            item => `
+                              <div class="list-row">
+                                <span>
+                                  ${escapeHtml(
+                                    item.label
+                                  )}
+
+                                  <span class="muted">
+                                    ${item.quantity}点
+                                  </span>
+                                </span>
+
+                                <strong>
+                                  ${formatMoney(
+                                    item.sales,
+                                    selectedDetailSession.currency
+                                  )}
+                                </strong>
+                              </div>
+                            `
+                          ).join("")}
+                        </div>
+                      `
+                      : ""
+                  }
+
+
+                  <div
+                    style="
+                      margin-top:16px;
+                      padding-top:12px;
+                      border-top:1px solid #ecece7;
+                    "
+                  >
+
+                    <div
+                      class="card-title"
+                      style="
+                        margin-bottom:6px;
+                      "
+                    >
+                      会計履歴
+                    </div>
+
+
+                    ${
+                      sessionTransactions.length
+                        ? sessionTransactions.map(
+                            transaction => `
+                              <div
+                                style="
+                                  padding:12px 0;
+                                  border-bottom:1px solid #ecece7;
+                                "
+                              >
+                                <div
+                                  style="
+                                    display:flex;
+                                    justify-content:space-between;
+                                    gap:10px;
+                                    align-items:flex-start;
+                                  "
+                                >
+                                  <div>
+                                    <div
+                                      style="
+                                        font-weight:700;
+                                      "
+                                    >
+                                      ${transactionTimeText(
+                                        transaction.createdAt
+                                      ) || "保存済み"}
+                                    </div>
+
+                                    <div
+                                      class="muted"
+                                      style="
+                                        margin-top:4px;
+                                      "
+                                    >
+                                      ${transaction.itemCount}
+                                      点
+                                      /
+                                      ${transaction.mode}
+                                    </div>
+                                  </div>
+
+                                  <div
+                                    style="
+                                      text-align:right;
+                                    "
+                                  >
+                                    <div
+                                      style="
+                                        font-weight:800;
+                                      "
+                                    >
+                                      ${formatMoney(
+                                        transaction.netSales,
+                                        transaction.currency
+                                      )}
+                                    </div>
+
+                                    ${
+                                      transaction.discount > 0
+                                        ? `
+                                          <div class="muted">
+                                            値引
+                                            ${formatMoney(
+                                              transaction.discount,
+                                              transaction.currency
+                                            )}
+                                          </div>
+                                        `
+                                        : ""
+                                    }
+                                  </div>
+                                </div>
+
+                                <div
+                                  class="muted"
+                                  style="
+                                    margin-top:5px;
+                                    word-break:break-all;
+                                    font-size:11px;
+                                  "
+                                >
+                                  ${escapeHtml(
+                                    transaction.transactionId
+                                  )}
+                                </div>
+                              </div>
+                            `
+                          ).join("")
+                        : `
+                          <div
+                            class="muted"
+                            style="
+                              padding:14px 0;
+                            "
+                          >
+                            まだ会計履歴はありません。
+                          </div>
+                        `
+                    }
+
+                  </div>
+
+                </section>
+              `;
+            })()
+          : ""
+      }
 
 
       <section class="card">
@@ -2349,6 +2958,61 @@ async function renderSessions(
                 "pos"
               );
             }
+          );
+        }
+      );
+
+
+    document
+      .querySelectorAll(
+        ".sessionDetailButton"
+      )
+      .forEach(
+        button => {
+          button.addEventListener(
+            "click",
+            () => {
+              sessionDetailId =
+                button.dataset.sessionId ||
+                "";
+
+              renderSessions(
+                ++renderSequence
+              );
+
+              setTimeout(
+                () => {
+                  document
+                    .querySelector(
+                      "#sessionSalesDetail"
+                    )
+                    ?.scrollIntoView({
+                      behavior:
+                        "smooth",
+                      block:
+                        "start"
+                    });
+                },
+                100
+              );
+            }
+          );
+        }
+      );
+
+
+    document
+      .querySelector(
+        "#closeSessionDetailButton"
+      )
+      ?.addEventListener(
+        "click",
+        () => {
+          sessionDetailId =
+            "";
+
+          renderSessions(
+            ++renderSequence
           );
         }
       );
