@@ -89,7 +89,7 @@ async function inventoryCountService() {
   ) {
     inventoryCountServicePromise =
       import(
-        "./services/inventoryCountService.js?v=20260911-event-finalize-1"
+        "./services/inventoryCountService.js?v=20260911-safe-opening-1"
       )
         .catch(
           error => {
@@ -129,6 +129,19 @@ async function saveEventOpeningInventory(
       ...args
     );
 }
+
+async function resetEventOpeningInventory(
+  ...args
+) {
+  const service =
+    await inventoryCountService();
+
+  return await service
+    .resetEventOpeningInventory(
+      ...args
+    );
+}
+
 
 async function saveEventClosingInventory(
   ...args
@@ -334,6 +347,9 @@ let sessionDetailId =
   "";
 
 let sessionInventoryCountId =
+  "";
+
+let sessionOpeningEditId =
   "";
 
 function escapeHtml(value) {
@@ -6463,6 +6479,56 @@ async function renderSessions(
                   ?.status ===
                 "closed";
 
+              const activeInventoryTransactions =
+                eventInventoryTransactions
+                  .filter(
+                    transaction =>
+                      transaction.status !==
+                      "voided"
+                  );
+
+              const openingInventoryLocked =
+                activeInventoryTransactions.length >
+                0;
+
+              const openingEditMode =
+                !inventorySessionClosed &&
+                !openingInventoryLocked &&
+                Boolean(
+                  inventoryCountData
+                    ?.opening
+                ) &&
+                sessionOpeningEditId ===
+                  selectedInventoryCountSession
+                    .sessionId;
+
+              const savedOpeningQtyByVariant =
+                new Map(
+                  openingItems.map(
+                    item => [
+                      item.variantId,
+                      Number(
+                        item.openingQty ||
+                        0
+                      )
+                    ]
+                  )
+                );
+
+              const savedOpeningTotal =
+                openingItems.reduce(
+                  (sum, item) =>
+                    sum +
+                    Number(
+                      item.openingQty ||
+                      0
+                    ),
+                  0
+                );
+
+              const savedOpeningSkuCount =
+                openingItems.length;
+
               const eventReadyToClose =
                 !inventorySessionClosed &&
                 Boolean(
@@ -6570,7 +6636,8 @@ async function renderSessions(
 
                   ${
                     !inventoryCountData
-                      ?.opening
+                      ?.opening ||
+                    openingEditMode
                       ? `
                         <div
                           class="warning"
@@ -6578,8 +6645,31 @@ async function renderSessions(
                             margin-bottom:12px;
                           "
                         >
-                          イベントへ実際に持って行く数量だけを開始在庫として保存します。日本に残す在庫や他の販売先分は含めません。
+                          ${
+                            openingEditMode
+                              ? "保存済みの開始在庫を編集しています。会社全体の実在庫ではなく、このイベントへ持参する数量だけを設定してください。保存すると終了在庫カウントはクリアされます。"
+                              : "イベントへ実際に持って行く数量だけを開始在庫として保存します。日本に残す在庫や他の販売先分は含めません。"
+                          }
                         </div>
+
+                        ${
+                          openingEditMode
+                            ? `
+                              <button
+                                id="cancelOpeningInventoryEditButton"
+                                type="button"
+                                class="button button-secondary"
+                                style="
+                                  width:100%;
+                                  min-height:42px;
+                                  margin-bottom:10px;
+                                "
+                              >
+                                編集をキャンセル
+                              </button>
+                            `
+                            : ""
+                        }
 
                         <div class="list-row">
                           <span>
@@ -6644,7 +6734,11 @@ async function renderSessions(
                                 font-weight:800;
                               "
                             >
-                              0
+                              ${
+                                openingEditMode
+                                  ? savedOpeningTotal
+                                  : 0
+                              }
                             </div>
 
                             <div class="muted">
@@ -6666,7 +6760,11 @@ async function renderSessions(
                                 font-weight:800;
                               "
                             >
-                              0
+                              ${
+                                openingEditMode
+                                  ? savedOpeningSkuCount
+                                  : 0
+                              }
                             </div>
 
                             <div class="muted">
@@ -6676,13 +6774,7 @@ async function renderSessions(
                         </div>
 
                         ${
-                          eventInventoryTransactions
-                            .filter(
-                              item =>
-                                item.status !==
-                                "voided"
-                            )
-                            .length
+                          openingInventoryLocked
                             ? `
                               <div
                                 class="warning"
@@ -6690,7 +6782,7 @@ async function renderSessions(
                                   margin-top:12px;
                                 "
                               >
-                                このセッションにはすでに有効な売上があります。実イベントでは販売開始前に開始在庫を保存してください。
+                                有効な売上が ${activeInventoryTransactions.length} 件あるため、開始在庫はロックされています。開始在庫を変更する場合は、先に該当売上を取消してください。
                               </div>
                             `
                             : ""
@@ -7165,7 +7257,16 @@ async function renderSessions(
                                                   max="${item.openingQty}"
                                                   step="1"
                                                   inputmode="numeric"
-                                                  value=""
+                                                  value="${
+                                                    openingEditMode
+                                                      ? (
+                                                          savedOpeningQtyByVariant.get(
+                                                            item.variantId
+                                                          ) ||
+                                                          ""
+                                                        )
+                                                      : ""
+                                                  }"
                                                   placeholder="0"
                                                   ${outOfStock ? "disabled" : ""}
                                                   aria-label="${escapeHtml(
@@ -7363,7 +7464,16 @@ async function renderSessions(
                                             max="${row.openingQty}"
                                             step="1"
                                             inputmode="numeric"
-                                            value=""
+                                            value="${
+                                              openingEditMode
+                                                ? (
+                                                    savedOpeningQtyByVariant.get(
+                                                      row.variantId
+                                                    ) ||
+                                                    ""
+                                                  )
+                                                : ""
+                                            }"
                                             placeholder="0"
                                             ${
                                               Number(
@@ -7395,13 +7505,32 @@ async function renderSessions(
                           id="captureOpeningInventoryButton"
                           class="button"
                           type="button"
+                          data-overwrite="${
+                            openingEditMode
+                              ? "true"
+                              : "false"
+                          }"
+                          ${
+                            openingInventoryLocked
+                              ? "disabled"
+                              : ""
+                          }
                           style="
                             width:100%;
                             min-height:52px;
                             margin-top:14px;
+                            ${
+                              openingInventoryLocked
+                                ? "opacity:.45;"
+                                : ""
+                            }
                           "
                         >
-                          入力した持参数を開始在庫として保存
+                          ${
+                            openingEditMode
+                              ? "開始在庫の変更を保存"
+                              : "入力した持参数を開始在庫として保存"
+                          }
                         </button>
 
                         <div
@@ -8554,47 +8683,89 @@ async function renderSessions(
                           </div>
                         </details>
 
-                        <details
-                          style="
-                            margin-top:14px;
-                            ${
-                              inventorySessionClosed
-                                ? "display:none;"
-                                : ""
-                            }
-                          "
-                        >
-                          <summary
-                            style="
-                              cursor:pointer;
-                              font-weight:700;
-                              padding:8px 0;
-                            "
-                          >
-                            開始在庫を再取得
-                          </summary>
+                        ${
+                          !inventorySessionClosed
+                            ? `
+                              <div
+                                style="
+                                  margin-top:14px;
+                                  padding:12px;
+                                  border:1px solid #ecece7;
+                                  border-radius:14px;
+                                "
+                              >
+                                <div
+                                  style="
+                                    font-weight:800;
+                                  "
+                                >
+                                  開始在庫の編集
+                                </div>
 
-                          <div
-                            class="warning"
-                            style="
-                              margin:8px 0 10px;
-                            "
-                          >
-                            開始在庫を再取得すると、保存済みの終了カウントはクリアされます。実イベントでは販売開始後に行わないでください。
-                          </div>
+                                ${
+                                  openingInventoryLocked
+                                    ? `
+                                      <div
+                                        class="warning"
+                                        style="
+                                          margin-top:8px;
+                                        "
+                                      >
+                                        有効な売上が ${activeInventoryTransactions.length} 件あるため、開始在庫は変更・リセットできません。売上取消後に操作できます。
+                                      </div>
+                                    `
+                                    : `
+                                      <div
+                                        class="muted"
+                                        style="
+                                          margin-top:6px;
+                                          line-height:1.5;
+                                        "
+                                      >
+                                        保存済みの持参数を編集できます。会社全在庫を自動取得する処理は行いません。変更すると保存済みの終了在庫はクリアされます。
+                                      </div>
 
-                          <button
-                            id="recaptureOpeningInventoryButton"
-                            type="button"
-                            class="button button-secondary"
-                            style="
-                              width:100%;
-                              min-height:46px;
-                            "
-                          >
-                            現在庫で開始在庫を再保存
-                          </button>
-                        </details>
+                                      <div
+                                        style="
+                                          display:grid;
+                                          grid-template-columns:
+                                            repeat(2,minmax(0,1fr));
+                                          gap:8px;
+                                          margin-top:10px;
+                                        "
+                                      >
+                                        <button
+                                          id="editOpeningInventoryButton"
+                                          type="button"
+                                          class="button button-secondary"
+                                          style="
+                                            min-height:44px;
+                                          "
+                                        >
+                                          開始在庫を編集
+                                        </button>
+
+                                        <button
+                                          id="resetOpeningInventoryButton"
+                                          type="button"
+                                          style="
+                                            min-height:44px;
+                                            border:1px solid #e0c9c9;
+                                            border-radius:10px;
+                                            background:#fff;
+                                            color:#824747;
+                                            font-weight:800;
+                                          "
+                                        >
+                                          開始在庫をリセット
+                                        </button>
+                                      </div>
+                                    `
+                                }
+                              </div>
+                            `
+                            : ""
+                        }
                       `
                   }
                 </section>
@@ -9898,6 +10069,14 @@ async function renderSessions(
         sessionInventoryCountId =
           "";
       }
+
+      if (
+        sessionOpeningEditId ===
+        sessionId
+      ) {
+        sessionOpeningEditId =
+          "";
+      }
     }
 
 
@@ -10191,6 +10370,9 @@ async function renderSessions(
           sessionInventoryCountId =
             "";
 
+          sessionOpeningEditId =
+            "";
+
           renderSessions(
             ++renderSequence
           );
@@ -10348,9 +10530,7 @@ async function renderSessions(
 
       const button =
         document.querySelector(
-          overwrite
-            ? "#recaptureOpeningInventoryButton"
-            : "#captureOpeningInventoryButton"
+          "#captureOpeningInventoryButton"
         );
 
       const message =
@@ -10363,7 +10543,7 @@ async function renderSessions(
       ) {
         const confirmed =
           window.confirm(
-            "開始在庫を現在庫で再保存しますか？\n\n保存済みの終了カウントはクリアされます。販売開始後には行わないでください。"
+            "開始在庫の変更を保存しますか？\n\n保存済みの終了在庫カウントはクリアされます。会社全体の実在庫は変更しません。"
           );
 
         if (!confirmed) {
@@ -10395,9 +10575,7 @@ async function renderSessions(
               .sessionId,
 
           items:
-            overwrite
-              ? eventCurrentInventoryRows
-              : readEventCarryRowsFromDom(),
+            readEventCarryRowsFromDom(),
 
           capturedByEmail:
             currentUser?.email ||
@@ -10405,6 +10583,9 @@ async function renderSessions(
 
           overwrite
         });
+
+        sessionOpeningEditId =
+          "";
 
         await renderSessions(
           ++renderSequence
@@ -10435,7 +10616,7 @@ async function renderSessions(
 
           button.textContent =
             overwrite
-              ? "現在庫で開始在庫を再保存"
+              ? "開始在庫の変更を保存"
               : "入力した持参数を開始在庫として保存";
         }
 
@@ -11020,23 +11201,141 @@ async function renderSessions(
       )
       ?.addEventListener(
         "click",
-        () =>
+        event =>
           captureOpeningInventory(
-            false
+            event.currentTarget
+              ?.dataset
+              ?.overwrite ===
+            "true"
           )
       );
 
 
     document
       .querySelector(
-        "#recaptureOpeningInventoryButton"
+        "#editOpeningInventoryButton"
       )
       ?.addEventListener(
         "click",
-        () =>
-          captureOpeningInventory(
-            true
-          )
+        () => {
+          if (
+            !selectedInventoryCountSession ||
+            openingInventoryLocked
+          ) {
+            return;
+          }
+
+          sessionOpeningEditId =
+            selectedInventoryCountSession
+              .sessionId;
+
+          renderSessions(
+            ++renderSequence
+          );
+
+          setTimeout(
+            () => {
+              document
+                .querySelector(
+                  "#sessionInventoryCountPanel"
+                )
+                ?.scrollIntoView({
+                  behavior:
+                    "smooth",
+                  block:
+                    "start"
+                });
+            },
+            100
+          );
+        }
+      );
+
+
+    document
+      .querySelector(
+        "#cancelOpeningInventoryEditButton"
+      )
+      ?.addEventListener(
+        "click",
+        () => {
+          sessionOpeningEditId =
+            "";
+
+          renderSessions(
+            ++renderSequence
+          );
+        }
+      );
+
+
+    document
+      .querySelector(
+        "#resetOpeningInventoryButton"
+      )
+      ?.addEventListener(
+        "click",
+        async event => {
+          if (
+            !selectedInventoryCountSession ||
+            openingInventoryLocked
+          ) {
+            return;
+          }
+
+          const confirmed =
+            window.confirm(
+              "開始在庫をリセットしますか？\n\n開始在庫と保存済み終了在庫をクリアします。売上や会社全体の実在庫は変更しません。"
+            );
+
+          if (
+            !confirmed
+          ) {
+            return;
+          }
+
+          const button =
+            event.currentTarget;
+
+          button.disabled =
+            true;
+
+          button.textContent =
+            "リセット中";
+
+          try {
+            await resetEventOpeningInventory({
+              sessionId:
+                selectedInventoryCountSession
+                  .sessionId,
+
+              resetByEmail:
+                currentUser
+                  ?.email ||
+                ""
+            });
+
+            sessionOpeningEditId =
+              "";
+
+            await renderSessions(
+              ++renderSequence
+            );
+
+          } catch (error) {
+            button.disabled =
+              false;
+
+            button.textContent =
+              "開始在庫をリセット";
+
+            window.alert(
+              error.code ||
+              error.message ||
+              String(error)
+            );
+          }
+        }
       );
 
 
@@ -11328,6 +11627,9 @@ async function renderSessions(
             }
 
             sessionInventoryCountId =
+              "";
+
+            sessionOpeningEditId =
               "";
 
             editingSessionId =
