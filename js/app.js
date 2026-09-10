@@ -5160,7 +5160,7 @@ async function renderSessions(
                             line-height:1.5;
                           "
                         >
-                          Tシャツはデザインを縦、サイズを横に並べています。Body・Colorが違う場合は別行です。0のSKUは開始在庫に保存されません。
+                          Tシャツはデザインを縦、サイズを横に並べています。Body・Colorが違う場合は別行です。在庫0はグレー表示され入力できません。「このデザインを全在庫追加」で、その行の在庫ありサイズをまとめて入力できます。
                         </div>
 
                         <div
@@ -5301,6 +5301,23 @@ async function renderSessions(
                                                 .join(" / ")
                                             )}
                                           </div>
+
+                                          <button
+                                            type="button"
+                                            class="eventCarryRowAllStockButton"
+                                            style="
+                                              margin-top:7px;
+                                              min-height:30px;
+                                              padding:0 9px;
+                                              border:1px solid #deded9;
+                                              border-radius:8px;
+                                              background:#fff;
+                                              font-size:11px;
+                                              font-weight:700;
+                                            "
+                                          >
+                                            このデザインを全在庫追加
+                                          </button>
                                         </div>
 
                                         ${EVENT_TSHIRT_SIZE_ORDER.map(
@@ -5315,11 +5332,13 @@ async function renderSessions(
                                             if (!item) {
                                               return `
                                                 <div
+                                                  class="eventCarryOutOfStockCell"
                                                   style="
                                                     padding:8px 4px;
                                                     text-align:center;
-                                                    color:#bbb;
-                                                    border-left:1px solid #f0f0ec;
+                                                    color:#b7b7b2;
+                                                    background:#f3f3f0;
+                                                    border-left:1px solid #ecece7;
                                                   "
                                                 >
                                                   —
@@ -5327,9 +5346,19 @@ async function renderSessions(
                                               `;
                                             }
 
+                                            const outOfStock =
+                                              Number(
+                                                item.openingQty ||
+                                                0
+                                              ) <= 0;
+
                                             return `
                                               <div
-                                                class="eventCarryRow"
+                                                class="eventCarryRow ${
+                                                  outOfStock
+                                                    ? "eventCarryOutOfStockCell"
+                                                    : ""
+                                                }"
                                                 data-search="${escapeHtml(
                                                   [
                                                     item.sku,
@@ -5369,6 +5398,11 @@ async function renderSessions(
                                                   padding:7px 4px;
                                                   border-left:1px solid #f0f0ec;
                                                   text-align:center;
+                                                  ${
+                                                    outOfStock
+                                                      ? "background:#f3f3f0;color:#b7b7b2;"
+                                                      : ""
+                                                  }
                                                 "
                                               >
                                                 <div
@@ -5376,6 +5410,11 @@ async function renderSessions(
                                                   style="
                                                     font-size:10px;
                                                     margin-bottom:3px;
+                                                    ${
+                                                      outOfStock
+                                                        ? "color:#b7b7b2;"
+                                                        : ""
+                                                    }
                                                   "
                                                 >
                                                   在${item.openingQty}
@@ -5393,6 +5432,7 @@ async function renderSessions(
                                                   inputmode="numeric"
                                                   value=""
                                                   placeholder="0"
+                                                  ${outOfStock ? "disabled" : ""}
                                                   aria-label="${escapeHtml(
                                                     `${group.design} ${group.body} ${group.color} ${size} イベント持参数`
                                                   )}"
@@ -5400,10 +5440,19 @@ async function renderSessions(
                                                     width:58px;
                                                     min-height:38px;
                                                     padding:0 5px;
-                                                    border:1px solid #deded9;
+                                                    border:1px solid ${
+                                                      outOfStock
+                                                        ? "#e4e4df"
+                                                        : "#deded9"
+                                                    };
                                                     border-radius:8px;
                                                     text-align:center;
                                                     font-size:16px;
+                                                    ${
+                                                      outOfStock
+                                                        ? "background:#ededE9;color:#aaa;opacity:.72;"
+                                                        : ""
+                                                    }
                                                   "
                                                 >
                                               </div>
@@ -5489,8 +5538,18 @@ async function renderSessions(
                                       )}"
                                       data-current-qty="${row.openingQty}"
                                       style="
-                                        padding:12px 0;
+                                        padding:12px;
+                                        margin:0 -4px;
                                         border-bottom:1px solid #ecece7;
+                                        border-radius:10px;
+                                        ${
+                                          Number(
+                                            row.openingQty ||
+                                            0
+                                          ) <= 0
+                                            ? "background:#f3f3f0;color:#b7b7b2;opacity:.72;"
+                                            : ""
+                                        }
                                       "
                                     >
                                       <div
@@ -5571,7 +5630,22 @@ async function renderSessions(
                                             inputmode="numeric"
                                             value=""
                                             placeholder="0"
-                                            style="${inputStyle()}"
+                                            ${
+                                              Number(
+                                                row.openingQty ||
+                                                0
+                                              ) <= 0
+                                                ? "disabled"
+                                                : ""
+                                            }
+                                            style="${
+                                              Number(
+                                                row.openingQty ||
+                                                0
+                                              ) <= 0
+                                                ? `${inputStyle()} background:#ededE9;color:#aaa;opacity:.72;`
+                                                : inputStyle()
+                                            }"
                                           >
                                         </label>
                                       </div>
@@ -7885,6 +7959,56 @@ async function renderSessions(
 
 
     document
+      .querySelectorAll(
+        ".eventCarryRowAllStockButton"
+      )
+      .forEach(
+        button => {
+          button.addEventListener(
+            "click",
+            () => {
+              const matrixRow =
+                button.closest(
+                  ".eventCarryMatrixRow"
+                );
+
+              if (!matrixRow) {
+                return;
+              }
+
+              matrixRow
+                .querySelectorAll(
+                  ".eventCarryRow"
+                )
+                .forEach(
+                  cell => {
+                    const input =
+                      cell.querySelector(
+                        ".eventCarryQtyInput"
+                      );
+
+                    if (
+                      !input ||
+                      input.disabled
+                    ) {
+                      return;
+                    }
+
+                    input.value =
+                      cell.dataset.currentQty ||
+                      "0";
+                  }
+                );
+
+              updateEventCarrySummary();
+              applyEventCarryFilters();
+            }
+          );
+        }
+      );
+
+
+    document
       .querySelector(
         "#copyAllStockToCarryButton"
       )
@@ -7902,7 +8026,10 @@ async function renderSessions(
                     ".eventCarryQtyInput"
                   );
 
-                if (input) {
+                if (
+                  input &&
+                  !input.disabled
+                ) {
                   input.value =
                     row.dataset.currentQty ||
                     "0";
@@ -7987,7 +8114,10 @@ async function renderSessions(
                     ".eventCarryQtyInput"
                   );
 
-                if (input) {
+                if (
+                  input &&
+                  !input.disabled
+                ) {
                   input.value =
                     row.dataset.currentQty ||
                     "0";
