@@ -3,11 +3,11 @@ import {
 } from "../firebase.js";
 
 
-const COLLECTION = "tshirtStock";
+const COLLECTION =
+  "tshirtStock";
 
-const MASTER_DOCUMENT = "master";
-
-const SHARED_DOCUMENT = "shared";
+const MASTER_DOCUMENT =
+  "master";
 
 const LEGACY_BODY_ID =
   "body_unassigned";
@@ -21,9 +21,7 @@ async function firestoreModule() {
 }
 
 
-async function loadDocument(
-  documentId
-) {
+async function loadMasterDocument() {
 
   const {
     db,
@@ -31,10 +29,7 @@ async function loadDocument(
   } = getFirebaseState();
 
 
-  if (
-    !enabled ||
-    !db
-  ) {
+  if (!enabled || !db) {
 
     throw new Error(
       "Firebase is not connected."
@@ -52,7 +47,7 @@ async function loadDocument(
     doc(
       db,
       COLLECTION,
-      documentId
+      MASTER_DOCUMENT
     );
 
 
@@ -60,12 +55,10 @@ async function loadDocument(
     await getDoc(ref);
 
 
-  if (
-    !snapshot.exists()
-  ) {
+  if (!snapshot.exists()) {
 
     throw new Error(
-      `tshirtStock/${documentId} was not found.`
+      "tshirtStock/master was not found."
     );
   }
 
@@ -74,79 +67,109 @@ async function loadDocument(
 }
 
 
-async function loadDocuments() {
-
-  const [
-    master,
-    shared
-  ] = await Promise.all([
-    loadDocument(
-      MASTER_DOCUMENT
-    ),
-
-    loadDocument(
-      SHARED_DOCUMENT
-    )
-  ]);
-
-
-  return {
-    master,
-    shared
-  };
-}
-
-
-function normalize(
+function encodePart(
   value
 ) {
 
-  return String(
-    value ?? ""
-  )
-    .trim()
-    .toLocaleLowerCase(
-      "en-US"
-    );
+  return encodeURIComponent(
+    String(
+      value || ""
+    )
+  );
 }
 
 
-function findByName(
-  map,
-  name,
-  fields
+function createVariantId(
+  bodyId,
+  designId,
+  colorId,
+  sizeId
 ) {
 
-  const key =
-    normalize(name);
+  return [
+    "tshirt",
+    encodePart(bodyId),
+    encodePart(designId),
+    encodePart(colorId),
+    encodePart(sizeId)
+  ].join("__");
+}
 
 
-  if (!key) {
+function createStockTargetId(
+  bodyId,
+  designId,
+  colorId,
+  sizeId
+) {
+
+  return [
+    "tshirt:",
+    encodePart(bodyId),
+    "|",
+    encodePart(designId),
+    "|",
+    encodePart(colorId),
+    "|",
+    encodePart(sizeId)
+  ].join("");
+}
+
+
+function decodeStockTarget(
+  value
+) {
+
+  const text =
+    String(
+      value || ""
+    );
+
+
+  if (
+    !text.startsWith(
+      "tshirt:"
+    )
+  ) {
+
     return null;
   }
 
 
-  return (
-    Object
-      .values(
-        map || {}
-      )
-      .find(
-        item => {
+  const parts =
+    text
+      .slice(7)
+      .split("|")
+      .map(
+        value =>
+          decodeURIComponent(
+            value
+          )
+      );
 
-          return fields.some(
-            field => {
 
-              return (
-                normalize(
-                  item?.[field]
-                ) === key
-              );
-            }
-          );
-        }
-      ) || null
-  );
+  if (
+    parts.length !== 4
+  ) {
+
+    return null;
+  }
+
+
+  return {
+
+    bodyId:
+      parts[0],
+
+    designId:
+      parts[1],
+
+    colorId:
+      parts[2],
+
+    sizeId:
+      parts[3]
+  };
 }
 
 
@@ -171,6 +194,7 @@ function displayName(
 
 
     if (value) {
+
       return value;
     }
   }
@@ -180,166 +204,9 @@ function displayName(
 }
 
 
-function encodePart(
-  value
+function buildInventoryRows(
+  master
 ) {
-
-  return encodeURIComponent(
-    String(value || "")
-  );
-}
-
-
-function createStockTargetId(
-  bodyId,
-  designId,
-  colorId,
-  sizeId
-) {
-
-  if (
-    !bodyId ||
-    !designId ||
-    !colorId ||
-    !sizeId
-  ) {
-
-    return null;
-  }
-
-
-  return [
-    "tshirt:",
-    encodePart(bodyId),
-    "|",
-    encodePart(designId),
-    "|",
-    encodePart(colorId),
-    "|",
-    encodePart(sizeId)
-  ].join("");
-}
-
-
-function createVariantId(
-  bodyId,
-  designId,
-  colorId,
-  sizeId
-) {
-
-  return [
-    "tshirt",
-    encodePart(
-      bodyId || "unassigned"
-    ),
-    encodePart(designId),
-    encodePart(colorId),
-    encodePart(sizeId)
-  ].join("__");
-}
-
-
-function decodeStockTarget(
-  stockTargetId
-) {
-
-  const value =
-    String(
-      stockTargetId || ""
-    );
-
-
-  if (
-    !value.startsWith(
-      "tshirt:"
-    )
-  ) {
-
-    return null;
-  }
-
-
-  const parts =
-    value
-      .slice(7)
-      .split("|")
-      .map(
-        part =>
-          decodeURIComponent(
-            part
-          )
-      );
-
-
-  if (
-    parts.length !== 4
-  ) {
-
-    return null;
-  }
-
-
-  return {
-    bodyId: parts[0],
-    designId: parts[1],
-    colorId: parts[2],
-    sizeId: parts[3]
-  };
-}
-
-
-function currentQuantity(
-  master,
-  bodyId,
-  designId,
-  colorId,
-  sizeId
-) {
-
-  if (!bodyId) {
-    return null;
-  }
-
-
-  return Math.max(
-    0,
-    Number(
-      master
-        ?.inventory_v2
-        ?.[bodyId]
-        ?.[designId]
-        ?.[colorId]
-        ?.[sizeId]
-        ?.qty || 0
-    )
-  );
-}
-
-
-function variantKey(
-  bodyId,
-  designId,
-  colorId,
-  sizeId
-) {
-
-  return [
-    bodyId || "",
-    designId || "",
-    colorId || "",
-    sizeId || ""
-  ].join("\u241f");
-}
-
-
-function buildVariant({
-  master,
-  bodyId,
-  designId,
-  colorId,
-  sizeId
-}) {
 
   const masters =
     master?.masters || {};
@@ -361,290 +228,7 @@ function buildVariant({
     masters?.sizes || {};
 
 
-  const quantity =
-    currentQuantity(
-      master,
-      bodyId,
-      designId,
-      colorId,
-      sizeId
-    );
-
-
-  let inventoryStatus =
-    "tracked";
-
-
-  let catalogStatus =
-    "out_of_stock";
-
-
-  if (!bodyId) {
-
-    inventoryStatus =
-      "not_initialized";
-
-    catalogStatus =
-      "not_initialized";
-
-  } else if (
-    quantity > 0
-  ) {
-
-    catalogStatus =
-      "in_stock";
-  }
-
-
-  return {
-
-    variantId:
-      createVariantId(
-        bodyId,
-        designId,
-        colorId,
-        sizeId
-      ),
-
-    productId:
-      "tshirt",
-
-    category:
-      "tshirt",
-
-    sku:
-      createVariantId(
-        bodyId,
-        designId,
-        colorId,
-        sizeId
-      ),
-
-    bodyId:
-      bodyId || null,
-
-    designId:
-      designId || null,
-
-    colorId:
-      colorId || null,
-
-    sizeId:
-      sizeId || null,
-
-    body:
-      bodyId
-        ? displayName(
-            bodies,
-            bodyId,
-            [
-              "managementName",
-              "salesName"
-            ]
-          )
-        : "Body未設定",
-
-    design:
-      displayName(
-        designs,
-        designId,
-        [
-          "managementName",
-          "legacyKey",
-          "salesName"
-        ]
-      ),
-
-    color:
-      displayName(
-        colors,
-        colorId,
-        [
-          "managementName",
-          "legacyKey",
-          "pinkoiName"
-        ]
-      ),
-
-    size:
-      displayName(
-        sizes,
-        sizeId,
-        [
-          "managementName",
-          "salesName"
-        ]
-      ),
-
-    sizeOrder:
-      Number(
-        sizes?.[sizeId]
-          ?.order || 999
-      ),
-
-    quantity,
-
-    stockTargetId:
-      createStockTargetId(
-        bodyId,
-        designId,
-        colorId,
-        sizeId
-      ),
-
-    inventorySource:
-      "tshirt",
-
-    inventoryStatus,
-
-    catalogStatus,
-
-    active:
-      true,
-
-    source:
-      "tshirtStock"
-  };
-}
-
-
-function buildCatalog(
-  master,
-  shared
-) {
-
-  const masters =
-    master?.masters || {};
-
-
-  const designs =
-    masters?.designs || {};
-
-
-  const colors =
-    masters?.colors || {};
-
-
-  const sizes =
-    masters?.sizes || {};
-
-
-  const variants =
-    new Map();
-
-
-  const sortedSizes =
-    Object
-      .values(
-        sizes
-      )
-      .sort(
-        (a, b) =>
-          Number(
-            a?.order || 999
-          ) -
-          Number(
-            b?.order || 999
-          )
-      );
-
-
-  const sharedDesigns =
-    shared?.designs || {};
-
-
-  Object.entries(
-    sharedDesigns
-  ).forEach(
-    ([
-      designName,
-      sharedDesign
-    ]) => {
-
-      const design =
-        findByName(
-          designs,
-          designName,
-          [
-            "legacyKey",
-            "managementName",
-            "salesName"
-          ]
-        );
-
-
-      if (!design) {
-        return;
-      }
-
-
-      const sharedColors =
-        Array.isArray(
-          sharedDesign?.colors
-        )
-          ? sharedDesign.colors
-          : [];
-
-
-      sharedColors.forEach(
-        colorName => {
-
-          const color =
-            findByName(
-              colors,
-              colorName,
-              [
-                "legacyKey",
-                "managementName",
-                "pinkoiName"
-              ]
-            );
-
-
-          if (!color) {
-            return;
-          }
-
-
-          const bodyId =
-            color?.bodyId || null;
-
-
-          sortedSizes.forEach(
-            size => {
-
-              const item =
-                buildVariant({
-                  master,
-                  bodyId,
-                  designId:
-                    design.id,
-                  colorId:
-                    color.id,
-                  sizeId:
-                    size.id
-                });
-
-
-              const key =
-                variantKey(
-                  item.bodyId,
-                  item.designId,
-                  item.colorId,
-                  item.sizeId
-                );
-
-
-              variants.set(
-                key,
-                item
-              );
-            }
-          );
-        }
-      );
-    }
-  );
+  const rows = [];
 
 
   Object.entries(
@@ -686,22 +270,30 @@ function buildCatalog(
                 sizeTree || {}
               ).forEach(
                 ([
-                  sizeId
+                  sizeId,
+                  cell
                 ]) => {
 
 
-                  const item =
-                    buildVariant({
-                      master,
-                      bodyId,
-                      designId,
-                      colorId,
-                      sizeId
-                    });
+                  const quantity =
+                    Math.max(
+                      0,
+                      Number(
+                        cell?.qty || 0
+                      )
+                    );
 
 
-                  const key =
-                    variantKey(
+                  if (
+                    quantity <= 0
+                  ) {
+
+                    return;
+                  }
+
+
+                  const variantId =
+                    createVariantId(
                       bodyId,
                       designId,
                       colorId,
@@ -709,10 +301,86 @@ function buildCatalog(
                     );
 
 
-                  variants.set(
-                    key,
-                    item
-                  );
+                  rows.push({
+
+                    variantId,
+
+                    productId:
+                      "tshirt",
+
+                    category:
+                      "tshirt",
+
+                    bodyId,
+
+                    designId,
+
+                    colorId,
+
+                    sizeId,
+
+                    body:
+                      displayName(
+                        bodies,
+                        bodyId,
+                        [
+                          "managementName",
+                          "salesName"
+                        ]
+                      ),
+
+                    design:
+                      displayName(
+                        designs,
+                        designId,
+                        [
+                          "managementName",
+                          "legacyKey",
+                          "salesName"
+                        ]
+                      ),
+
+                    color:
+                      displayName(
+                        colors,
+                        colorId,
+                        [
+                          "managementName",
+                          "legacyKey",
+                          "pinkoiName"
+                        ]
+                      ),
+
+                    size:
+                      displayName(
+                        sizes,
+                        sizeId,
+                        [
+                          "managementName",
+                          "salesName"
+                        ]
+                      ),
+
+                    sizeOrder:
+                      Number(
+                        sizes
+                          ?.[sizeId]
+                          ?.order || 999
+                      ),
+
+                    quantity,
+
+                    stockTargetId:
+                      createStockTargetId(
+                        bodyId,
+                        designId,
+                        colorId,
+                        sizeId
+                      ),
+
+                    inventorySource:
+                      "tshirt"
+                  });
                 }
               );
             }
@@ -723,14 +391,11 @@ function buildCatalog(
   );
 
 
-  const rows =
-    Array.from(
-      variants.values()
-    );
-
-
   rows.sort(
-    (a, b) => {
+    (
+      a,
+      b
+    ) => {
 
       return (
         a.body.localeCompare(
@@ -759,156 +424,71 @@ function buildCatalog(
 }
 
 
-function buildSummary(
-  master,
-  rows
-) {
-
-  const totalStock =
-    rows.reduce(
-      (
-        total,
-        item
-      ) => {
-
-        return (
-          total +
-          Math.max(
-            0,
-            Number(
-              item.quantity || 0
-            )
-          )
-        );
-      },
-      0
-    );
-
-
-  const inStockSkuCount =
-    rows.filter(
-      item =>
-        item.catalogStatus ===
-        "in_stock"
-    ).length;
-
-
-  const outOfStockSkuCount =
-    rows.filter(
-      item =>
-        item.catalogStatus ===
-        "out_of_stock"
-    ).length;
-
-
-  const notInitializedCount =
-    rows.filter(
-      item =>
-        item.catalogStatus ===
-        "not_initialized"
-    ).length;
-
-
-  return {
-
-    source:
-      "tshirtStock/master",
-
-    catalogSource:
-      "tshirtStock/master + tshirtStock/shared",
-
-    schemaVersion:
-      Number(
-        master?.schemaVersion || 0
-      ),
-
-    inventoryAuthority:
-      master?.inventoryAuthority ||
-      "",
-
-    totalStock,
-
-    catalogSkuCount:
-      rows.length,
-
-    inStockSkuCount,
-
-    outOfStockSkuCount,
-
-    notInitializedCount,
-
-    updatedAt:
-      master?.updatedAt ||
-      null
-  };
-}
-
-
 export const tshirtAdapter = {
 
-  async getCatalogSnapshot() {
+  async getInventorySnapshot() {
 
-    const {
-      master,
-      shared
-    } =
-      await loadDocuments();
+    const master =
+      await loadMasterDocument();
 
 
     const rows =
-      buildCatalog(
-        master,
-        shared
+      buildInventoryRows(
+        master
+      );
+
+
+    const totalStock =
+      rows.reduce(
+        (
+          sum,
+          row
+        ) =>
+          sum +
+          Number(
+            row.quantity || 0
+          ),
+        0
       );
 
 
     return {
 
-      summary:
-        buildSummary(
-          master,
-          rows
-        ),
+      summary: {
+
+        source:
+          "tshirtStock/master",
+
+        schemaVersion:
+          Number(
+            master
+              ?.schemaVersion || 0
+          ),
+
+        inventoryAuthority:
+          master
+            ?.inventoryAuthority ||
+          "",
+
+        totalStock,
+
+        activeSkuCount:
+          rows.length
+      },
 
       rows
     };
   },
 
 
-  async listCatalogRows() {
+  async listInventoryRows() {
 
     const snapshot =
       await this
-        .getCatalogSnapshot();
+        .getInventorySnapshot();
 
 
     return snapshot.rows;
-  },
-
-
-  async listInventoryRows() {
-
-    const rows =
-      await this
-        .listCatalogRows();
-
-
-    return rows.filter(
-      item =>
-        item.catalogStatus ===
-        "in_stock"
-    );
-  },
-
-
-  async getMasterSummary() {
-
-    const snapshot =
-      await this
-        .getCatalogSnapshot();
-
-
-    return snapshot.summary;
   },
 
 
@@ -923,22 +503,26 @@ export const tshirtAdapter = {
 
 
     if (!target) {
+
       return null;
     }
 
 
     const master =
-      await loadDocument(
-        MASTER_DOCUMENT
-      );
+      await loadMasterDocument();
 
 
-    return currentQuantity(
-      master,
-      target.bodyId,
-      target.designId,
-      target.colorId,
-      target.sizeId
+    return Math.max(
+      0,
+      Number(
+        master
+          ?.inventory_v2
+          ?.[target.bodyId]
+          ?.[target.designId]
+          ?.[target.colorId]
+          ?.[target.sizeId]
+          ?.qty || 0
+      )
     );
   },
 
@@ -950,7 +534,7 @@ export const tshirtAdapter = {
   ) {
 
     console.warn(
-      "Read only Phase",
+      "Read only phase",
       {
         stockTargetId,
         quantityChange,
@@ -975,37 +559,8 @@ export const tshirtAdapter = {
       );
 
 
-    if (!target) {
-      return false;
-    }
-
-
-    const master =
-      await loadDocument(
-        MASTER_DOCUMENT
-      );
-
-
     return Boolean(
-      master
-        ?.masters
-        ?.bodies
-        ?.[target.bodyId] &&
-
-      master
-        ?.masters
-        ?.designs
-        ?.[target.designId] &&
-
-      master
-        ?.masters
-        ?.colors
-        ?.[target.colorId] &&
-
-      master
-        ?.masters
-        ?.sizes
-        ?.[target.sizeId]
+      target
     );
   }
 };
