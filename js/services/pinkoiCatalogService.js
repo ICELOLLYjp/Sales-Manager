@@ -53,18 +53,10 @@ function createVariantId(
 ) {
   return [
     "tshirt",
-    encodePart(
-      bodyId
-    ),
-    encodePart(
-      designId
-    ),
-    encodePart(
-      colorId
-    ),
-    encodePart(
-      sizeId
-    )
+    encodePart(bodyId),
+    encodePart(designId),
+    encodePart(colorId),
+    encodePart(sizeId)
   ].join("__");
 }
 
@@ -76,21 +68,13 @@ function createStockTargetId(
 ) {
   return [
     "tshirt:",
-    encodePart(
-      bodyId
-    ),
+    encodePart(bodyId),
     "|",
-    encodePart(
-      designId
-    ),
+    encodePart(designId),
     "|",
-    encodePart(
-      colorId
-    ),
+    encodePart(colorId),
     "|",
-    encodePart(
-      sizeId
-    )
+    encodePart(sizeId)
   ].join("");
 }
 
@@ -100,11 +84,153 @@ function text(value) {
   ).trim();
 }
 
-function upper(value) {
-  return text(
-    value
-  ).toLocaleUpperCase(
-    "en-US"
+function normalizedName(value) {
+  return text(value)
+    .toLocaleLowerCase("en-US")
+    .replace(/grey/g, "gray")
+    .replace(/[^a-z0-9]+/g, "");
+}
+
+function candidateValues(item, id = "") {
+  return [
+    id,
+    item?.id,
+    item?.internalName,
+    item?.managementName,
+    item?.salesName,
+    item?.legacyKey,
+    item?.pinkoiName,
+    item?.code,
+    item?.name,
+    item?.displayName?.ja,
+    item?.displayName?.en,
+    item?.displayName?.zhTW
+  ]
+    .map(text)
+    .filter(Boolean);
+}
+
+function buildMasterMatcher(masterMap) {
+  const direct =
+    new Map();
+
+  Object.entries(
+    masterMap || {}
+  ).forEach(
+    ([id, item]) => {
+      candidateValues(
+        item,
+        id
+      ).forEach(
+        value => {
+          const key =
+            normalizedName(
+              value
+            );
+
+          if (
+            key &&
+            !direct.has(key)
+          ) {
+            direct.set(
+              key,
+              id
+            );
+          }
+        }
+      );
+    }
+  );
+
+  return direct;
+}
+
+function resolveMasterId({
+  pinkoiId,
+  pinkoiItem,
+  masterMap,
+  matcher
+}) {
+  if (
+    pinkoiId &&
+    masterMap?.[pinkoiId]
+  ) {
+    return pinkoiId;
+  }
+
+  const candidates =
+    candidateValues(
+      pinkoiItem,
+      pinkoiId
+    );
+
+  for (
+    const value
+    of candidates
+  ) {
+    const key =
+      normalizedName(
+        value
+      );
+
+    if (
+      key &&
+      matcher.has(key)
+    ) {
+      return matcher.get(
+        key
+      );
+    }
+  }
+
+  return "";
+}
+
+function buildSizeMatcher(
+  master
+) {
+  const sizes =
+    master?.masters
+      ?.sizes ||
+    {};
+
+  return buildMasterMatcher(
+    sizes
+  );
+}
+
+function resolveSizeId(
+  master,
+  sizeValue,
+  sizeMatcher
+) {
+  const sizes =
+    master?.masters
+      ?.sizes ||
+    {};
+
+  const raw =
+    text(
+      sizeValue
+    );
+
+  if (
+    raw &&
+    sizes?.[raw]
+  ) {
+    return raw;
+  }
+
+  const key =
+    normalizedName(
+      raw
+    );
+
+  return (
+    sizeMatcher.get(
+      key
+    ) ||
+    ""
   );
 }
 
@@ -121,6 +247,32 @@ function displayName(
     fallback ||
     ""
   );
+}
+
+function masterDisplayName(
+  source,
+  id,
+  fields
+) {
+  const item =
+    source?.[id] ||
+    {};
+
+  for (
+    const field
+    of fields
+  ) {
+    const value =
+      text(
+        item?.[field]
+      );
+
+    if (value) {
+      return value;
+    }
+  }
+
+  return id || "";
 }
 
 function pinkoiProductKey(
@@ -174,79 +326,6 @@ function productPriceJpy(
     priceSource:
       "none"
   };
-}
-
-function buildSizeLookup(
-  master
-) {
-  const sizes =
-    master?.masters
-      ?.sizes ||
-    {};
-
-  const result =
-    new Map();
-
-  Object.entries(
-    sizes
-  ).forEach(
-    (
-      [
-        sizeId,
-        item
-      ]
-    ) => {
-      const candidates = [
-        sizeId,
-        item?.id,
-        item?.managementName,
-        item?.salesName,
-        item?.pinkoiName,
-        item?.name
-      ];
-
-      candidates
-        .filter(Boolean)
-        .forEach(
-          value => {
-            result.set(
-              upper(
-                value
-              ),
-              sizeId
-            );
-          }
-        );
-    }
-  );
-
-  return result;
-}
-
-function masterDisplayName(
-  source,
-  id,
-  fields
-) {
-  const item =
-    source?.[id] ||
-    {};
-
-  for (
-    const field
-    of fields
-  ) {
-    const value =
-      text(
-        item?.[field]
-      );
-
-    if (value) {
-      return value;
-    }
-  }
-
-  return id || "";
 }
 
 async function loadCollection(
@@ -423,8 +502,23 @@ export async function loadPinkoiTshirtCatalog() {
     masters?.colors ||
     {};
 
-  const sizeLookup =
-    buildSizeLookup(
+  const bodyMatcher =
+    buildMasterMatcher(
+      masterBodies
+    );
+
+  const designMatcher =
+    buildMasterMatcher(
+      masterDesigns
+    );
+
+  const colorMatcher =
+    buildMasterMatcher(
+      masterColors
+    );
+
+  const sizeMatcher =
+    buildSizeMatcher(
       master
     );
 
@@ -433,17 +527,17 @@ export async function loadPinkoiTshirtCatalog() {
 
   inventory.forEach(
     row => {
-      const bodyId =
+      const pinkoiBodyId =
         text(
           row.bodyId
         );
 
-      const designId =
+      const pinkoiDesignId =
         text(
           row.designId
         );
 
-      const colorId =
+      const pinkoiColorId =
         text(
           row.colorId
         );
@@ -453,44 +547,82 @@ export async function loadPinkoiTshirtCatalog() {
           row.size
         );
 
-      const sizeId =
-        sizeLookup.get(
-          upper(
-            sizeText
-          )
+      const pinkoiBody =
+        bodyMap.get(
+          pinkoiBodyId
         ) ||
-        "";
+        null;
+
+      const pinkoiDesign =
+        designMap.get(
+          pinkoiDesignId
+        ) ||
+        null;
+
+      const pinkoiColor =
+        colorMap.get(
+          pinkoiColorId
+        ) ||
+        null;
+
+      const bodyId =
+        resolveMasterId({
+          pinkoiId:
+            pinkoiBodyId,
+          pinkoiItem:
+            pinkoiBody,
+          masterMap:
+            masterBodies,
+          matcher:
+            bodyMatcher
+        });
+
+      const designId =
+        resolveMasterId({
+          pinkoiId:
+            pinkoiDesignId,
+          pinkoiItem:
+            pinkoiDesign,
+          masterMap:
+            masterDesigns,
+          matcher:
+            designMatcher
+        });
+
+      const colorId =
+        resolveMasterId({
+          pinkoiId:
+            pinkoiColorId,
+          pinkoiItem:
+            pinkoiColor,
+          masterMap:
+            masterColors,
+          matcher:
+            colorMatcher
+        });
+
+      const sizeId =
+        resolveSizeId(
+          master,
+          sizeText,
+          sizeMatcher
+        );
 
       const reasons = [];
 
-      if (
-        !bodyId ||
-        !masterBodies[
-          bodyId
-        ]
-      ) {
+      if (!bodyId) {
         reasons.push(
           "body"
         );
       }
 
-      if (
-        !designId ||
-        !masterDesigns[
-          designId
-        ]
-      ) {
+      if (!designId) {
         reasons.push(
           "design"
         );
       }
 
-      if (
-        !colorId ||
-        !masterColors[
-          colorId
-        ]
-      ) {
+      if (!colorId) {
         reasons.push(
           "color"
         );
@@ -508,26 +640,52 @@ export async function loadPinkoiTshirtCatalog() {
         unmapped.push({
           id:
             row.id,
+
           sku:
             text(
               row.sku
             ),
-          bodyId,
-          designId,
-          colorId,
+
+          pinkoiBodyId,
+          pinkoiDesignId,
+          pinkoiColorId,
+
+          bodyName:
+            displayName(
+              pinkoiBody,
+              pinkoiBodyId
+            ),
+
+          designName:
+            displayName(
+              pinkoiDesign,
+              pinkoiDesignId
+            ),
+
+          colorName:
+            displayName(
+              pinkoiColor,
+              pinkoiColorId
+            ),
+
           size:
             sizeText,
+
           reasons
         });
 
         return;
       }
 
+      /*
+       * Product lookup must use Pinkoi IDs.
+       * Inventory linkage must use tshirtStock/master IDs.
+       */
       const product =
         productMap.get(
           pinkoiProductKey(
-            bodyId,
-            designId
+            pinkoiBodyId,
+            pinkoiDesignId
           )
         ) ||
         null;
@@ -560,6 +718,10 @@ export async function loadPinkoiTshirtCatalog() {
         colorId,
         sizeId,
 
+        pinkoiBodyId,
+        pinkoiDesignId,
+        pinkoiColorId,
+
         body:
           masterDisplayName(
             masterBodies,
@@ -568,12 +730,6 @@ export async function loadPinkoiTshirtCatalog() {
               "managementName",
               "salesName"
             ]
-          ) ||
-          displayName(
-            bodyMap.get(
-              bodyId
-            ),
-            bodyId
           ),
 
         design:
@@ -585,12 +741,6 @@ export async function loadPinkoiTshirtCatalog() {
               "legacyKey",
               "salesName"
             ]
-          ) ||
-          displayName(
-            designMap.get(
-              designId
-            ),
-            designId
           ),
 
         color:
@@ -602,15 +752,18 @@ export async function loadPinkoiTshirtCatalog() {
               "legacyKey",
               "pinkoiName"
             ]
-          ) ||
-          displayName(
-            colorMap.get(
-              colorId
-            ),
-            colorId
           ),
 
         size:
+          masterDisplayName(
+            masters?.sizes ||
+            {},
+            sizeId,
+            [
+              "managementName",
+              "salesName"
+            ]
+          ) ||
           sizeText,
 
         sku:
@@ -634,8 +787,8 @@ export async function loadPinkoiTshirtCatalog() {
 
         pinkoiProductKey:
           pinkoiProductKey(
-            bodyId,
-            designId
+            pinkoiBodyId,
+            pinkoiDesignId
           ),
 
         pinkoiProductStatus:
@@ -788,7 +941,7 @@ export async function syncPinkoiTshirtCatalog() {
   } =
     await firestoreModule();
 
-  await (async () => {
+  {
     const batch =
       writeBatch(
         db
@@ -845,7 +998,7 @@ export async function syncPinkoiTshirtCatalog() {
     );
 
     await batch.commit();
-  })();
+  }
 
   const CHUNK =
     350;
@@ -931,6 +1084,18 @@ export async function syncPinkoiTshirtCatalog() {
 
           sizeId:
             row.sizeId,
+
+          pinkoiBodyId:
+            row.pinkoiBodyId ||
+            "",
+
+          pinkoiDesignId:
+            row.pinkoiDesignId ||
+            "",
+
+          pinkoiColorId:
+            row.pinkoiColorId ||
+            "",
 
           body:
             row.body,
