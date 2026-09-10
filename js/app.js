@@ -8,9 +8,9 @@ import { listAllProductVariants, registerTshirtVariant, registerGeneralProduct, 
 import { CATEGORY_TEMPLATES, getCategoryTemplate } from "./data/categoryTemplates.js";
 import { loadPosPriceConfig, savePosPriceConfig, QUICK_PRICE_CURRENCIES } from "./services/priceBookService.js?v=20260911-mixmatch-2";
 import { listSalesSessions, createEventSession, updateEventSession, updateEventExpenses, SESSION_CURRENCIES } from "./services/sessionService.js";
-import { commitQuickSale, voidSaleTransaction } from "./services/transactionService.js?v=20260911-event-stock-1";
+import { commitQuickSale, voidSaleTransaction } from "./services/transactionService.js?v=20260911-cost-snapshot-1";
 import { listSessionTransactions } from "./services/salesHistoryService.js?v=20260910-setdiscount-2";
-import { saveCategoryCost, loadAllCategoryCostHistories, resolveCategoryUnitCost, saveTshirtBodyCost, loadTshirtBodyCostHistories, resolveBodyUnitCost, saveVariantCost, loadVariantCostHistories, calculateResolvedCogs } from "./services/costHistoryService.js";
+import { saveCategoryCost, loadAllCategoryCostHistories, resolveCategoryUnitCost, saveTshirtBodyCost, loadTshirtBodyCostHistories, resolveBodyUnitCost, saveVariantCost, loadVariantCostHistories, calculateResolvedCogs } from "./services/costHistoryService.js?v=20260911-cost-snapshot-1";
 import { loadPinkoiTshirtCatalog, syncPinkoiTshirtCatalog } from "./services/pinkoiCatalogService.js";
 let sessionLifecycleModulePromise =
   null;
@@ -2442,7 +2442,7 @@ async function renderMorePage(sequence) {
       <section class="card">
 
         <div class="card-title">
-          商品原価
+          原価マスター
         </div>
 
         <div
@@ -2452,7 +2452,7 @@ async function renderMorePage(sequence) {
             line-height:1.55;
           "
         >
-          原価は SKU、TシャツBody、カテゴリ標準原価の順で優先します。適用開始日ごとに履歴を残します。
+          原価の入力は初回と変更時だけです。SKU → TシャツBody → カテゴリ標準原価の順で優先し、適用開始日ごとに履歴を残します。新しい売上は会計時点の原価を明細へ固定保存するため、あとから原価を変更しても過去の利益は変わりません。
         </div>
 
 
@@ -2743,6 +2743,102 @@ async function renderMorePage(sequence) {
               }
             ).join("")}
           </div>
+
+          <details
+            style="
+              margin-top:12px;
+              padding-top:10px;
+              border-top:1px solid #ecece7;
+            "
+          >
+            <summary
+              style="
+                cursor:pointer;
+                font-weight:700;
+                padding:6px 0;
+              "
+            >
+              Body原価履歴を見る
+            </summary>
+
+            <div
+              style="
+                margin-top:8px;
+              "
+            >
+              ${tshirtOptions.bodies.map(
+                body => {
+                  const rows =
+                    tshirtBodyCostHistories[
+                      body.id
+                    ] || [];
+
+                  if (!rows.length) {
+                    return "";
+                  }
+
+                  return `
+                    <div
+                      style="
+                        margin-bottom:14px;
+                      "
+                    >
+                      <div
+                        style="
+                          font-weight:800;
+                          margin-bottom:4px;
+                        "
+                      >
+                        ${escapeHtml(
+                          body.name
+                        )}
+                      </div>
+
+                      ${rows.slice(
+                        0,
+                        8
+                      ).map(
+                        row => `
+                          <div class="list-row">
+                            <span>
+                              ${escapeHtml(
+                                row.effectiveFrom
+                              )}
+                              ${
+                                row.note
+                                  ? `
+                                    <span
+                                      class="muted"
+                                      style="
+                                        display:block;
+                                        font-size:11px;
+                                        margin-top:2px;
+                                      "
+                                    >
+                                      ${escapeHtml(
+                                        row.note
+                                      )}
+                                    </span>
+                                  `
+                                  : ""
+                              }
+                            </span>
+
+                            <strong>
+                              ${formatMoney(
+                                row.amountJPY,
+                                "JPY"
+                              )}
+                            </strong>
+                          </div>
+                        `
+                      ).join("")}
+                    </div>
+                  `;
+                }
+              ).join("")}
+            </div>
+          </details>
         </details>
 
 
@@ -9230,6 +9326,17 @@ async function renderSessions(
                     >
                       <div class="card-title">
                         利益
+                      </div>
+
+                      <div
+                        class="muted"
+                        style="
+                          margin:4px 0 8px;
+                          font-size:12px;
+                          line-height:1.45;
+                        "
+                      >
+                        新しい売上は会計時の原価を固定保存します。原価マスターを後から変更しても、その売上の原価は変わりません。
                       </div>
 
                       <div class="list-row">
