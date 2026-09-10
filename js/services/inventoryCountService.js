@@ -381,9 +381,27 @@ export async function saveEventOpeningInventory({
     );
   }
 
+  const sessionData =
+    snapshot.data() || {};
+
+  if (
+    sessionData?.status !==
+    "open"
+  ) {
+    const error =
+      new Error(
+        "終了済みのイベントでは開始在庫を変更できません。"
+      );
+
+    error.code =
+      "session-not-open";
+
+    throw error;
+  }
+
   const current =
     normalizeCount(
-      snapshot.data()
+      sessionData
         ?.inventoryCount
     );
 
@@ -512,9 +530,27 @@ export async function saveEventClosingInventory({
     );
   }
 
+  const sessionData =
+    snapshot.data() || {};
+
+  if (
+    sessionData?.status !==
+    "open"
+  ) {
+    const error =
+      new Error(
+        "終了済みのイベントでは終了在庫を変更できません。"
+      );
+
+    error.code =
+      "session-not-open";
+
+    throw error;
+  }
+
   const current =
     normalizeCount(
-      snapshot.data()
+      sessionData
         ?.inventoryCount
     );
 
