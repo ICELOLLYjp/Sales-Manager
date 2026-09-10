@@ -6,7 +6,7 @@ import { accessoryAdapter } from "./inventoryAdapters/accessoryAdapter.js";
 import { loadTshirtProductVariants, syncTshirtCurrentStockRows } from "./services/catalogService.js";
 import { listAllProductVariants, registerTshirtVariant, registerGeneralProduct, syncAccessoryCatalogRows } from "./services/productAdminService.js";
 import { CATEGORY_TEMPLATES, getCategoryTemplate } from "./data/categoryTemplates.js";
-import { loadPosPriceConfig, savePosPriceConfig, QUICK_PRICE_CURRENCIES } from "./services/priceBookService.js?v=20260910-multiset-3";
+import { loadPosPriceConfig, savePosPriceConfig, QUICK_PRICE_CURRENCIES } from "./services/priceBookService.js?v=20260911-bodyprices-1";
 import { listSalesSessions, createEventSession, updateEventSession, updateEventExpenses, SESSION_CURRENCIES } from "./services/sessionService.js";
 import { commitQuickSale, voidSaleTransaction } from "./services/transactionService.js?v=20260911-event-stock-1";
 import { listSessionTransactions } from "./services/salesHistoryService.js?v=20260910-setdiscount-2";
@@ -175,6 +175,80 @@ const POS_CATEGORY_LABELS = {
   art_print: "アートプリント"
 };
 
+
+const TSHIRT_PRICE_BODY_ORDER = [
+  {
+    id: "Vintage",
+    label: "Pigment T Shirt"
+  },
+  {
+    id: "Organic",
+    label: "Organic Cotton T Shirt"
+  },
+  {
+    id: "MIJ",
+    label: "Made in Japan T Shirt"
+  }
+];
+
+function tshirtBodyPriceKey(
+  value
+) {
+  const normalized =
+    String(
+      value || ""
+    )
+      .trim()
+      .toLocaleLowerCase();
+
+  if (
+    normalized === "vintage" ||
+    normalized.includes(
+      "pigment"
+    )
+  ) {
+    return "Vintage";
+  }
+
+  if (
+    normalized === "organic" ||
+    normalized.includes(
+      "organic"
+    )
+  ) {
+    return "Organic";
+  }
+
+  if (
+    normalized === "mij" ||
+    normalized.includes(
+      "made in japan"
+    ) ||
+    normalized.includes(
+      "japan"
+    )
+  ) {
+    return "MIJ";
+  }
+
+  return "";
+}
+
+function tshirtBodyLabel(
+  bodyId
+) {
+  return (
+    TSHIRT_PRICE_BODY_ORDER
+      .find(
+        item =>
+          item.id === bodyId
+      )
+      ?.label ||
+    bodyId ||
+    "Tシャツ"
+  );
+}
+
 let posCurrency =
   localStorage.getItem(
     "icelolly-sales-pos-currency"
@@ -182,6 +256,8 @@ let posCurrency =
 
 let posPriceBook = {};
 let posSetOfferBook = {};
+let posTshirtBodyPriceBook = {};
+let posTshirtBodySetOfferBook = {};
 let posPriceBookLoaded = false;
 let posCart = new Map();
 let posOrderDiscount = 0;
@@ -9891,6 +9967,183 @@ function posPrice(
   );
 }
 
+
+function posTshirtBodyPrice(
+  bodyId
+) {
+  return Number(
+    posTshirtBodyPriceBook
+      ?.[bodyId]
+      ?.[posCurrency] ||
+    0
+  );
+}
+
+function posTshirtBodySetOfferRows(
+  bodyId
+) {
+  const raw =
+    posTshirtBodySetOfferBook
+      ?.[bodyId]
+      ?.[posCurrency];
+
+  const source =
+    Array.isArray(raw)
+      ? raw
+      : (
+          raw &&
+          typeof raw === "object"
+        )
+        ? [raw]
+        : [];
+
+  return source.map(
+    offer => ({
+      quantity:
+        Math.max(
+          0,
+          Math.floor(
+            Number(
+              offer?.quantity ||
+              0
+            )
+          )
+        ),
+
+      price:
+        Math.max(
+          0,
+          Number(
+            offer?.price ||
+            0
+          )
+        )
+    })
+  );
+}
+
+function posTshirtBodySetOffers(
+  bodyId
+) {
+  return posTshirtBodySetOfferRows(
+    bodyId
+  )
+    .filter(
+      offer =>
+        offer.quantity >= 2 &&
+        offer.price > 0
+    )
+    .sort(
+      (a, b) =>
+        a.quantity -
+        b.quantity ||
+        a.price -
+        b.price
+    );
+}
+
+function posSetOffersForCartLine(
+  line
+) {
+  const bodyId =
+    line?.item
+      ?.tshirtBodyKey ||
+    "";
+
+  if (
+    line?.category ===
+      "tshirt" &&
+    bodyId
+  ) {
+    return posTshirtBodySetOffers(
+      bodyId
+    );
+  }
+
+  return posSetOffers(
+    line?.category
+  );
+}
+
+function quickPosItems() {
+  const items = [];
+
+  POS_CATEGORY_ORDER.forEach(
+    category => {
+      if (
+        category !==
+        "tshirt"
+      ) {
+        items.push({
+          key:
+            category,
+          category,
+          bodyId:
+            "",
+          label:
+            POS_CATEGORY_LABELS[
+              category
+            ]
+        });
+
+        return;
+      }
+
+      TSHIRT_PRICE_BODY_ORDER
+        .forEach(
+          body => {
+            items.push({
+              key:
+                `tshirt:${body.id}`,
+              category:
+                "tshirt",
+              bodyId:
+                body.id,
+              label:
+                body.label
+            });
+          }
+        );
+    }
+  );
+
+  return items;
+}
+
+function quickPosItemPrice(
+  item
+) {
+  if (
+    item?.category ===
+      "tshirt"
+  ) {
+    return posTshirtBodyPrice(
+      item.bodyId
+    );
+  }
+
+  return posPrice(
+    item?.category
+  );
+}
+
+function quickPosItemSetOffers(
+  item
+) {
+  if (
+    item?.category ===
+      "tshirt"
+  ) {
+    return posTshirtBodySetOffers(
+      item.bodyId
+    );
+  }
+
+  return posSetOffers(
+    item?.category
+  );
+}
+
 function posSetOfferRows(
   category
 ) {
@@ -10250,6 +10503,97 @@ function capturePosPriceSettingsFromDom() {
           );
       }
     );
+
+
+  document
+    .querySelectorAll(
+      ".posTshirtBodyPriceInput"
+    )
+    .forEach(
+      input => {
+        const bodyId =
+          input.dataset.bodyId;
+
+        if (!bodyId) {
+          return;
+        }
+
+        if (
+          !posTshirtBodyPriceBook[
+            bodyId
+          ]
+        ) {
+          posTshirtBodyPriceBook[
+            bodyId
+          ] = {};
+        }
+
+        posTshirtBodyPriceBook[
+          bodyId
+        ][
+          posCurrency
+        ] =
+          Math.max(
+            0,
+            Number(
+              input.value || 0
+            )
+          );
+      }
+    );
+
+  TSHIRT_PRICE_BODY_ORDER
+    .forEach(
+      body => {
+        const rows =
+          Array.from(
+            document.querySelectorAll(
+              `.posTshirtBodySetOfferRow[data-body-id="${body.id}"]`
+            )
+          );
+
+        if (
+          !posTshirtBodySetOfferBook[
+            body.id
+          ]
+        ) {
+          posTshirtBodySetOfferBook[
+            body.id
+          ] = {};
+        }
+
+        posTshirtBodySetOfferBook[
+          body.id
+        ][
+          posCurrency
+        ] =
+          rows.map(
+            row => ({
+              quantity:
+                Math.max(
+                  0,
+                  Math.floor(
+                    Number(
+                      row.querySelector(
+                        ".posTshirtBodySetQuantityInput"
+                      )?.value || 0
+                    )
+                  )
+                ),
+
+              price:
+                Math.max(
+                  0,
+                  Number(
+                    row.querySelector(
+                      ".posTshirtBodySetPriceInput"
+                    )?.value || 0
+                  )
+                )
+            })
+          );
+      }
+    );
 }
 
 function posCartTotals() {
@@ -10359,8 +10703,8 @@ function posCartTotals() {
           ?.unitPrice || 0;
 
       const offers =
-        posSetOffers(
-          category
+        posSetOffersForCartLine(
+          lines[0]
         );
 
       if (
@@ -10633,14 +10977,30 @@ function posCartTotals() {
 }
 
 function addQuickItem(
-  category
+  category,
+  tshirtBodyKey = ""
 ) {
   invalidatePendingCheckout();
 
+  const isTshirt =
+    category ===
+    "tshirt";
+
+  const cleanBodyKey =
+    isTshirt
+      ? tshirtBodyPriceKey(
+          tshirtBodyKey
+        )
+      : "";
+
   const price =
-    posPrice(
-      category
-    );
+    isTshirt
+      ? posTshirtBodyPrice(
+          cleanBodyKey
+        )
+      : posPrice(
+          category
+        );
 
   if (
     price <= 0
@@ -10648,31 +11008,49 @@ function addQuickItem(
     return false;
   }
 
+  const key =
+    isTshirt
+      ? `tshirt:${cleanBodyKey}`
+      : category;
+
   const existing =
     posCart.get(
-      category
+      key
     );
 
   if (existing) {
     existing.quantity += 1;
   } else {
     posCart.set(
-      category,
+      key,
       {
-        key:
-          category,
+        key,
         category,
+
+        tshirtBodyKey:
+          cleanBodyKey,
+
         label:
-          POS_CATEGORY_LABELS[
-            category
-          ] ||
-          category,
+          isTshirt
+            ? tshirtBodyLabel(
+                cleanBodyKey
+              )
+            : (
+                POS_CATEGORY_LABELS[
+                  category
+                ] ||
+                category
+              ),
+
         quantity:
           1,
+
         unitPrice:
           price,
+
         manualDiscount:
           0,
+
         trackingMode:
           "quick"
       }
@@ -10820,6 +11198,27 @@ function skuSalePrice(
       pinkoiPrice > 0
     ) {
       return pinkoiPrice;
+    }
+  }
+
+  if (
+    row?.category ===
+    "tshirt"
+  ) {
+    const bodyId =
+      tshirtBodyPriceKey(
+        row?.body
+      );
+
+    const bodyPrice =
+      posTshirtBodyPrice(
+        bodyId
+      );
+
+    if (
+      bodyPrice > 0
+    ) {
+      return bodyPrice;
     }
   }
 
@@ -11044,6 +11443,14 @@ function addSkuItem(
       category:
         row.category,
 
+      tshirtBodyKey:
+        row.category ===
+          "tshirt"
+          ? tshirtBodyPriceKey(
+              row.body
+            )
+          : "",
+
       label:
         skuDisplayLabel(
           row
@@ -11116,6 +11523,14 @@ async function renderPos(
 
       posSetOfferBook =
         priceConfig.setOffers;
+
+      posTshirtBodyPriceBook =
+        priceConfig.bodyPrices ||
+        {};
+
+      posTshirtBodySetOfferBook =
+        priceConfig.bodySetOffers ||
+        {};
 
       posPriceBookLoaded =
         true;
@@ -11805,9 +12220,29 @@ async function renderPos(
             class="muted"
             style="margin-bottom:12px;"
           >
-            通常価格に加えて、カテゴリごとに「何点でいくら」のセット価格を設定できます。iPhoneではこの「価格設定」をタップして開閉できます。
+            TシャツはBodyごとに価格を設定できます。その他の商品はカテゴリごとに通常価格とセット価格を設定します。iPhoneではこの「価格設定」をタップして開閉できます。
           </div>
 
+
+          ${
+            posCurrency ===
+            "SGD"
+              ? `
+                <button
+                  id="applyCurrentSgdPrices"
+                  type="button"
+                  class="button button-secondary"
+                  style="
+                    width:100%;
+                    margin-bottom:12px;
+                    min-height:44px;
+                  "
+                >
+                  今回のSGD価格を入力
+                </button>
+              `
+              : ""
+          }
 
           <div
             style="
@@ -11817,6 +12252,224 @@ async function renderPos(
           >
             ${POS_CATEGORY_ORDER.map(
               category => {
+                if (
+                  category ===
+                  "tshirt"
+                ) {
+                  return `
+                    <div
+                      style="
+                        padding:12px 0;
+                        border-bottom:1px solid #ecece7;
+                      "
+                    >
+                      <div
+                        style="
+                          font-weight:800;
+                          margin-bottom:10px;
+                        "
+                      >
+                        Tシャツ（Body別）
+                      </div>
+
+                      ${TSHIRT_PRICE_BODY_ORDER.map(
+                        body => {
+                          const bodyOffers =
+                            posTshirtBodySetOfferRows(
+                              body.id
+                            );
+
+                          const displayBodyOffers =
+                            bodyOffers.length
+                              ? bodyOffers
+                              : [
+                                  {
+                                    quantity: 0,
+                                    price: 0
+                                  }
+                                ];
+
+                          return `
+                            <div
+                              style="
+                                padding:11px;
+                                margin-top:8px;
+                                border:1px solid #ecece7;
+                                border-radius:12px;
+                                background:#fafaf8;
+                              "
+                            >
+                              <div
+                                style="
+                                  font-weight:800;
+                                  margin-bottom:8px;
+                                "
+                              >
+                                ${escapeHtml(
+                                  body.label
+                                )}
+                              </div>
+
+                              <div
+                                style="
+                                  display:grid;
+                                  grid-template-columns:
+                                    minmax(0,1fr)
+                                    120px;
+                                  gap:8px;
+                                  align-items:center;
+                                "
+                              >
+                                <span class="muted">
+                                  通常価格
+                                </span>
+
+                                <input
+                                  class="posTshirtBodyPriceInput"
+                                  data-body-id="${body.id}"
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  inputmode="decimal"
+                                  value="${
+                                    posTshirtBodyPrice(
+                                      body.id
+                                    ) || ""
+                                  }"
+                                  placeholder="0"
+                                  style="
+                                    width:100%;
+                                    min-height:42px;
+                                    padding:0 10px;
+                                    border:1px solid #deded9;
+                                    border-radius:10px;
+                                    text-align:right;
+                                  "
+                                >
+                              </div>
+
+                              <div
+                                style="
+                                  margin-top:9px;
+                                "
+                              >
+                                <div
+                                  class="muted"
+                                  style="
+                                    font-size:12px;
+                                    margin-bottom:5px;
+                                  "
+                                >
+                                  セット価格
+                                </div>
+
+                                ${displayBodyOffers.map(
+                                  (
+                                    offer,
+                                    index
+                                  ) => `
+                                    <div
+                                      class="posTshirtBodySetOfferRow"
+                                      data-body-id="${body.id}"
+                                      data-index="${index}"
+                                      style="
+                                        display:grid;
+                                        grid-template-columns:
+                                          68px
+                                          minmax(0,1fr)
+                                          52px;
+                                        gap:7px;
+                                        align-items:center;
+                                        margin-top:7px;
+                                      "
+                                    >
+                                      <input
+                                        class="posTshirtBodySetQuantityInput"
+                                        type="number"
+                                        min="0"
+                                        step="1"
+                                        inputmode="numeric"
+                                        value="${
+                                          offer.quantity ||
+                                          ""
+                                        }"
+                                        placeholder="個数"
+                                        style="
+                                          width:100%;
+                                          min-height:40px;
+                                          padding:0 7px;
+                                          border:1px solid #deded9;
+                                          border-radius:9px;
+                                          text-align:center;
+                                        "
+                                      >
+
+                                      <input
+                                        class="posTshirtBodySetPriceInput"
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        inputmode="decimal"
+                                        value="${
+                                          offer.price ||
+                                          ""
+                                        }"
+                                        placeholder="セット合計"
+                                        style="
+                                          width:100%;
+                                          min-height:40px;
+                                          padding:0 8px;
+                                          border:1px solid #deded9;
+                                          border-radius:9px;
+                                          text-align:right;
+                                        "
+                                      >
+
+                                      <button
+                                        type="button"
+                                        class="posRemoveTshirtBodySetOfferButton"
+                                        data-body-id="${body.id}"
+                                        data-index="${index}"
+                                        style="
+                                          min-height:40px;
+                                          border:1px solid #deded9;
+                                          border-radius:9px;
+                                          background:#fff;
+                                          font-size:12px;
+                                          font-weight:700;
+                                        "
+                                      >
+                                        削除
+                                      </button>
+                                    </div>
+                                  `
+                                ).join("")}
+
+                                <button
+                                  type="button"
+                                  class="posAddTshirtBodySetOfferButton"
+                                  data-body-id="${body.id}"
+                                  style="
+                                    width:100%;
+                                    min-height:38px;
+                                    margin-top:8px;
+                                    border:1px solid #deded9;
+                                    border-radius:9px;
+                                    background:#fff;
+                                    font-weight:700;
+                                  "
+                                >
+                                  ＋ セット価格を追加
+                                </button>
+                              </div>
+                            </div>
+                          `;
+                        }
+                      ).join("")}
+                    </div>
+                  `;
+                }
+
                 const rawOffers =
                   posSetOfferRows(
                     category
@@ -12067,17 +12720,20 @@ async function renderPos(
               gap:10px;
             "
           >
-            ${POS_CATEGORY_ORDER.map(
-              category => {
+            ${quickPosItems().map(
+              quickItem => {
+                const category =
+                  quickItem.category;
+
                 const price =
-                  posPrice(
-                    category
+                  quickPosItemPrice(
+                    quickItem
                   );
 
                 const cartQty =
                   posCart
                     .get(
-                      category
+                      quickItem.key
                     )
                     ?.quantity || 0;
 
@@ -12086,6 +12742,9 @@ async function renderPos(
                     type="button"
                     class="posQuickCategory"
                     data-category="${category}"
+                    data-tshirt-body="${escapeHtml(
+                      quickItem.bodyId || ""
+                    )}"
                     ${
                       price <= 0
                         ? "data-no-price=\"true\""
@@ -12138,9 +12797,7 @@ async function renderPos(
                       "
                     >
                       ${escapeHtml(
-                        POS_CATEGORY_LABELS[
-                          category
-                        ]
+                        quickItem.label
                       )}
                     </div>
 
@@ -12161,8 +12818,8 @@ async function renderPos(
                       }
 
                       ${
-                        posSetOffers(
-                          category
+                        quickPosItemSetOffers(
+                          quickItem
                         )
                           .map(
                             offer => `
@@ -13558,17 +14215,32 @@ async function renderPos(
                 const category =
                   button.dataset.category;
 
+                const tshirtBody =
+                  button.dataset.tshirtBody ||
+                  "";
+
                 const success =
                   addQuickItem(
-                    category
+                    category,
+                    tshirtBody
                   );
 
                 if (!success) {
                   posPriceSettingsOpen =
                     true;
 
+                  const priceLabel =
+                    category ===
+                    "tshirt"
+                      ? tshirtBodyLabel(
+                          tshirtBody
+                        )
+                      : POS_CATEGORY_LABELS[
+                          category
+                        ];
+
                   renderPosBody(
-                    `${POS_CATEGORY_LABELS[category]} の ${posCurrency} 価格を先に設定してください。`
+                    `${priceLabel} の ${posCurrency} 価格を先に設定してください。`
                   );
 
                   requestAnimationFrame(
@@ -13688,6 +14360,117 @@ async function renderPos(
 
       document
         .querySelectorAll(
+          ".posAddTshirtBodySetOfferButton"
+        )
+        .forEach(
+          button => {
+            button.addEventListener(
+              "click",
+              () => {
+                capturePosPriceSettingsFromDom();
+
+                const bodyId =
+                  button.dataset.bodyId;
+
+                if (
+                  !posTshirtBodySetOfferBook[
+                    bodyId
+                  ]
+                ) {
+                  posTshirtBodySetOfferBook[
+                    bodyId
+                  ] = {};
+                }
+
+                const current =
+                  posTshirtBodySetOfferRows(
+                    bodyId
+                  );
+
+                current.push({
+                  quantity: 0,
+                  price: 0
+                });
+
+                posTshirtBodySetOfferBook[
+                  bodyId
+                ][
+                  posCurrency
+                ] = current;
+
+                posPriceSettingsOpen =
+                  true;
+
+                renderPosBody();
+              }
+            );
+          }
+        );
+
+
+      document
+        .querySelectorAll(
+          ".posRemoveTshirtBodySetOfferButton"
+        )
+        .forEach(
+          button => {
+            button.addEventListener(
+              "click",
+              () => {
+                capturePosPriceSettingsFromDom();
+
+                const bodyId =
+                  button.dataset.bodyId;
+
+                const index =
+                  Math.max(
+                    0,
+                    Math.floor(
+                      Number(
+                        button.dataset.index ||
+                        0
+                      )
+                    )
+                  );
+
+                const current =
+                  posTshirtBodySetOfferRows(
+                    bodyId
+                  );
+
+                current.splice(
+                  index,
+                  1
+                );
+
+                if (
+                  !posTshirtBodySetOfferBook[
+                    bodyId
+                  ]
+                ) {
+                  posTshirtBodySetOfferBook[
+                    bodyId
+                  ] = {};
+                }
+
+                posTshirtBodySetOfferBook[
+                  bodyId
+                ][
+                  posCurrency
+                ] = current;
+
+                posPriceSettingsOpen =
+                  true;
+
+                renderPosBody();
+              }
+            );
+          }
+        );
+
+
+      document
+        .querySelectorAll(
           ".posAddSetOfferButton"
         )
         .forEach(
@@ -13799,6 +14582,218 @@ async function renderPos(
 
       document
         .querySelector(
+          "#applyCurrentSgdPrices"
+        )
+        ?.addEventListener(
+          "click",
+          () => {
+            const presetPrices = {
+              tshirt:
+                posPrice(
+                  "tshirt"
+                ),
+              pierce: 22,
+              earring: 22,
+              drop_pierce: 26,
+              drop_earring: 26,
+              sticker: 5,
+              postcard: 5,
+              art_print: 25
+            };
+
+            const presetSetOffers = {
+              tshirt:
+                posSetOfferRows(
+                  "tshirt"
+                ),
+              pierce: [
+                {
+                  quantity: 2,
+                  price: 40
+                }
+              ],
+              earring: [
+                {
+                  quantity: 2,
+                  price: 40
+                }
+              ],
+              drop_pierce: [
+                {
+                  quantity: 2,
+                  price: 48
+                }
+              ],
+              drop_earring: [
+                {
+                  quantity: 2,
+                  price: 48
+                }
+              ],
+              sticker: [
+                {
+                  quantity: 3,
+                  price: 13
+                },
+                {
+                  quantity: 5,
+                  price: 20
+                }
+              ],
+              postcard: [
+                {
+                  quantity: 3,
+                  price: 13
+                },
+                {
+                  quantity: 5,
+                  price: 20
+                }
+              ],
+              art_print: [
+                {
+                  quantity: 2,
+                  price: 45
+                }
+              ]
+            };
+
+            const presetBodyPrices = {
+              Vintage: 52,
+              Organic: 55,
+              MIJ: 72
+            };
+
+            const presetBodySetOffers = {
+              Vintage: [
+                {
+                  quantity: 2,
+                  price: 96
+                }
+              ],
+              Organic: [
+                {
+                  quantity: 2,
+                  price: 102
+                }
+              ],
+              MIJ: [
+                {
+                  quantity: 2,
+                  price: 136
+                }
+              ]
+            };
+
+            POS_CATEGORY_ORDER
+              .forEach(
+                category => {
+                  if (
+                    !posPriceBook[
+                      category
+                    ]
+                  ) {
+                    posPriceBook[
+                      category
+                    ] = {};
+                  }
+
+                  if (
+                    !posSetOfferBook[
+                      category
+                    ]
+                  ) {
+                    posSetOfferBook[
+                      category
+                    ] = {};
+                  }
+
+                  posPriceBook[
+                    category
+                  ].SGD =
+                    Number(
+                      presetPrices[
+                        category
+                      ] || 0
+                    );
+
+                  posSetOfferBook[
+                    category
+                  ].SGD =
+                    (
+                      presetSetOffers[
+                        category
+                      ] ||
+                      []
+                    ).map(
+                      offer => ({
+                        quantity:
+                          offer.quantity,
+                        price:
+                          offer.price
+                      })
+                    );
+                }
+              );
+
+            TSHIRT_PRICE_BODY_ORDER
+              .forEach(
+                body => {
+                  if (
+                    !posTshirtBodyPriceBook[
+                      body.id
+                    ]
+                  ) {
+                    posTshirtBodyPriceBook[
+                      body.id
+                    ] = {};
+                  }
+
+                  if (
+                    !posTshirtBodySetOfferBook[
+                      body.id
+                    ]
+                  ) {
+                    posTshirtBodySetOfferBook[
+                      body.id
+                    ] = {};
+                  }
+
+                  posTshirtBodyPriceBook[
+                    body.id
+                  ].SGD =
+                    presetBodyPrices[
+                      body.id
+                    ];
+
+                  posTshirtBodySetOfferBook[
+                    body.id
+                  ].SGD =
+                    presetBodySetOffers[
+                      body.id
+                    ].map(
+                      offer => ({
+                        quantity:
+                          offer.quantity,
+                        price:
+                          offer.price
+                      })
+                    );
+                }
+              );
+
+            posPriceSettingsOpen =
+              true;
+
+            renderPosBody(
+              "今回のSGD価格を入力しました。「SGD の価格を保存」で確定してください。"
+            );
+          }
+        );
+
+
+      document
+        .querySelector(
           "#savePosPrices"
         )
         ?.addEventListener(
@@ -13814,6 +14809,8 @@ async function renderPos(
 
             const prices = {};
             const setOffers = {};
+            const bodyPrices = {};
+            const bodySetOffers = {};
 
             document
               .querySelectorAll(
@@ -13878,6 +14875,66 @@ async function renderPos(
                 }
               );
 
+            document
+              .querySelectorAll(
+                ".posTshirtBodyPriceInput"
+              )
+              .forEach(
+                input => {
+                  bodyPrices[
+                    input.dataset.bodyId
+                  ] =
+                    Number(
+                      input.value ||
+                      0
+                    );
+                }
+              );
+
+            TSHIRT_PRICE_BODY_ORDER
+              .forEach(
+                body => {
+                  bodySetOffers[
+                    body.id
+                  ] =
+                    Array.from(
+                      document.querySelectorAll(
+                        `.posTshirtBodySetOfferRow[data-body-id="${body.id}"]`
+                      )
+                    )
+                      .map(
+                        row => ({
+                          quantity:
+                            Math.max(
+                              0,
+                              Math.floor(
+                                Number(
+                                  row.querySelector(
+                                    ".posTshirtBodySetQuantityInput"
+                                  )?.value || 0
+                                )
+                              )
+                            ),
+
+                          price:
+                            Math.max(
+                              0,
+                              Number(
+                                row.querySelector(
+                                  ".posTshirtBodySetPriceInput"
+                                )?.value || 0
+                              )
+                            )
+                        })
+                      )
+                      .filter(
+                        offer =>
+                          offer.quantity >= 2 &&
+                          offer.price > 0
+                      );
+                }
+              );
+
             button.disabled =
               true;
 
@@ -13888,7 +14945,9 @@ async function renderPos(
               await savePosPriceConfig(
                 posCurrency,
                 prices,
-                setOffers
+                setOffers,
+                bodyPrices,
+                bodySetOffers
               );
 
               POS_CATEGORY_ORDER
@@ -13933,6 +14992,61 @@ async function renderPos(
                       (
                         setOffers[
                           category
+                        ] ||
+                        []
+                      ).map(
+                        offer => ({
+                          quantity:
+                            offer.quantity,
+                          price:
+                            offer.price
+                        })
+                      );
+                  }
+                );
+
+              TSHIRT_PRICE_BODY_ORDER
+                .forEach(
+                  body => {
+                    if (
+                      !posTshirtBodyPriceBook[
+                        body.id
+                      ]
+                    ) {
+                      posTshirtBodyPriceBook[
+                        body.id
+                      ] = {};
+                    }
+
+                    if (
+                      !posTshirtBodySetOfferBook[
+                        body.id
+                      ]
+                    ) {
+                      posTshirtBodySetOfferBook[
+                        body.id
+                      ] = {};
+                    }
+
+                    posTshirtBodyPriceBook[
+                      body.id
+                    ][
+                      posCurrency
+                    ] =
+                      Number(
+                        bodyPrices[
+                          body.id
+                        ] || 0
+                      );
+
+                    posTshirtBodySetOfferBook[
+                      body.id
+                    ][
+                      posCurrency
+                    ] =
+                      (
+                        bodySetOffers[
+                          body.id
                         ] ||
                         []
                       ).map(
