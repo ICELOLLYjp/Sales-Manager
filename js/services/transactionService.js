@@ -58,6 +58,11 @@ function normalizeItems(items) {
         safeNumber(item?.unitPrice)
       );
 
+      const variantId =
+        String(
+          item?.variantId || ""
+        ).trim() || null;
+
       return {
         lineId:
           String(
@@ -85,13 +90,14 @@ function normalizeItems(items) {
           quantity * unitPrice,
 
         trackingMode:
-          String(
-            item?.trackingMode ||
-            "quick"
-          ),
+          variantId
+            ? "sku"
+            : String(
+                item?.trackingMode ||
+                "quick"
+              ),
 
-        variantId:
-          item?.variantId || null,
+        variantId,
 
         inventoryKey:
           item?.inventoryKey || null
@@ -131,6 +137,96 @@ function fingerprintFor({
   });
 }
 
+function parseTshirtInventoryKey(value) {
+  const text = String(value || "");
+
+  if (!text.startsWith("tshirt:")) {
+    return null;
+  }
+
+  const parts =
+    text
+      .slice(7)
+      .split("|")
+      .map(
+        part =>
+          decodeURIComponent(part)
+      );
+
+  if (parts.length !== 4) {
+    return null;
+  }
+
+  return {
+    bodyId: parts[0],
+    designId: parts[1],
+    colorId: parts[2],
+    sizeId: parts[3]
+  };
+}
+
+function parseAccessoryInventoryKey(value) {
+  const text = String(value || "");
+
+  if (!text.startsWith("accessory:")) {
+    return null;
+  }
+
+  const parts =
+    text
+      .slice(10)
+      .split("|")
+      .map(
+        part =>
+          decodeURIComponent(part)
+      );
+
+  if (parts.length !== 2) {
+    return null;
+  }
+
+  return {
+    sourceId: parts[0],
+    stockField: parts[1]
+  };
+}
+
+function readTshirtQty(
+  master,
+  target
+) {
+  return Math.max(
+    0,
+    Number(
+      master
+        ?.inventory_v2
+        ?.[target.bodyId]
+        ?.[target.designId]
+        ?.[target.colorId]
+        ?.[target.sizeId]
+        ?.qty || 0
+    )
+  );
+}
+
+function saleMode(items) {
+  const skuCount =
+    items.filter(
+      item =>
+        item.variantId
+    ).length;
+
+  if (skuCount === 0) {
+    return "quick";
+  }
+
+  if (skuCount === items.length) {
+    return "sku";
+  }
+
+  return "mixed";
+}
+
 export async function commitQuickSale({
   transactionId = null,
   sessionId,
@@ -152,9 +248,7 @@ export async function commitQuickSale({
   }
 
   const normalizedItems =
-    normalizeItems(
-      items
-    );
+    normalizeItems(items);
 
   if (!normalizedItems.length) {
     throw new Error(
@@ -182,9 +276,7 @@ export async function commitQuickSale({
     Math.max(
       0,
       Math.min(
-        safeNumber(
-          orderDiscount
-        ),
+        safeNumber(orderDiscount),
         subtotal
       )
     );
@@ -206,7 +298,8 @@ export async function commitQuickSale({
     doc,
     runTransaction,
     increment,
-    serverTimestamp
+    serverTimestamp,
+    FieldPath
   } = await firestoreModule();
 
   const sessionRef =
@@ -230,6 +323,20 @@ export async function commitQuickSale({
       id
     );
 
+  const tshirtMasterRef =
+    doc(
+      db,
+      "tshirtStock",
+      "master"
+    );
+
+  const accessorySharedRef =
+    doc(
+      db,
+      "accessoryStock",
+      "shared"
+    );
+
   const result =
     await runTransaction(
       db,
@@ -244,9 +351,7 @@ export async function commitQuickSale({
             sessionRef
           );
 
-        if (
-          !sessionSnapshot.exists()
-        ) {
+        if (!sessionSnapshot.exists()) {
           throw new Error(
             "販売セッションが見つかりません。"
           );
@@ -280,9 +385,7 @@ export async function commitQuickSale({
             discount
           });
 
-        if (
-          lockSnapshot.exists()
-        ) {
+        if (lockSnapshot.exists()) {
           const existing =
             lockSnapshot.data();
 
@@ -303,10 +406,8 @@ export async function commitQuickSale({
           }
 
           return {
-            transactionId:
-              id,
-            duplicate:
-              true,
+            transactionId: id,
+            duplicate: true,
             currency,
             subtotal,
             discount,
@@ -315,18 +416,352 @@ export async function commitQuickSale({
           };
         }
 
+        /*
+         * All reads happen before writes.
+         * SKU metadata is re-read from Firestore rather than trusting the client.
+         */
+        const variantSnapshots =
+          new Map();
+
+        for (const item of normalizedItems) {
+          if (!item.variantId) {
+            continue;
+          }
+
+          const variantRef =
+            doc(
+              db,
+              "productVariants",
+              item.variantId
+            );
+
+          const snapshot =
+            await transaction.get(
+              variantRef
+            );
+
+          if (!snapshot.exists()) {
+            throw new Error(
+              `${item.label} のSKU情報が見つかりません。`
+            );
+          }
+
+          variantSnapshots.set(
+            item.variantId,
+            snapshot.data()
+          );
+        }
+
+        let needsTshirt =
+          false;
+
+        let needsAccessory =
+          false;
+
+        const resolvedItems =
+          normalizedItems.map(
+            item => {
+              if (!item.variantId) {
+                return {
+                  ...item,
+                  inventorySource:
+                    null,
+                  inventoryKey:
+                    null
+                };
+              }
+
+              const variant =
+                variantSnapshots.get(
+                  item.variantId
+                ) || {};
+
+              if (
+                variant.active ===
+                false
+              ) {
+                throw new Error(
+                  `${item.label} は現在販売停止中です。`
+                );
+              }
+
+              const inventorySource =
+                variant.inventorySource ||
+                null;
+
+              const inventoryKey =
+                variant.inventoryKey ||
+                null;
+
+              if (
+                inventorySource ===
+                "tshirt"
+              ) {
+                needsTshirt =
+                  true;
+              }
+
+              if (
+                inventorySource ===
+                "accessory"
+              ) {
+                needsAccessory =
+                  true;
+              }
+
+              return {
+                ...item,
+
+                category:
+                  variant.category ||
+                  item.category,
+
+                label:
+                  item.label ||
+                  variant.displayName ||
+                  variant.design ||
+                  item.category,
+
+                inventorySource,
+
+                inventoryKey,
+
+                bodyId:
+                  variant.bodyId ||
+                  null,
+
+                designId:
+                  variant.designId ||
+                  null,
+
+                colorId:
+                  variant.colorId ||
+                  null,
+
+                sizeId:
+                  variant.sizeId ||
+                  null
+              };
+            }
+          );
+
+        const tshirtSnapshot =
+          needsTshirt
+            ? await transaction.get(
+                tshirtMasterRef
+              )
+            : null;
+
+        const accessorySnapshot =
+          needsAccessory
+            ? await transaction.get(
+                accessorySharedRef
+              )
+            : null;
+
+        if (
+          needsTshirt &&
+          !tshirtSnapshot?.exists()
+        ) {
+          throw new Error(
+            "Tシャツ実在庫を確認できません。"
+          );
+        }
+
+        if (
+          needsAccessory &&
+          !accessorySnapshot?.exists()
+        ) {
+          throw new Error(
+            "アクセサリー実在庫を確認できません。"
+          );
+        }
+
+        const tshirtMaster =
+          tshirtSnapshot?.data() ||
+          null;
+
+        const accessoryShared =
+          accessorySnapshot?.data() ||
+          null;
+
+        const tshirtTargets =
+          [];
+
+        let accessoryDesigns =
+          Array.isArray(
+            accessoryShared?.designs
+          )
+            ? accessoryShared.designs.map(
+                item => ({
+                  ...item
+                })
+              )
+            : [];
+
+        const finalizedItems =
+          resolvedItems.map(
+            item => {
+              if (!item.variantId) {
+                return {
+                  ...item,
+                  inventoryApplied:
+                    false,
+                  reconciliationStatus:
+                    "pending_allocation"
+                };
+              }
+
+              if (
+                item.inventorySource ===
+                "tshirt"
+              ) {
+                const target =
+                  parseTshirtInventoryKey(
+                    item.inventoryKey
+                  );
+
+                if (!target) {
+                  throw new Error(
+                    `${item.label} のTシャツ在庫キーが不正です。`
+                  );
+                }
+
+                const currentQty =
+                  readTshirtQty(
+                    tshirtMaster,
+                    target
+                  );
+
+                if (
+                  currentQty <
+                  item.quantity
+                ) {
+                  const error =
+                    new Error(
+                      `${item.label} の在庫が不足しています。現在 ${currentQty} 点です。`
+                    );
+
+                  error.code =
+                    "stock-insufficient";
+
+                  throw error;
+                }
+
+                tshirtTargets.push({
+                  target,
+                  nextQty:
+                    currentQty -
+                    item.quantity
+                });
+
+                return {
+                  ...item,
+                  inventoryApplied:
+                    true,
+                  reconciliationStatus:
+                    "reconciled"
+                };
+              }
+
+              if (
+                item.inventorySource ===
+                "accessory"
+              ) {
+                const target =
+                  parseAccessoryInventoryKey(
+                    item.inventoryKey
+                  );
+
+                if (!target) {
+                  throw new Error(
+                    `${item.label} のアクセサリー在庫キーが不正です。`
+                  );
+                }
+
+                const index =
+                  accessoryDesigns.findIndex(
+                    design =>
+                      String(
+                        design?.id || ""
+                      ) ===
+                      target.sourceId
+                  );
+
+                if (index < 0) {
+                  throw new Error(
+                    `${item.label} のアクセサリー在庫が見つかりません。`
+                  );
+                }
+
+                const currentQty =
+                  Math.max(
+                    0,
+                    Number(
+                      accessoryDesigns[
+                        index
+                      ]?.[
+                        target.stockField
+                      ] || 0
+                    )
+                  );
+
+                if (
+                  currentQty <
+                  item.quantity
+                ) {
+                  const error =
+                    new Error(
+                      `${item.label} の在庫が不足しています。現在 ${currentQty} 点です。`
+                    );
+
+                  error.code =
+                    "stock-insufficient";
+
+                  throw error;
+                }
+
+                accessoryDesigns[
+                  index
+                ][
+                  target.stockField
+                ] =
+                  currentQty -
+                  item.quantity;
+
+                return {
+                  ...item,
+                  inventoryApplied:
+                    true,
+                  reconciliationStatus:
+                    "reconciled"
+                };
+              }
+
+              /*
+               * A SKU may exist but not yet have a stock adapter.
+               * In that case the sale is saved, but stock is left for reconciliation.
+               */
+              return {
+                ...item,
+                inventoryApplied:
+                  false,
+                reconciliationStatus:
+                  "pending_allocation"
+              };
+            }
+          );
+
         const fxRateToJPY =
           currency === "JPY"
             ? 1
             : (
                 Number(
-                  session
-                    ?.fxRateToJPY ||
+                  session?.fxRateToJPY ||
                   0
                 ) > 0
                   ? Number(
-                      session
-                        .fxRateToJPY
+                      session.fxRateToJPY
                     )
                   : null
               );
@@ -348,6 +783,80 @@ export async function commitQuickSale({
             ? netSales *
               fxRateToJPY
             : null;
+
+        const appliedCount =
+          finalizedItems.filter(
+            item =>
+              item.inventoryApplied
+          ).length;
+
+        const pendingCount =
+          finalizedItems.length -
+          appliedCount;
+
+        const mode =
+          saleMode(
+            finalizedItems
+          );
+
+        const reconciliationStatus =
+          pendingCount === 0
+            ? "reconciled"
+            : (
+                appliedCount > 0
+                  ? "partially_allocated"
+                  : "pending_allocation"
+              );
+
+        /*
+         * Writes start here.
+         */
+        if (tshirtTargets.length) {
+          const args = [
+            tshirtMasterRef
+          ];
+
+          tshirtTargets.forEach(
+            entry => {
+              args.push(
+                new FieldPath(
+                  "inventory_v2",
+                  entry.target.bodyId,
+                  entry.target.designId,
+                  entry.target.colorId,
+                  entry.target.sizeId,
+                  "qty"
+                )
+              );
+
+              args.push(
+                entry.nextQty
+              );
+            }
+          );
+
+          args.push(
+            "updatedAt",
+            serverTimestamp()
+          );
+
+          transaction.update(
+            ...args
+          );
+        }
+
+        if (needsAccessory) {
+          transaction.update(
+            accessorySharedRef,
+            {
+              designs:
+                accessoryDesigns,
+
+              updatedAt:
+                serverTimestamp()
+            }
+          );
+        }
 
         const transactionData = {
           transactionId:
@@ -372,8 +881,7 @@ export async function commitQuickSale({
             session?.city ||
             "",
 
-          mode:
-            "quick",
+          mode,
 
           currency,
 
@@ -403,27 +911,27 @@ export async function commitQuickSale({
           itemCount,
 
           lineCount:
-            normalizedItems.length,
+            finalizedItems.length,
 
           items:
-            normalizedItems.map(
-              item => ({
-                ...item,
-                inventoryApplied:
-                  false,
-                reconciliationStatus:
-                  "pending_allocation"
-              })
-            ),
+            finalizedItems,
 
           inventoryMode:
-            "unallocated_quick",
+            reconciliationStatus ===
+              "reconciled"
+              ? "allocated"
+              : (
+                  reconciliationStatus ===
+                    "partially_allocated"
+                    ? "mixed"
+                    : "unallocated_quick"
+                ),
 
           inventoryApplied:
-            false,
+            reconciliationStatus ===
+            "reconciled",
 
-          reconciliationStatus:
-            "pending_allocation",
+          reconciliationStatus,
 
           status:
             "completed",
@@ -461,7 +969,7 @@ export async function commitQuickSale({
           }
         );
 
-        normalizedItems.forEach(
+        finalizedItems.forEach(
           (item, index) => {
             const movementRef =
               doc(
@@ -501,10 +1009,12 @@ export async function commitQuickSale({
                   -item.quantity,
 
                 appliedInventoryDelta:
-                  0,
+                  item.inventoryApplied
+                    ? -item.quantity
+                    : 0,
 
                 inventoryApplied:
-                  false,
+                  item.inventoryApplied,
 
                 trackingMode:
                   item.trackingMode,
@@ -517,8 +1027,14 @@ export async function commitQuickSale({
                   item.inventoryKey ||
                   null,
 
+                inventorySource:
+                  item.inventorySource ||
+                  null,
+
                 status:
-                  "pending_allocation",
+                  item.inventoryApplied
+                    ? "applied"
+                    : "pending_allocation",
 
                 createdAt:
                   serverTimestamp()
@@ -529,29 +1045,19 @@ export async function commitQuickSale({
 
         const sessionUpdate = {
           "salesSummary.grossSales":
-            increment(
-              subtotal
-            ),
+            increment(subtotal),
 
           "salesSummary.discount":
-            increment(
-              discount
-            ),
+            increment(discount),
 
           "salesSummary.netSales":
-            increment(
-              netSales
-            ),
+            increment(netSales),
 
           "salesSummary.transactionCount":
-            increment(
-              1
-            ),
+            increment(1),
 
           "salesSummary.itemCount":
-            increment(
-              itemCount
-            ),
+            increment(itemCount),
 
           lastTransactionAt:
             serverTimestamp(),
@@ -599,7 +1105,9 @@ export async function commitQuickSale({
           netSales,
           itemCount,
           fxRateToJPY,
-          netSalesJPY
+          netSalesJPY,
+          mode,
+          reconciliationStatus
         };
       }
     );
