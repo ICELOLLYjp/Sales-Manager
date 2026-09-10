@@ -12,6 +12,34 @@ const MATCHED = "matched";
 const AMBIGUOUS = "ambiguous";
 const UNMATCHED = "unmatched";
 
+/*
+ * Compatibility aliases are only for existing legacy data.
+ * New Pinkoi designs should use pinkoi_designs.masterDesignId.
+ */
+const LEGACY_DESIGN_ALIASES = new Map([
+  [
+    "gullsandlemons",
+    [
+      "Gull",
+      "Gulls and Lemons"
+    ]
+  ],
+  [
+    "spaceodysseyray",
+    [
+      "Rays",
+      "Space Odyssey RAY"
+    ]
+  ],
+  [
+    "squidsnight",
+    [
+      "Squids",
+      "Squids Night"
+    ]
+  ]
+]);
+
 async function firestoreModule() {
   return await import(
     "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js"
@@ -112,42 +140,192 @@ function diagnoseMasterMatch({
   sourceId,
   sourceItem,
   masterMap,
-  candidateIndex
+  candidateIndex,
+  extraCandidates = []
 }) {
-  const candidates = new Set();
-
-  candidateValues(sourceItem, sourceId).forEach(value => {
-    const key = normalizeValue(value);
-    if (!key) return;
-
-    const ids = candidateIndex.get(key);
-    if (!ids) return;
-
-    ids.forEach(id => candidates.add(id));
-  });
-
-  if (candidates.size === 1) {
-    const [masterId] = Array.from(candidates);
+  if (
+    sourceId &&
+    masterMap?.[sourceId]
+  ) {
     return {
       status: MATCHED,
-      masterId,
-      candidates: [masterId]
+      masterId: sourceId,
+      candidates: [sourceId],
+      method: "id"
     };
   }
 
-  if (candidates.size > 1) {
+  const candidates = new Set();
+
+  [
+    ...candidateValues(
+      sourceItem,
+      sourceId
+    ),
+    ...extraCandidates
+  ].forEach(value => {
+    const key =
+      normalizeValue(
+        value
+      );
+
+    if (!key) {
+      return;
+    }
+
+    const ids =
+      candidateIndex.get(
+        key
+      );
+
+    if (!ids) {
+      return;
+    }
+
+    ids.forEach(
+      id =>
+        candidates.add(
+          id
+        )
+    );
+  });
+
+  if (
+    candidates.size ===
+    1
+  ) {
+    const [masterId] =
+      Array.from(
+        candidates
+      );
+
+    return {
+      status: MATCHED,
+      masterId,
+      candidates: [masterId],
+      method: "name"
+    };
+  }
+
+  if (
+    candidates.size > 1
+  ) {
     return {
       status: AMBIGUOUS,
       masterId: "",
-      candidates: Array.from(candidates).sort()
+      candidates:
+        Array.from(
+          candidates
+        ).sort(),
+      method: "name"
     };
   }
 
   return {
     status: UNMATCHED,
     masterId: "",
-    candidates: []
+    candidates: [],
+    method: "none"
   };
+}
+
+function legacyDesignCandidates(
+  sourceId,
+  sourceItem
+) {
+  const keys = new Set(
+    candidateValues(
+      sourceItem,
+      sourceId
+    )
+      .map(
+        normalizeValue
+      )
+      .filter(Boolean)
+  );
+
+  const aliases = [];
+
+  keys.forEach(
+    key => {
+      const values =
+        LEGACY_DESIGN_ALIASES.get(
+          key
+        );
+
+      if (values) {
+        aliases.push(
+          ...values
+        );
+      }
+    }
+  );
+
+  return Array.from(
+    new Set(
+      aliases
+    )
+  );
+}
+
+function diagnoseDesignMatch({
+  sourceId,
+  sourceItem,
+  masterMap,
+  candidateIndex
+}) {
+  const explicitMasterDesignId =
+    text(
+      sourceItem
+        ?.masterDesignId
+    );
+
+  if (
+    explicitMasterDesignId
+  ) {
+    if (
+      masterMap?.[
+        explicitMasterDesignId
+      ]
+    ) {
+      return {
+        status: MATCHED,
+        masterId:
+          explicitMasterDesignId,
+        candidates: [
+          explicitMasterDesignId
+        ],
+        method:
+          "masterDesignId"
+      };
+    }
+
+    /*
+     * An explicit link exists but points to a missing master.
+     * Do not silently replace it with a name match.
+     */
+    return {
+      status: UNMATCHED,
+      masterId: "",
+      candidates: [],
+      method:
+        "masterDesignId_invalid",
+      linkError:
+        "design_link_invalid"
+    };
+  }
+
+  return diagnoseMasterMatch({
+    sourceId,
+    sourceItem,
+    masterMap,
+    candidateIndex,
+    extraCandidates:
+      legacyDesignCandidates(
+        sourceId,
+        sourceItem
+      )
+  });
 }
 
 function diagnoseSizeMatch({
@@ -321,11 +499,23 @@ function buildSkuDiagnostics(inventoryRows) {
 }
 
 function reasonForMatch(field, result) {
-  if (result.status === UNMATCHED) {
+  if (
+    result?.linkError
+  ) {
+    return result.linkError;
+  }
+
+  if (
+    result.status ===
+    UNMATCHED
+  ) {
     return field;
   }
 
-  if (result.status === AMBIGUOUS) {
+  if (
+    result.status ===
+    AMBIGUOUS
+  ) {
     return `ambiguous_${field}`;
   }
 
@@ -489,7 +679,7 @@ export async function loadPinkoiTshirtCatalog() {
       candidateIndex: bodyIndex
     });
 
-    const designMatch = diagnoseMasterMatch({
+    const designMatch = diagnoseDesignMatch({
       sourceId: pinkoiDesignId,
       sourceItem: pinkoiDesign,
       masterMap: masterDesigns,
@@ -644,6 +834,14 @@ export async function loadPinkoiTshirtCatalog() {
         body: pinkoiBody,
         design: pinkoiDesign,
         color: pinkoiColor
+      },
+
+      explicitLinks: {
+        masterDesignId:
+          text(
+            pinkoiDesign
+              ?.masterDesignId
+          )
       },
 
       masterMatch: {
@@ -922,6 +1120,21 @@ export async function syncPinkoiTshirtCatalog() {
           pinkoiBodyId: row.pinkoiBodyId || "",
           pinkoiDesignId: row.pinkoiDesignId || "",
           pinkoiColorId: row.pinkoiColorId || "",
+
+          masterDesignId:
+            row.designId,
+
+          designMatchMethod:
+            (
+              catalog.items.find(
+                item =>
+                  item.variantId ===
+                  row.variantId
+              )
+                ?.masterMatch
+                ?.design
+                ?.method
+            ) || "",
 
           body: row.body,
           design: row.design,
