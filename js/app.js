@@ -7,7 +7,7 @@ import { loadTshirtProductVariants, syncTshirtCurrentStockRows } from "./service
 import { listAllProductVariants, registerTshirtVariant, registerGeneralProduct, syncAccessoryCatalogRows } from "./services/productAdminService.js";
 import { CATEGORY_TEMPLATES, getCategoryTemplate } from "./data/categoryTemplates.js";
 import { loadPosPriceConfig, savePosPriceConfig, QUICK_PRICE_CURRENCIES } from "./services/priceBookService.js?v=20260910-multiset-3";
-import { listSalesSessions, createEventSession, updateEventSession, updateEventExpenses, SESSION_CURRENCIES } from "./services/sessionService.js";
+import { listSalesSessions, createEventSession, updateEventSession, updateEventExpenses, inspectEventSessionRemoval, deleteEventSession, archiveEventSession, restoreArchivedEventSession, SESSION_CURRENCIES } from "./services/sessionService.js?v=20260910-session-lifecycle-1";
 import { commitQuickSale, voidSaleTransaction } from "./services/transactionService.js?v=20260910-setdiscount-2";
 import { listSessionTransactions } from "./services/salesHistoryService.js?v=20260910-setdiscount-2";
 import { saveCategoryCost, loadAllCategoryCostHistories, resolveCategoryUnitCost, saveTshirtBodyCost, loadTshirtBodyCostHistories, resolveBodyUnitCost, saveVariantCost, loadVariantCostHistories, calculateResolvedCogs } from "./services/costHistoryService.js";
@@ -4095,6 +4095,13 @@ async function renderSessions(
           "open"
       );
 
+    const archivedSessions =
+      sessions.filter(
+        session =>
+          session.status ===
+          "archived"
+      );
+
     view.innerHTML = `
       <h1 class="page-title">
         Sessions
@@ -4745,6 +4752,25 @@ async function renderSessions(
                         >
                           在庫確認
                         </button>
+
+                        <button
+                          type="button"
+                          class="sessionLifecycleButton"
+                          data-session-id="${escapeHtml(
+                            session.sessionId
+                          )}"
+                          style="
+                            min-height:40px;
+                            padding:0 12px;
+                            border:1px solid #deded9;
+                            border-radius:10px;
+                            background:#fff;
+                            color:#6f3f3f;
+                            font-weight:700;
+                          "
+                        >
+                          削除 / アーカイブ
+                        </button>
                       </div>
 
                     </div>
@@ -4766,6 +4792,141 @@ async function renderSessions(
         }
 
       </section>
+
+
+      ${
+        archivedSessions.length
+          ? `
+            <details
+              class="card"
+              style="
+                margin-top:14px;
+              "
+            >
+              <summary
+                style="
+                  cursor:pointer;
+                  font-weight:800;
+                  font-size:16px;
+                  padding:2px 0 8px;
+                "
+              >
+                アーカイブ済みイベント
+                (${archivedSessions.length})
+              </summary>
+
+              <div
+                class="muted"
+                style="
+                  margin:6px 0 10px;
+                  line-height:1.5;
+                "
+              >
+                売上・在庫・経費などの記録があるイベントは削除せず、ここに保存します。
+              </div>
+
+              ${archivedSessions.map(
+                session => `
+                  <div
+                    style="
+                      padding:12px 0;
+                      border-bottom:1px solid #ecece7;
+                    "
+                  >
+                    <div
+                      style="
+                        display:flex;
+                        justify-content:space-between;
+                        gap:12px;
+                        align-items:flex-start;
+                      "
+                    >
+                      <div
+                        style="
+                          min-width:0;
+                          flex:1;
+                        "
+                      >
+                        <div
+                          style="
+                            font-weight:800;
+                          "
+                        >
+                          ${escapeHtml(
+                            session.eventName
+                          )}
+                        </div>
+
+                        <div
+                          class="muted"
+                          style="
+                            margin-top:4px;
+                            line-height:1.45;
+                          "
+                        >
+                          ${escapeHtml(
+                            [
+                              session.city,
+                              session.country
+                            ]
+                              .filter(Boolean)
+                              .join(", ")
+                          )}
+
+                          <br>
+
+                          ${escapeHtml(
+                            dateText(
+                              session.startDate,
+                              session.endDate
+                            )
+                          )}
+                        </div>
+                      </div>
+
+                      <div
+                        style="
+                          display:grid;
+                          gap:7px;
+                          min-width:92px;
+                        "
+                      >
+                        <button
+                          type="button"
+                          class="sessionDetailButton button button-secondary"
+                          data-session-id="${escapeHtml(
+                            session.sessionId
+                          )}"
+                          style="
+                            min-height:40px;
+                            padding:0 12px;
+                          "
+                        >
+                          売上詳細
+                        </button>
+
+                        <button
+                          type="button"
+                          class="restoreArchivedSessionButton button button-secondary"
+                          data-session-id="${escapeHtml(
+                            session.sessionId
+                          )}"
+                          style="
+                            min-height:40px;
+                            padding:0 12px;
+                          "
+                        >
+                          復元
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                `
+              ).join("")}
+            </details>
+          `
+          : ""
+      }
 
 
       ${
@@ -7649,6 +7810,282 @@ async function renderSessions(
               render(
                 "pos"
               );
+            }
+          );
+        }
+      );
+
+
+    function clearSessionUiState(
+      sessionId
+    ) {
+      if (
+        activeSessionId ===
+        sessionId
+      ) {
+        activeSessionId =
+          "";
+
+        localStorage.removeItem(
+          "icelolly-sales-active-session"
+        );
+      }
+
+      if (
+        editingSessionId ===
+        sessionId
+      ) {
+        editingSessionId =
+          "";
+      }
+
+      if (
+        sessionDetailId ===
+        sessionId
+      ) {
+        sessionDetailId =
+          "";
+      }
+
+      if (
+        sessionInventoryCountId ===
+        sessionId
+      ) {
+        sessionInventoryCountId =
+          "";
+      }
+    }
+
+
+    function sessionRemovalReasonText(
+      inspection
+    ) {
+      const labels = {
+        sales:
+          "売上履歴",
+
+        inventory_movements:
+          "在庫移動履歴",
+
+        transaction_locks:
+          "会計処理履歴",
+
+        inventory_count:
+          "イベント在庫確認",
+
+        expenses:
+          "経費",
+
+        sales_summary:
+          "売上集計"
+      };
+
+      return (
+        inspection
+          ?.reasons ||
+        []
+      )
+        .map(
+          reason =>
+            labels[reason] ||
+            reason
+        )
+        .filter(Boolean)
+        .join("、");
+    }
+
+
+    document
+      .querySelectorAll(
+        ".sessionLifecycleButton"
+      )
+      .forEach(
+        button => {
+          button.addEventListener(
+            "click",
+            async () => {
+              const sessionId =
+                button.dataset.sessionId ||
+                "";
+
+              const session =
+                sessions.find(
+                  item =>
+                    item.sessionId ===
+                    sessionId
+                );
+
+              if (
+                !session
+              ) {
+                return;
+              }
+
+              button.disabled =
+                true;
+
+              button.textContent =
+                "確認中";
+
+              try {
+                const inspection =
+                  await inspectEventSessionRemoval(
+                    sessionId
+                  );
+
+                if (
+                  inspection.canDelete
+                ) {
+                  const confirmed =
+                    window.confirm(
+                      `「${session.eventName}」を完全に削除しますか？\n\nこのイベントには売上・在庫確認・経費などの記録がないため削除できます。\nこの操作は元に戻せません。`
+                    );
+
+                  if (
+                    !confirmed
+                  ) {
+                    button.disabled =
+                      false;
+
+                    button.textContent =
+                      "削除 / アーカイブ";
+
+                    return;
+                  }
+
+                  await deleteEventSession(
+                    sessionId
+                  );
+
+                  clearSessionUiState(
+                    sessionId
+                  );
+
+                  await renderSessions(
+                    ++renderSequence
+                  );
+
+                  return;
+                }
+
+                const reasonText =
+                  sessionRemovalReasonText(
+                    inspection
+                  );
+
+                const confirmed =
+                  window.confirm(
+                    `「${session.eventName}」には${reasonText || "保存済みデータ"}があります。\n\n関連履歴を残すため完全削除はせず、アーカイブしますか？\nアーカイブは後から復元できます。`
+                  );
+
+                if (
+                  !confirmed
+                ) {
+                  button.disabled =
+                    false;
+
+                  button.textContent =
+                    "削除 / アーカイブ";
+
+                  return;
+                }
+
+                await archiveEventSession(
+                  sessionId,
+                  {
+                    archivedByEmail:
+                      currentUser
+                        ?.email ||
+                      ""
+                  }
+                );
+
+                clearSessionUiState(
+                  sessionId
+                );
+
+                await renderSessions(
+                  ++renderSequence
+                );
+
+              } catch (error) {
+                button.disabled =
+                  false;
+
+                button.textContent =
+                  "削除 / アーカイブ";
+
+                window.alert(
+                  error.code ||
+                  error.message ||
+                  String(error)
+                );
+              }
+            }
+          );
+        }
+      );
+
+
+    document
+      .querySelectorAll(
+        ".restoreArchivedSessionButton"
+      )
+      .forEach(
+        button => {
+          button.addEventListener(
+            "click",
+            async () => {
+              const sessionId =
+                button.dataset.sessionId ||
+                "";
+
+              const session =
+                sessions.find(
+                  item =>
+                    item.sessionId ===
+                    sessionId
+                );
+
+              const confirmed =
+                window.confirm(
+                  `「${session?.eventName || "イベント"}」をアーカイブから復元しますか？`
+                );
+
+              if (
+                !confirmed
+              ) {
+                return;
+              }
+
+              button.disabled =
+                true;
+
+              button.textContent =
+                "復元中";
+
+              try {
+                await restoreArchivedEventSession(
+                  sessionId
+                );
+
+                await renderSessions(
+                  ++renderSequence
+                );
+
+              } catch (error) {
+                button.disabled =
+                  false;
+
+                button.textContent =
+                  "復元";
+
+                window.alert(
+                  error.code ||
+                  error.message ||
+                  String(error)
+                );
+              }
             }
           );
         }
