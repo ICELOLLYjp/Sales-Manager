@@ -94,6 +94,178 @@ function timestampMs(value) {
   return 0;
 }
 
+function scheduleRows(
+  rows
+) {
+  return (
+    Array.isArray(
+      rows
+    )
+      ? rows
+      : []
+  )
+    .map(
+      row => ({
+        amountJPY:
+          Number(
+            row?.amountJPY || 0
+          ),
+
+        effectiveFrom:
+          cleanDate(
+            row?.effectiveFrom
+          ),
+
+        note:
+          String(
+            row?.note || ""
+          ).trim()
+      })
+    )
+    .filter(
+      row =>
+        row.effectiveFrom &&
+        Number.isFinite(
+          row.amountJPY
+        ) &&
+        row.amountJPY >=
+          0
+    )
+    .sort(
+      (a, b) =>
+        b.effectiveFrom
+          .localeCompare(
+            a.effectiveFrom
+          )
+    );
+}
+
+
+async function cacheCategorySchedule(
+  category
+) {
+  const db =
+    await requireDb();
+
+  const {
+    doc,
+    setDoc,
+    serverTimestamp
+  } = await firestoreModule();
+
+  const rows =
+    await loadCategoryCostHistory(
+      category
+    );
+
+  await setDoc(
+    doc(
+      db,
+      "products",
+      category
+    ),
+    {
+      costSchedule:
+        scheduleRows(
+          rows
+        ),
+
+      costScheduleUpdatedAt:
+        serverTimestamp()
+    },
+    {
+      merge: true
+    }
+  );
+}
+
+
+async function cacheTshirtBodySchedules() {
+  const db =
+    await requireDb();
+
+  const {
+    doc,
+    setDoc,
+    serverTimestamp
+  } = await firestoreModule();
+
+  const histories =
+    await loadTshirtBodyCostHistories();
+
+  const schedules =
+    Object.fromEntries(
+      Object.entries(
+        histories
+      ).map(
+        ([bodyId, rows]) => [
+          bodyId,
+          scheduleRows(
+            rows
+          )
+        ]
+      )
+    );
+
+  await setDoc(
+    doc(
+      db,
+      "products",
+      "tshirt"
+    ),
+    {
+      bodyCostSchedules:
+        schedules,
+
+      bodyCostSchedulesUpdatedAt:
+        serverTimestamp()
+    },
+    {
+      merge: true
+    }
+  );
+}
+
+
+async function cacheVariantSchedule(
+  variantId
+) {
+  const db =
+    await requireDb();
+
+  const {
+    doc,
+    setDoc,
+    serverTimestamp
+  } = await firestoreModule();
+
+  const rows =
+    await loadVariantCostHistory(
+      variantId
+    );
+
+  await setDoc(
+    doc(
+      db,
+      "productVariants",
+      variantId
+    ),
+    {
+      costSchedule:
+        scheduleRows(
+          rows
+        ),
+
+      costScheduleUpdatedAt:
+        serverTimestamp()
+    },
+    {
+      merge: true
+    }
+  );
+}
+
+
 function normalizeHistoryRow(
   scope,
   key,
@@ -256,6 +428,10 @@ export async function saveCategoryCost({
         ).trim()
     }
   });
+
+  await cacheCategorySchedule(
+    category
+  );
 
   return {
     category,
@@ -430,6 +606,8 @@ export async function saveTshirtBodyCost({
         ).trim()
     }
   });
+
+  await cacheTshirtBodySchedules();
 
   return {
     bodyId:
@@ -627,6 +805,10 @@ export async function saveVariantCost({
     {
       merge: true
     }
+  );
+
+  await cacheVariantSchedule(
+    cleanVariantId
   );
 
   return {
@@ -990,15 +1172,65 @@ export function calculateResolvedCogs({
             return;
           }
 
+          const saleCostSnapshot =
+            item?.costSnapshot;
+
+          const hasSaleSnapshot =
+            saleCostSnapshot
+              ?.captured ===
+              true ||
+            item?.costSnapshotCaptured ===
+              true;
+
+          const snapshotUnitCost =
+            saleCostSnapshot
+              ?.unitCostJPY ??
+            item?.unitCostJPY;
+
+          const snapshotSource =
+            String(
+              saleCostSnapshot
+                ?.source ||
+              item?.costSource ||
+              "missing"
+            );
+
+          const snapshotCostValid =
+            snapshotUnitCost !==
+              null &&
+            snapshotUnitCost !==
+              undefined &&
+            Number.isFinite(
+              Number(
+                snapshotUnitCost
+              )
+            ) &&
+            Number(
+              snapshotUnitCost
+            ) >=
+              0;
+
           const resolved =
-            resolveSaleItemUnitCost({
-              item,
-              saleDate,
-              categoryHistories,
-              bodyHistories,
-              variantHistories,
-              variantsById
-            });
+            hasSaleSnapshot
+              ? {
+                  unitCostJPY:
+                    snapshotCostValid
+                      ? Number(
+                          snapshotUnitCost
+                        )
+                      : null,
+
+                  source:
+                    snapshotSource
+                }
+              : resolveSaleItemUnitCost({
+                  item,
+                  saleDate,
+                  categoryHistories,
+                  bodyHistories,
+                  variantHistories,
+                  variantsById
+                });
 
           if (
             resolved.unitCostJPY ===

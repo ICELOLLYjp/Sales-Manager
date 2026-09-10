@@ -581,6 +581,261 @@ function eventSaleQuantityByVariant(
   return result;
 }
 
+function localDateKey() {
+  const now =
+    new Date();
+
+  const year =
+    String(
+      now.getFullYear()
+    );
+
+  const month =
+    String(
+      now.getMonth() +
+      1
+    ).padStart(
+      2,
+      "0"
+    );
+
+  const day =
+    String(
+      now.getDate()
+    ).padStart(
+      2,
+      "0"
+    );
+
+  return `${year}-${month}-${day}`;
+}
+
+
+function normalizedCostSchedule(
+  value
+) {
+  return (
+    Array.isArray(
+      value
+    )
+      ? value
+      : []
+  )
+    .map(
+      row => ({
+        amountJPY:
+          Number(
+            row?.amountJPY
+          ),
+
+        effectiveFrom:
+          String(
+            row?.effectiveFrom ||
+            ""
+          ),
+
+        note:
+          String(
+            row?.note || ""
+          )
+      })
+    )
+    .filter(
+      row =>
+        /^\d{4}-\d{2}-\d{2}$/.test(
+          row.effectiveFrom
+        ) &&
+        Number.isFinite(
+          row.amountJPY
+        ) &&
+        row.amountJPY >=
+          0
+    )
+    .sort(
+      (a, b) =>
+        b.effectiveFrom
+          .localeCompare(
+            a.effectiveFrom
+          )
+    );
+}
+
+
+function resolveScheduledCost(
+  schedule,
+  saleDate
+) {
+  const match =
+    normalizedCostSchedule(
+      schedule
+    ).find(
+      row =>
+        row.effectiveFrom <=
+        saleDate
+    );
+
+  return match
+    ? {
+        unitCostJPY:
+          match.amountJPY,
+
+        effectiveFrom:
+          match.effectiveFrom,
+
+        note:
+          match.note
+      }
+    : null;
+}
+
+
+function resolveItemCostSnapshot({
+  item,
+  variant,
+  product,
+  saleDate
+}) {
+  if (
+    item?.variantId
+  ) {
+    const skuCost =
+      resolveScheduledCost(
+        variant?.costSchedule,
+        saleDate
+      );
+
+    if (
+      skuCost
+    ) {
+      return {
+        captured:
+          true,
+        version:
+          1,
+        saleDate,
+        source:
+          "sku",
+        ...skuCost
+      };
+    }
+
+    /*
+     * Backward compatibility for SKU cost entries saved
+     * before costSchedule was introduced.
+     */
+    const legacyDate =
+      String(
+        variant
+          ?.latestCostEffectiveFrom ||
+        ""
+      );
+
+    const legacyAmount =
+      Number(
+        variant
+          ?.latestCostJPY
+      );
+
+    if (
+      /^\d{4}-\d{2}-\d{2}$/.test(
+        legacyDate
+      ) &&
+      legacyDate <=
+        saleDate &&
+      Number.isFinite(
+        legacyAmount
+      ) &&
+      legacyAmount >=
+        0
+    ) {
+      return {
+        captured:
+          true,
+        version:
+          1,
+        saleDate,
+        source:
+          "sku",
+        unitCostJPY:
+          legacyAmount,
+        effectiveFrom:
+          legacyDate,
+        note:
+          ""
+      };
+    }
+  }
+
+  if (
+    item?.category ===
+      "tshirt" &&
+    item?.bodyId
+  ) {
+    const bodyCost =
+      resolveScheduledCost(
+        product
+          ?.bodyCostSchedules
+          ?.[
+            item.bodyId
+          ],
+        saleDate
+      );
+
+    if (
+      bodyCost
+    ) {
+      return {
+        captured:
+          true,
+        version:
+          1,
+        saleDate,
+        source:
+          "body",
+        ...bodyCost
+      };
+    }
+  }
+
+  const categoryCost =
+    resolveScheduledCost(
+      product?.costSchedule,
+      saleDate
+    );
+
+  if (
+    categoryCost
+  ) {
+    return {
+      captured:
+        true,
+      version:
+        1,
+      saleDate,
+      source:
+        "category",
+      ...categoryCost
+    };
+  }
+
+  return {
+    captured:
+      true,
+    version:
+      1,
+    saleDate,
+    source:
+      "missing",
+    unitCostJPY:
+      null,
+    effectiveFrom:
+      null,
+    note:
+      ""
+  };
+}
+
+
 export async function commitQuickSale({
   transactionId = null,
   sessionId,
@@ -939,7 +1194,7 @@ export async function commitQuickSale({
         let needsAccessory =
           false;
 
-        const resolvedItems =
+        let resolvedItems =
           pricedItems.map(
             item => {
               if (!item.variantId) {
@@ -1027,6 +1282,117 @@ export async function commitQuickSale({
                 sizeId:
                   variant.sizeId ||
                   null
+              };
+            }
+          );
+
+        /*
+         * Cost master is effective-dated. Product docs contain a compact
+         * schedule cache so checkout only needs one read per used category.
+         * SKU schedules are already available from the variant reads above.
+         */
+        const saleCostDate =
+          localDateKey();
+
+        const costProductSnapshots =
+          new Map();
+
+        const costCategories =
+          Array.from(
+            new Set(
+              resolvedItems
+                .map(
+                  item =>
+                    String(
+                      item.category ||
+                      ""
+                    ).trim()
+                )
+                .filter(Boolean)
+            )
+          );
+
+        for (
+          const category of
+          costCategories
+        ) {
+          const productRef =
+            doc(
+              db,
+              "products",
+              category
+            );
+
+          const snapshot =
+            await transaction.get(
+              productRef
+            );
+
+          costProductSnapshots.set(
+            category,
+            snapshot.exists()
+              ? snapshot.data()
+              : {}
+          );
+        }
+
+        resolvedItems =
+          resolvedItems.map(
+            item => {
+              const variant =
+                item.variantId
+                  ? (
+                      variantSnapshots.get(
+                        item.variantId
+                      ) ||
+                      {}
+                    )
+                  : {};
+
+              const product =
+                costProductSnapshots.get(
+                  item.category
+                ) ||
+                {};
+
+              const costSnapshot =
+                resolveItemCostSnapshot({
+                  item,
+                  variant,
+                  product,
+                  saleDate:
+                    saleCostDate
+                });
+
+              const unitCostJPY =
+                costSnapshot
+                  .unitCostJPY;
+
+              return {
+                ...item,
+
+                costSnapshot,
+
+                costSnapshotCaptured:
+                  true,
+
+                unitCostJPY,
+
+                costSource:
+                  costSnapshot.source,
+
+                costEffectiveFrom:
+                  costSnapshot
+                    .effectiveFrom,
+
+                lineCostJPY:
+                  unitCostJPY ===
+                    null
+                    ? null
+                    : (
+                        unitCostJPY *
+                        item.quantity
+                      )
               };
             }
           );
@@ -1288,6 +1654,54 @@ export async function commitQuickSale({
               fxRateToJPY
             : null;
 
+        const costSnapshotCoveredQuantity =
+          finalizedItems.reduce(
+            (sum, item) =>
+              item.unitCostJPY ===
+                null ||
+              item.unitCostJPY ===
+                undefined
+                ? sum
+                : (
+                    sum +
+                    item.quantity
+                  ),
+            0
+          );
+
+        const costSnapshotMissingQuantity =
+          finalizedItems.reduce(
+            (sum, item) =>
+              item.unitCostJPY ===
+                null ||
+              item.unitCostJPY ===
+                undefined
+                ? (
+                    sum +
+                    item.quantity
+                  )
+                : sum,
+            0
+          );
+
+        const costSnapshotTotalJPY =
+          finalizedItems.reduce(
+            (sum, item) =>
+              item.lineCostJPY ===
+                null ||
+              item.lineCostJPY ===
+                undefined
+                ? sum
+                : (
+                    sum +
+                    Number(
+                      item.lineCostJPY ||
+                      0
+                    )
+                  ),
+            0
+          );
+
         const appliedCount =
           finalizedItems.filter(
             item =>
@@ -1424,6 +1838,22 @@ export async function commitQuickSale({
           discountJPY,
 
           netSalesJPY,
+
+          costSnapshotVersion:
+            1,
+
+          costSnapshotDate:
+            saleCostDate,
+
+          costSnapshotTotalJPY,
+
+          costSnapshotCoveredQuantity,
+
+          costSnapshotMissingQuantity,
+
+          costSnapshotComplete:
+            costSnapshotMissingQuantity ===
+            0,
 
           itemCount,
 
