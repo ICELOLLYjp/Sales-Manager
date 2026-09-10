@@ -1202,6 +1202,98 @@ async function renderMorePage(sequence) {
               >
                 masterと対応できないPinkoi SKUがあります。未対応SKUはSales Managerへ登録しません。
               </div>
+
+              <details
+                style="
+                  margin-top:12px;
+                "
+              >
+                <summary
+                  style="
+                    cursor:pointer;
+                    font-weight:800;
+                    padding:8px 0;
+                  "
+                >
+                  未対応 ${pinkoiTshirtCatalog.summary.unmappedVariants}件の詳細
+                </summary>
+
+                <div
+                  style="
+                    margin-top:8px;
+                  "
+                >
+                  ${pinkoiTshirtCatalog.unmapped.map(
+                    row => `
+                      <div
+                        style="
+                          padding:10px 0;
+                          border-bottom:1px solid #ecece7;
+                        "
+                      >
+                        <div
+                          style="
+                            font-weight:700;
+                          "
+                        >
+                          ${escapeHtml(
+                            [
+                              row.designName,
+                              row.bodyName,
+                              row.colorName,
+                              row.size
+                            ]
+                              .filter(Boolean)
+                              .join(" / ")
+                          )}
+                        </div>
+
+                        <div
+                          class="muted"
+                          style="
+                            margin-top:4px;
+                            line-height:1.45;
+                            word-break:break-all;
+                          "
+                        >
+                          ${
+                            row.sku
+                              ? `SKU ${escapeHtml(row.sku)}<br>`
+                              : ""
+                          }
+                          未対応:
+                          ${escapeHtml(
+                            (row.reasons || [])
+                              .join(", ")
+                          )}
+                        </div>
+                      </div>
+                    `
+                  ).join("")}
+                </div>
+              </details>
+            `
+            : ""
+        }
+
+
+        ${
+          pinkoiTshirtCatalog.summary.mappedVariants >
+          pinkoiTshirtCatalog.summary.pricedCount
+            ? `
+              <div
+                class="warning"
+                style="
+                  margin-top:12px;
+                "
+              >
+                master対応済みのうち
+                ${
+                  pinkoiTshirtCatalog.summary.mappedVariants -
+                  pinkoiTshirtCatalog.summary.pricedCount
+                }
+                SKUは日本価格が未設定です。
+              </div>
             `
             : ""
         }
