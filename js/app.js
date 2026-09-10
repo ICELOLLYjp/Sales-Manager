@@ -4735,12 +4735,12 @@ async function renderSessions(
                             margin-bottom:12px;
                           "
                         >
-                          イベント販売を始める前に、現在の実在庫を開始在庫として保存してください。
+                          イベントへ実際に持って行く数量だけを開始在庫として保存します。日本に残す在庫や他の販売先分は含めません。
                         </div>
 
                         <div class="list-row">
                           <span>
-                            現在のTシャツ
+                            現在のTシャツ実在庫
                           </span>
 
                           <strong>
@@ -4750,7 +4750,7 @@ async function renderSessions(
 
                         <div class="list-row">
                           <span>
-                            現在のアクセサリー
+                            現在のアクセサリー実在庫
                           </span>
 
                           <strong>
@@ -4760,7 +4760,7 @@ async function renderSessions(
 
                         <div class="list-row">
                           <span>
-                            現在の合計
+                            現在の実在庫合計
                           </span>
 
                           <strong>
@@ -4770,12 +4770,66 @@ async function renderSessions(
 
                         <div class="list-row">
                           <span>
-                            対象SKU
+                            実在庫のあるSKU
                           </span>
 
                           <strong>
                             ${eventCurrentInventoryRows.length}
                           </strong>
+                        </div>
+
+                        <div
+                          style="
+                            display:grid;
+                            grid-template-columns:
+                              repeat(2,minmax(0,1fr));
+                            gap:8px;
+                            margin-top:12px;
+                          "
+                        >
+                          <div
+                            style="
+                              padding:12px;
+                              border:1px solid #ecece7;
+                              border-radius:14px;
+                            "
+                          >
+                            <div
+                              id="eventCarrySelectedQty"
+                              style="
+                                font-size:22px;
+                                font-weight:800;
+                              "
+                            >
+                              0
+                            </div>
+
+                            <div class="muted">
+                              イベント持参点数
+                            </div>
+                          </div>
+
+                          <div
+                            style="
+                              padding:12px;
+                              border:1px solid #ecece7;
+                              border-radius:14px;
+                            "
+                          >
+                            <div
+                              id="eventCarrySelectedSku"
+                              style="
+                                font-size:22px;
+                                font-weight:800;
+                              "
+                            >
+                              0
+                            </div>
+
+                            <div class="muted">
+                              持参SKU
+                            </div>
+                          </div>
                         </div>
 
                         ${
@@ -4799,6 +4853,201 @@ async function renderSessions(
                             : ""
                         }
 
+                        <div
+                          style="
+                            display:grid;
+                            grid-template-columns:
+                              repeat(2,minmax(0,1fr));
+                            gap:8px;
+                            margin-top:14px;
+                          "
+                        >
+                          <button
+                            id="copyAllStockToCarryButton"
+                            type="button"
+                            class="button button-secondary"
+                            style="
+                              min-height:44px;
+                            "
+                          >
+                            全数を持参にコピー
+                          </button>
+
+                          <button
+                            id="clearAllCarryButton"
+                            type="button"
+                            class="button button-secondary"
+                            style="
+                              min-height:44px;
+                            "
+                          >
+                            すべて0
+                          </button>
+                        </div>
+
+                        <input
+                          id="eventCarrySearch"
+                          type="search"
+                          placeholder="SKU、商品名、色、サイズで検索"
+                          style="
+                            ${inputStyle()}
+                            margin-top:10px;
+                          "
+                        >
+
+                        <div
+                          class="muted"
+                          style="
+                            margin-top:8px;
+                            line-height:1.5;
+                          "
+                        >
+                          各SKUの「イベント持参数」に、会場へ持って行く数量を入力してください。0のSKUは開始在庫に保存されません。
+                        </div>
+
+                        <div
+                          id="eventCarryRows"
+                          style="
+                            margin-top:8px;
+                          "
+                        >
+                          ${eventCurrentInventoryRows.map(
+                            row => {
+                              const searchText =
+                                [
+                                  row.sku,
+                                  row.label,
+                                  row.detail,
+                                  POS_CATEGORY_LABELS[
+                                    row.category
+                                  ] ||
+                                  row.category
+                                ]
+                                  .filter(Boolean)
+                                  .join(" ")
+                                  .toLocaleLowerCase();
+
+                              return `
+                                <div
+                                  class="eventCarryRow"
+                                  data-search="${escapeHtml(
+                                    searchText
+                                  )}"
+                                  data-variant-id="${escapeHtml(
+                                    row.variantId
+                                  )}"
+                                  data-category="${escapeHtml(
+                                    row.category
+                                  )}"
+                                  data-inventory-source="${escapeHtml(
+                                    row.inventorySource
+                                  )}"
+                                  data-inventory-key="${escapeHtml(
+                                    row.inventoryKey
+                                  )}"
+                                  data-sku="${escapeHtml(
+                                    row.sku
+                                  )}"
+                                  data-label="${escapeHtml(
+                                    row.label
+                                  )}"
+                                  data-detail="${escapeHtml(
+                                    row.detail
+                                  )}"
+                                  data-current-qty="${row.openingQty}"
+                                  style="
+                                    padding:12px 0;
+                                    border-bottom:1px solid #ecece7;
+                                  "
+                                >
+                                  <div
+                                    style="
+                                      display:grid;
+                                      grid-template-columns:
+                                        minmax(0,1fr)
+                                        110px;
+                                      gap:10px;
+                                      align-items:center;
+                                    "
+                                  >
+                                    <div
+                                      style="
+                                        min-width:0;
+                                      "
+                                    >
+                                      <div
+                                        style="
+                                          font-weight:800;
+                                        "
+                                      >
+                                        ${escapeHtml(
+                                          row.label
+                                        )}
+                                      </div>
+
+                                      <div
+                                        class="muted"
+                                        style="
+                                          margin-top:3px;
+                                          line-height:1.45;
+                                        "
+                                      >
+                                        ${escapeHtml(
+                                          row.detail
+                                        )}
+
+                                        ${
+                                          row.sku
+                                            ? `
+                                              <br>
+                                              ${escapeHtml(
+                                                row.sku
+                                              )}
+                                            `
+                                            : ""
+                                        }
+
+                                        <br>
+                                        実在庫
+                                        <strong>
+                                          ${row.openingQty}
+                                        </strong>
+                                      </div>
+                                    </div>
+
+                                    <label>
+                                      <div
+                                        class="muted"
+                                        style="
+                                          font-size:12px;
+                                          margin-bottom:4px;
+                                        "
+                                      >
+                                        イベント持参数
+                                      </div>
+
+                                      <input
+                                        class="eventCarryQtyInput"
+                                        data-variant-id="${escapeHtml(
+                                          row.variantId
+                                        )}"
+                                        type="number"
+                                        min="0"
+                                        max="${row.openingQty}"
+                                        step="1"
+                                        inputmode="numeric"
+                                        value=""
+                                        placeholder="0"
+                                        style="${inputStyle()}"
+                                      >
+                                    </label>
+                                  </div>
+                                </div>
+                              `;
+                            }
+                          ).join("")}
+                        </div>
+
                         <button
                           id="captureOpeningInventoryButton"
                           class="button"
@@ -4809,7 +5058,7 @@ async function renderSessions(
                             margin-top:14px;
                           "
                         >
-                          現在庫を開始在庫として保存
+                          入力した持参数を開始在庫として保存
                         </button>
 
                         <div
@@ -6802,6 +7051,145 @@ async function renderSessions(
       );
 
 
+    function readEventCarryRowsFromDom() {
+      return Array.from(
+        document.querySelectorAll(
+          ".eventCarryRow"
+        )
+      )
+        .map(
+          row => {
+            const input =
+              row.querySelector(
+                ".eventCarryQtyInput"
+              );
+
+            const currentQty =
+              Math.max(
+                0,
+                Math.floor(
+                  Number(
+                    row.dataset.currentQty ||
+                    0
+                  )
+                )
+              );
+
+            const requestedQty =
+              Math.max(
+                0,
+                Math.floor(
+                  Number(
+                    input?.value ||
+                    0
+                  )
+                )
+              );
+
+            if (
+              requestedQty >
+              currentQty
+            ) {
+              throw new Error(
+                `${row.dataset.label || "商品"} の持参数が実在庫 ${currentQty} を超えています。`
+              );
+            }
+
+            return {
+              variantId:
+                row.dataset.variantId ||
+                "",
+
+              category:
+                row.dataset.category ||
+                "",
+
+              inventorySource:
+                row.dataset.inventorySource ||
+                "",
+
+              inventoryKey:
+                row.dataset.inventoryKey ||
+                "",
+
+              sku:
+                row.dataset.sku ||
+                "",
+
+              label:
+                row.dataset.label ||
+                "",
+
+              detail:
+                row.dataset.detail ||
+                "",
+
+              openingQty:
+                requestedQty
+            };
+          }
+        )
+        .filter(
+          item =>
+            item.variantId &&
+            item.openingQty > 0
+        );
+    }
+
+
+    function updateEventCarrySummary() {
+      let totalQty = 0;
+      let skuCount = 0;
+
+      document
+        .querySelectorAll(
+          ".eventCarryQtyInput"
+        )
+        .forEach(
+          input => {
+            const value =
+              Math.max(
+                0,
+                Math.floor(
+                  Number(
+                    input.value ||
+                    0
+                  )
+                )
+              );
+
+            if (
+              value > 0
+            ) {
+              skuCount += 1;
+              totalQty +=
+                value;
+            }
+          }
+        );
+
+      const qtyTarget =
+        document.querySelector(
+          "#eventCarrySelectedQty"
+        );
+
+      const skuTarget =
+        document.querySelector(
+          "#eventCarrySelectedSku"
+        );
+
+      if (qtyTarget) {
+        qtyTarget.textContent =
+          String(totalQty);
+      }
+
+      if (skuTarget) {
+        skuTarget.textContent =
+          String(skuCount);
+      }
+    }
+
+
     async function captureOpeningInventory(
       overwrite
     ) {
@@ -6860,7 +7248,9 @@ async function renderSessions(
               .sessionId,
 
           items:
-            eventCurrentInventoryRows,
+            overwrite
+              ? eventCurrentInventoryRows
+              : readEventCarryRowsFromDom(),
 
           capturedByEmail:
             currentUser?.email ||
@@ -6899,7 +7289,7 @@ async function renderSessions(
           button.textContent =
             overwrite
               ? "現在庫で開始在庫を再保存"
-              : "現在庫を開始在庫として保存";
+              : "入力した持参数を開始在庫として保存";
         }
 
         if (
@@ -6912,6 +7302,146 @@ async function renderSessions(
         }
       }
     }
+
+
+    document
+      .querySelectorAll(
+        ".eventCarryQtyInput"
+      )
+      .forEach(
+        input => {
+          input.addEventListener(
+            "input",
+            event => {
+              const max =
+                Math.max(
+                  0,
+                  Math.floor(
+                    Number(
+                      event.target.max ||
+                      0
+                    )
+                  )
+                );
+
+              const value =
+                Math.max(
+                  0,
+                  Math.floor(
+                    Number(
+                      event.target.value ||
+                      0
+                    )
+                  )
+                );
+
+              if (
+                value > max
+              ) {
+                event.target.value =
+                  String(max);
+              }
+
+              updateEventCarrySummary();
+            }
+          );
+        }
+      );
+
+
+    document
+      .querySelector(
+        "#copyAllStockToCarryButton"
+      )
+      ?.addEventListener(
+        "click",
+        () => {
+          document
+            .querySelectorAll(
+              ".eventCarryRow"
+            )
+            .forEach(
+              row => {
+                const input =
+                  row.querySelector(
+                    ".eventCarryQtyInput"
+                  );
+
+                if (input) {
+                  input.value =
+                    row.dataset.currentQty ||
+                    "0";
+                }
+              }
+            );
+
+          updateEventCarrySummary();
+        }
+      );
+
+
+    document
+      .querySelector(
+        "#clearAllCarryButton"
+      )
+      ?.addEventListener(
+        "click",
+        () => {
+          document
+            .querySelectorAll(
+              ".eventCarryQtyInput"
+            )
+            .forEach(
+              input => {
+                input.value =
+                  "";
+              }
+            );
+
+          updateEventCarrySummary();
+        }
+      );
+
+
+    document
+      .querySelector(
+        "#eventCarrySearch"
+      )
+      ?.addEventListener(
+        "input",
+        event => {
+          const query =
+            String(
+              event.target.value ||
+              ""
+            )
+              .trim()
+              .toLocaleLowerCase();
+
+          document
+            .querySelectorAll(
+              ".eventCarryRow"
+            )
+            .forEach(
+              row => {
+                const haystack =
+                  String(
+                    row.dataset.search ||
+                    ""
+                  )
+                    .toLocaleLowerCase();
+
+                row.style.display =
+                  !query ||
+                  haystack.includes(
+                    query
+                  )
+                    ? ""
+                    : "none";
+              }
+            );
+        }
+      );
 
 
     document
