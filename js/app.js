@@ -8,6 +8,7 @@ import { listAllProductVariants, registerTshirtVariant, registerGeneralProduct, 
 import { CATEGORY_TEMPLATES, getCategoryTemplate } from "./data/categoryTemplates.js";
 import { loadQuickPriceBook, saveQuickPrices, QUICK_PRICE_CURRENCIES } from "./services/priceBookService.js";
 import { listSalesSessions, createEventSession, SESSION_CURRENCIES } from "./services/sessionService.js";
+import { commitQuickSale } from "./services/transactionService.js";
 
 const view = document.querySelector("#view");
 const syncStatus = document.querySelector("#syncStatus");
@@ -54,6 +55,12 @@ let activeSessionId =
   localStorage.getItem(
     "icelolly-sales-active-session"
   ) || "";
+
+let pendingCheckoutTransactionId =
+  null;
+
+let lastCheckoutResult =
+  null;
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -1735,6 +1742,50 @@ async function renderSessions(
                           }
                         </div>
 
+                        ${
+                          session
+                            ?.salesSummary
+                            ?.transactionCount > 0
+                            ? `
+                              <div
+                                style="
+                                  margin-top:8px;
+                                  font-weight:700;
+                                "
+                              >
+                                売上
+                                ${escapeHtml(
+                                  new Intl.NumberFormat(
+                                    session.currency === "JPY"
+                                      ? "ja-JP"
+                                      : "en-US",
+                                    {
+                                      style:
+                                        "currency",
+                                      currency:
+                                        session.currency,
+                                      maximumFractionDigits:
+                                        session.currency === "JPY"
+                                          ? 0
+                                          : 2
+                                    }
+                                  ).format(
+                                    session
+                                      .salesSummary
+                                      .netSales
+                                  )
+                                )}
+
+                                /
+                                ${session
+                                  .salesSummary
+                                  .transactionCount}
+                                会計
+                              </div>
+                            `
+                            : ""
+                        }
+
                       </div>
 
 
@@ -2061,6 +2112,32 @@ async function renderSessions(
   }
 }
 
+function createPendingCheckoutId() {
+  if (
+    globalThis.crypto &&
+    typeof globalThis.crypto.randomUUID ===
+      "function"
+  ) {
+    return (
+      "sale_" +
+      globalThis.crypto.randomUUID()
+    );
+  }
+
+  return [
+    "sale",
+    Date.now(),
+    Math.random()
+      .toString(36)
+      .slice(2, 12)
+  ].join("_");
+}
+
+function invalidatePendingCheckout() {
+  pendingCheckoutTransactionId =
+    null;
+}
+
 function formatMoney(
   value,
   currency = posCurrency
@@ -2146,6 +2223,8 @@ function posCartTotals() {
 function addQuickItem(
   category
 ) {
+  invalidatePendingCheckout();
+
   const price =
     posPrice(
       category
@@ -2193,6 +2272,8 @@ function changeQuickQuantity(
   category,
   change
 ) {
+  invalidatePendingCheckout();
+
   const item =
     posCart.get(
       category
@@ -2494,6 +2575,55 @@ async function renderPos(
                   message
                 )}
               </div>
+            `
+            : ""
+        }
+
+        ${
+          lastCheckoutResult
+            ? `
+              <section
+                class="card"
+                style="
+                  margin-bottom:14px;
+                  border:1px solid #cfd8cf;
+                "
+              >
+                <div
+                  style="
+                    font-weight:800;
+                    font-size:16px;
+                  "
+                >
+                  会計を保存しました
+                </div>
+
+                <div
+                  style="
+                    margin-top:6px;
+                    font-size:22px;
+                    font-weight:800;
+                  "
+                >
+                  ${formatMoney(
+                    lastCheckoutResult.netSales,
+                    lastCheckoutResult.currency
+                  )}
+                </div>
+
+                <div
+                  class="muted"
+                  style="
+                    margin-top:6px;
+                    word-break:break-all;
+                  "
+                >
+                  ID:
+                  ${escapeHtml(
+                    lastCheckoutResult.transactionId
+                  )}
+                </div>
+              </section>
             `
             : ""
         }
@@ -2961,18 +3091,33 @@ async function renderPos(
             id="posCheckoutButton"
             type="button"
             class="button"
-            disabled
+            ${
+              activeSession &&
+              posCart.size > 0 &&
+              totals.total >= 0
+                ? ""
+                : "disabled"
+            }
             style="
               width:100%;
               margin-top:14px;
               min-height:56px;
               font-size:17px;
-              opacity:.55;
+              ${
+                activeSession &&
+                posCart.size > 0
+                  ? ""
+                  : "opacity:.55;"
+              }
             "
           >
             ${
               activeSession
-                ? "次の更新で会計確定を接続"
+                ? (
+                    posCart.size > 0
+                      ? "会計確定"
+                      : "商品を追加してください"
+                  )
                 : "販売セッションを選択"
             }
           </button>
@@ -3005,7 +3150,7 @@ async function renderPos(
               line-height:1.6;
             "
           >
-            販売セッションと通貨は接続済みです。次の更新で会計確定、売上記録、transaction IDを接続します。
+            Quick会計ではカテゴリ単位で売上を記録します。SKU未指定のため在庫は自動で減らさず、棚卸し時に照合できる未割当の販売履歴として残します。
           </div>
 
         </section>
@@ -3050,6 +3195,11 @@ async function renderPos(
                   nextId
               ) || null;
 
+            invalidatePendingCheckout();
+
+            lastCheckoutResult =
+              null;
+
             activeSessionId =
               nextSession
                 ? nextSession.sessionId
@@ -3078,6 +3228,11 @@ async function renderPos(
                 posCurrency
               );
             }
+
+            invalidatePendingCheckout();
+
+            lastCheckoutResult =
+              null;
 
             posCart =
               new Map();
@@ -3111,6 +3266,11 @@ async function renderPos(
         ?.addEventListener(
           "change",
           event => {
+            invalidatePendingCheckout();
+
+            lastCheckoutResult =
+              null;
+
             posCurrency =
               event.target.value;
 
@@ -3326,6 +3486,8 @@ async function renderPos(
         ?.addEventListener(
           "input",
           event => {
+            invalidatePendingCheckout();
+
             posOrderDiscount =
               Math.max(
                 0,
@@ -3346,6 +3508,130 @@ async function renderPos(
           "change",
           () => {
             renderPosBody();
+          }
+        );
+
+
+      document
+        .querySelector(
+          "#posCheckoutButton"
+        )
+        ?.addEventListener(
+          "click",
+          async event => {
+            if (
+              !activeSession ||
+              posCart.size === 0
+            ) {
+              return;
+            }
+
+            const totals =
+              posCartTotals();
+
+            const confirmed =
+              window.confirm(
+                `${formatMoney(
+                  totals.total
+                )} の会計を確定しますか？`
+              );
+
+            if (!confirmed) {
+              return;
+            }
+
+            const button =
+              event.currentTarget;
+
+            button.disabled =
+              true;
+
+            button.textContent =
+              "保存中";
+
+            if (
+              !pendingCheckoutTransactionId
+            ) {
+              pendingCheckoutTransactionId =
+                createPendingCheckoutId();
+            }
+
+            try {
+              const result =
+                await commitQuickSale({
+                  transactionId:
+                    pendingCheckoutTransactionId,
+
+                  sessionId:
+                    activeSession.sessionId,
+
+                  items:
+                    Array.from(
+                      posCart.values()
+                    ).map(
+                      item => ({
+                        lineId:
+                          item.key,
+                        category:
+                          item.category,
+                        label:
+                          item.label,
+                        quantity:
+                          item.quantity,
+                        unitPrice:
+                          item.unitPrice,
+                        trackingMode:
+                          "quick",
+                        variantId:
+                          null,
+                        inventoryKey:
+                          null
+                      })
+                    ),
+
+                  orderDiscount:
+                    posOrderDiscount,
+
+                  createdByEmail:
+                    currentUser
+                      ?.email ||
+                    ""
+                });
+
+              lastCheckoutResult =
+                result;
+
+              pendingCheckoutTransactionId =
+                null;
+
+              posCart =
+                new Map();
+
+              posOrderDiscount =
+                0;
+
+              await renderPos(
+                ++renderSequence
+              );
+
+            } catch (error) {
+              console.error(
+                "Checkout failed",
+                error
+              );
+
+              button.disabled =
+                false;
+
+              button.textContent =
+                "会計確定";
+
+              renderPosBody(
+                error.code ||
+                error.message ||
+                String(error)
+              );
+            }
           }
         );
 
