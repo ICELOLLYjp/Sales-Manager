@@ -1,17 +1,16 @@
 import { getFirebaseState } from "../firebase.js";
 
 const COLLECTIONS = {
-  bodies:
-    "pinkoi_bodies",
-  designs:
-    "pinkoi_designs",
-  colors:
-    "pinkoi_colors",
-  inventory:
-    "pinkoi_inventory",
-  products:
-    "pinkoi_products"
+  bodies: "pinkoi_bodies",
+  designs: "pinkoi_designs",
+  colors: "pinkoi_colors",
+  inventory: "pinkoi_inventory",
+  products: "pinkoi_products"
 };
+
+const MATCHED = "matched";
+const AMBIGUOUS = "ambiguous";
+const UNMATCHED = "unmatched";
 
 async function firestoreModule() {
   return await import(
@@ -20,37 +19,32 @@ async function firestoreModule() {
 }
 
 async function requireDb() {
-  const {
-    db,
-    enabled
-  } = getFirebaseState();
+  const { db, enabled } = getFirebaseState();
 
-  if (
-    !enabled ||
-    !db
-  ) {
-    throw new Error(
-      "Firebase is not connected."
-    );
+  if (!enabled || !db) {
+    throw new Error("Firebase is not connected.");
   }
 
   return db;
 }
 
-function encodePart(value) {
-  return encodeURIComponent(
-    String(
-      value || ""
-    )
-  );
+function text(value) {
+  return String(value ?? "").trim();
 }
 
-function createVariantId(
-  bodyId,
-  designId,
-  colorId,
-  sizeId
-) {
+function normalizeValue(value) {
+  return text(value)
+    .normalize("NFKC")
+    .toLocaleLowerCase()
+    .replace(/grey/g, "gray")
+    .replace(/\s+/gu, "");
+}
+
+function encodePart(value) {
+  return encodeURIComponent(text(value));
+}
+
+function createVariantId(bodyId, designId, colorId, sizeId) {
   return [
     "tshirt",
     encodePart(bodyId),
@@ -60,12 +54,7 @@ function createVariantId(
   ].join("__");
 }
 
-function createStockTargetId(
-  bodyId,
-  designId,
-  colorId,
-  sizeId
-) {
+function createStockTargetId(bodyId, designId, colorId, sizeId) {
   return [
     "tshirt:",
     encodePart(bodyId),
@@ -78,20 +67,9 @@ function createStockTargetId(
   ].join("");
 }
 
-function text(value) {
-  return String(
-    value || ""
-  ).trim();
-}
-
-function normalizedName(value) {
-  return text(value)
-    .toLocaleLowerCase("en-US")
-    .replace(/grey/g, "gray")
-    .replace(/[^a-z0-9]+/g, "");
-}
-
 function candidateValues(item, id = "") {
+  const displayName = item?.displayName || {};
+
   return [
     id,
     item?.id,
@@ -102,142 +80,97 @@ function candidateValues(item, id = "") {
     item?.pinkoiName,
     item?.code,
     item?.name,
-    item?.displayName?.ja,
-    item?.displayName?.en,
-    item?.displayName?.zhTW
+    displayName?.ja,
+    displayName?.en,
+    displayName?.zhTW,
+    displayName?.zh
   ]
     .map(text)
     .filter(Boolean);
 }
 
-function buildMasterMatcher(masterMap) {
-  const direct =
-    new Map();
+function buildCandidateIndex(masterMap) {
+  const index = new Map();
 
-  Object.entries(
-    masterMap || {}
-  ).forEach(
-    ([id, item]) => {
-      candidateValues(
-        item,
-        id
-      ).forEach(
-        value => {
-          const key =
-            normalizedName(
-              value
-            );
+  Object.entries(masterMap || {}).forEach(([id, item]) => {
+    candidateValues(item, id).forEach(value => {
+      const key = normalizeValue(value);
+      if (!key) return;
 
-          if (
-            key &&
-            !direct.has(key)
-          ) {
-            direct.set(
-              key,
-              id
-            );
-          }
-        }
-      );
-    }
-  );
+      if (!index.has(key)) {
+        index.set(key, new Set());
+      }
 
-  return direct;
+      index.get(key).add(id);
+    });
+  });
+
+  return index;
 }
 
-function resolveMasterId({
-  pinkoiId,
-  pinkoiItem,
+function diagnoseMasterMatch({
+  sourceId,
+  sourceItem,
   masterMap,
-  matcher
+  candidateIndex
 }) {
-  if (
-    pinkoiId &&
-    masterMap?.[pinkoiId]
-  ) {
-    return pinkoiId;
+  const candidates = new Set();
+
+  candidateValues(sourceItem, sourceId).forEach(value => {
+    const key = normalizeValue(value);
+    if (!key) return;
+
+    const ids = candidateIndex.get(key);
+    if (!ids) return;
+
+    ids.forEach(id => candidates.add(id));
+  });
+
+  if (candidates.size === 1) {
+    const [masterId] = Array.from(candidates);
+    return {
+      status: MATCHED,
+      masterId,
+      candidates: [masterId]
+    };
   }
 
-  const candidates =
-    candidateValues(
-      pinkoiItem,
-      pinkoiId
-    );
-
-  for (
-    const value
-    of candidates
-  ) {
-    const key =
-      normalizedName(
-        value
-      );
-
-    if (
-      key &&
-      matcher.has(key)
-    ) {
-      return matcher.get(
-        key
-      );
-    }
+  if (candidates.size > 1) {
+    return {
+      status: AMBIGUOUS,
+      masterId: "",
+      candidates: Array.from(candidates).sort()
+    };
   }
 
-  return "";
+  return {
+    status: UNMATCHED,
+    masterId: "",
+    candidates: []
+  };
 }
 
-function buildSizeMatcher(
-  master
-) {
-  const sizes =
-    master?.masters
-      ?.sizes ||
-    {};
+function diagnoseSizeMatch({
+  sourceValue,
+  masterSizes,
+  candidateIndex
+}) {
+  const sourceItem = {
+    id: sourceValue,
+    managementName: sourceValue,
+    salesName: sourceValue,
+    name: sourceValue
+  };
 
-  return buildMasterMatcher(
-    sizes
-  );
+  return diagnoseMasterMatch({
+    sourceId: sourceValue,
+    sourceItem,
+    masterMap: masterSizes,
+    candidateIndex
+  });
 }
 
-function resolveSizeId(
-  master,
-  sizeValue,
-  sizeMatcher
-) {
-  const sizes =
-    master?.masters
-      ?.sizes ||
-    {};
-
-  const raw =
-    text(
-      sizeValue
-    );
-
-  if (
-    raw &&
-    sizes?.[raw]
-  ) {
-    return raw;
-  }
-
-  const key =
-    normalizedName(
-      raw
-    );
-
-  return (
-    sizeMatcher.get(
-      key
-    ) ||
-    ""
-  );
-}
-
-function displayName(
-  item,
-  fallback = ""
-) {
+function displayName(item, fallback = "") {
   return (
     item?.internalName ||
     item?.managementName ||
@@ -249,146 +182,246 @@ function displayName(
   );
 }
 
-function masterDisplayName(
-  source,
-  id,
-  fields
-) {
-  const item =
-    source?.[id] ||
-    {};
-
-  for (
-    const field
-    of fields
-  ) {
-    const value =
-      text(
-        item?.[field]
-      );
-
-    if (value) {
-      return value;
-    }
-  }
-
-  return id || "";
+function masterDisplayName(source, id) {
+  return displayName(source?.[id], id);
 }
 
-function pinkoiProductKey(
-  bodyId,
-  designId
-) {
+function productKey(bodyId, designId) {
   return `${bodyId}__${designId}`;
 }
 
-function productPriceJpy(
-  product,
-  inventoryRow
-) {
-  const productPrice =
-    Number(
-      product?.priceJpy ||
-      0
-    );
+function positiveNumber(value) {
+  const number = Number(value || 0);
+  return Number.isFinite(number) && number > 0
+    ? number
+    : 0;
+}
 
-  if (
-    productPrice > 0
-  ) {
+function diagnosePrice(product, inventoryRow) {
+  const productPriceJpy = positiveNumber(product?.priceJpy);
+  const inventoryPriceJpy = positiveNumber(inventoryRow?.priceJpy);
+
+  if (productPriceJpy > 0 && inventoryPriceJpy > 0) {
+    if (productPriceJpy === inventoryPriceJpy) {
+      return {
+        priceJpy: productPriceJpy,
+        priceSource: "pinkoi_products",
+        priceStatus: "ok",
+        productPriceJpy,
+        inventoryPriceJpy
+      };
+    }
+
     return {
-      priceJPY:
-        productPrice,
-      priceSource:
-        "pinkoi_products"
+      priceJpy: null,
+      priceSource: "conflict",
+      priceStatus: "price_conflict",
+      productPriceJpy,
+      inventoryPriceJpy
     };
   }
 
-  const variantPrice =
-    Number(
-      inventoryRow?.priceJpy ||
-      0
-    );
-
-  if (
-    variantPrice > 0
-  ) {
+  if (productPriceJpy > 0) {
     return {
-      priceJPY:
-        variantPrice,
-      priceSource:
-        "pinkoi_inventory"
+      priceJpy: productPriceJpy,
+      priceSource: "pinkoi_products",
+      priceStatus: "ok",
+      productPriceJpy,
+      inventoryPriceJpy
+    };
+  }
+
+  if (inventoryPriceJpy > 0) {
+    return {
+      priceJpy: inventoryPriceJpy,
+      priceSource: "pinkoi_inventory",
+      priceStatus: "ok",
+      productPriceJpy,
+      inventoryPriceJpy
     };
   }
 
   return {
-    priceJPY:
-      0,
-    priceSource:
-      "none"
+    priceJpy: null,
+    priceSource: "missing",
+    priceStatus: "price_missing",
+    productPriceJpy,
+    inventoryPriceJpy
   };
 }
 
-async function loadCollection(
-  db,
-  name
-) {
+function readMasterStock(master, bodyId, designId, colorId, sizeId) {
+  const raw =
+    master?.inventory_v2
+      ?.[bodyId]
+      ?.[designId]
+      ?.[colorId]
+      ?.[sizeId];
+
+  if (raw === undefined || raw === null) {
+    return 0;
+  }
+
+  if (typeof raw === "number") {
+    return Math.max(0, Number(raw || 0));
+  }
+
+  if (typeof raw === "object") {
+    return Math.max(
+      0,
+      Number(
+        raw.qty ??
+        raw.stock ??
+        raw.quantity ??
+        0
+      )
+    );
+  }
+
+  return Math.max(0, Number(raw || 0));
+}
+
+function buildSkuDiagnostics(inventoryRows) {
+  const groups = new Map();
+
+  inventoryRows.forEach(row => {
+    const sku = text(row?.sku);
+    if (!sku) return;
+
+    if (!groups.has(sku)) {
+      groups.set(sku, []);
+    }
+
+    groups.get(sku).push(row);
+  });
+
+  const duplicates = new Map();
+
+  groups.forEach((rows, sku) => {
+    if (rows.length <= 1) return;
+
+    const combinations = new Set(
+      rows.map(row =>
+        [
+          text(row.bodyId),
+          text(row.designId),
+          text(row.colorId),
+          text(row.size)
+        ].join("|")
+      )
+    );
+
+    duplicates.set(sku, {
+      count: rows.length,
+      majorConflict: combinations.size > 1
+    });
+  });
+
+  return duplicates;
+}
+
+function reasonForMatch(field, result) {
+  if (result.status === UNMATCHED) {
+    return field;
+  }
+
+  if (result.status === AMBIGUOUS) {
+    return `ambiguous_${field}`;
+  }
+
+  return null;
+}
+
+function stockStatus({
+  masterStock,
+  pinkoiInventoryStock,
+  pinkoiStock
+}) {
+  const result = [];
+
+  if (masterStock === pinkoiInventoryStock) {
+    result.push("master_match");
+  } else {
+    result.push("pinkoi_inventory_stock_diff");
+  }
+
+  if (masterStock !== pinkoiStock) {
+    result.push("pinkoi_stock_diff");
+  }
+
+  if (masterStock === 0) {
+    result.push("master_stock_zero");
+  }
+
+  return result;
+}
+
+async function loadCollection(db, name) {
   const {
     collection,
     getDocsFromServer
-  } =
-    await firestoreModule();
+  } = await firestoreModule();
 
-  const snapshot =
-    await getDocsFromServer(
-      collection(
-        db,
-        COLLECTIONS[
-          name
-        ]
-      )
-    );
-
-  return snapshot.docs.map(
-    item => ({
-      id:
-        item.id,
-      ...item.data()
-    })
+  const snapshot = await getDocsFromServer(
+    collection(db, COLLECTIONS[name])
   );
+
+  return snapshot.docs.map(docItem => ({
+    id: docItem.id,
+    ...docItem.data()
+  }));
 }
 
-async function loadTshirtMaster(
-  db
-) {
+async function loadMaster(db) {
   const {
     doc,
     getDocFromServer
-  } =
-    await firestoreModule();
+  } = await firestoreModule();
 
-  const snapshot =
-    await getDocFromServer(
-      doc(
-        db,
-        "tshirtStock",
-        "master"
-      )
-    );
+  const snapshot = await getDocFromServer(
+    doc(db, "tshirtStock", "master")
+  );
 
-  if (
-    !snapshot.exists()
-  ) {
-    throw new Error(
-      "tshirtStock/master was not found."
-    );
+  if (!snapshot.exists()) {
+    throw new Error("tshirtStock/master was not found.");
   }
 
   return snapshot.data();
 }
 
+export function emptyPinkoiTshirtCatalog(error = null) {
+  return {
+    error,
+    summary: {
+      inventoryCount: 0,
+      inventoryDocuments: 0,
+      skuCount: 0,
+      missingSkuCount: 0,
+      duplicateSkuCount: 0,
+      matchedCount: 0,
+      mappedVariants: 0,
+      unmatchedCount: 0,
+      unmappedVariants: 0,
+      ambiguousCount: 0,
+      priceCount: 0,
+      pricedCount: 0,
+      missingPriceCount: 0,
+      priceConflictCount: 0,
+      masterStockCount: 0,
+      masterStockZeroCount: 0,
+      syncEligibleCount: 0,
+      zeroStockCatalogCount: 0
+    },
+    items: [],
+    variants: [],
+    unmapped: [],
+    ambiguous: [],
+    byVariantId: new Map()
+  };
+}
+
 export async function loadPinkoiTshirtCatalog() {
-  const db =
-    await requireDb();
+  const db = await requireDb();
 
   const [
     master,
@@ -397,808 +430,545 @@ export async function loadPinkoiTshirtCatalog() {
     colors,
     inventory,
     products
-  ] =
-    await Promise.all([
-      loadTshirtMaster(
-        db
-      ),
-      loadCollection(
-        db,
-        "bodies"
-      ),
-      loadCollection(
-        db,
-        "designs"
-      ),
-      loadCollection(
-        db,
-        "colors"
-      ),
-      loadCollection(
-        db,
-        "inventory"
-      ),
-      loadCollection(
-        db,
-        "products"
-      )
-    ]);
+  ] = await Promise.all([
+    loadMaster(db),
+    loadCollection(db, "bodies"),
+    loadCollection(db, "designs"),
+    loadCollection(db, "colors"),
+    loadCollection(db, "inventory"),
+    loadCollection(db, "products")
+  ]);
 
-  const bodyMap =
-    new Map(
-      bodies.map(
-        item => [
-          item.id,
-          item
-        ]
-      )
-    );
+  const bodyMap = new Map(bodies.map(item => [item.id, item]));
+  const designMap = new Map(designs.map(item => [item.id, item]));
+  const colorMap = new Map(colors.map(item => [item.id, item]));
 
-  const designMap =
-    new Map(
-      designs.map(
-        item => [
-          item.id,
-          item
-        ]
-      )
-    );
+  const productMap = new Map();
 
-  const colorMap =
-    new Map(
-      colors.map(
-        item => [
-          item.id,
-          item
-        ]
-      )
-    );
+  products.forEach(item => {
+    if (item.id) {
+      productMap.set(item.id, item);
+    }
 
-  const productMap =
-    new Map();
-
-  products.forEach(
-    item => {
-      const key =
-        item.id ||
-        pinkoiProductKey(
-          item.bodyId,
-          item.designId
-        );
-
+    if (item.bodyId && item.designId) {
       productMap.set(
-        key,
+        productKey(item.bodyId, item.designId),
         item
       );
-
-      if (
-        item.bodyId &&
-        item.designId
-      ) {
-        productMap.set(
-          pinkoiProductKey(
-            item.bodyId,
-            item.designId
-          ),
-          item
-        );
-      }
     }
-  );
+  });
 
-  const masters =
-    master?.masters ||
-    {};
+  const masters = master?.masters || {};
+  const masterBodies = masters?.bodies || {};
+  const masterDesigns = masters?.designs || {};
+  const masterColors = masters?.colors || {};
+  const masterSizes = masters?.sizes || {};
 
-  const masterBodies =
-    masters?.bodies ||
-    {};
+  const bodyIndex = buildCandidateIndex(masterBodies);
+  const designIndex = buildCandidateIndex(masterDesigns);
+  const colorIndex = buildCandidateIndex(masterColors);
+  const sizeIndex = buildCandidateIndex(masterSizes);
 
-  const masterDesigns =
-    masters?.designs ||
-    {};
+  const duplicateSkuMap = buildSkuDiagnostics(inventory);
 
-  const masterColors =
-    masters?.colors ||
-    {};
+  const items = inventory.map(row => {
+    const pinkoiBodyId = text(row.bodyId);
+    const pinkoiDesignId = text(row.designId);
+    const pinkoiColorId = text(row.colorId);
+    const sizeValue = text(row.size);
+    const sku = text(row.sku);
 
-  const bodyMatcher =
-    buildMasterMatcher(
-      masterBodies
+    const pinkoiBody = bodyMap.get(pinkoiBodyId) || null;
+    const pinkoiDesign = designMap.get(pinkoiDesignId) || null;
+    const pinkoiColor = colorMap.get(pinkoiColorId) || null;
+
+    const bodyMatch = diagnoseMasterMatch({
+      sourceId: pinkoiBodyId,
+      sourceItem: pinkoiBody,
+      masterMap: masterBodies,
+      candidateIndex: bodyIndex
+    });
+
+    const designMatch = diagnoseMasterMatch({
+      sourceId: pinkoiDesignId,
+      sourceItem: pinkoiDesign,
+      masterMap: masterDesigns,
+      candidateIndex: designIndex
+    });
+
+    const colorMatch = diagnoseMasterMatch({
+      sourceId: pinkoiColorId,
+      sourceItem: pinkoiColor,
+      masterMap: masterColors,
+      candidateIndex: colorIndex
+    });
+
+    const sizeMatch = diagnoseSizeMatch({
+      sourceValue: sizeValue,
+      masterSizes,
+      candidateIndex: sizeIndex
+    });
+
+    const matchResults = {
+      body: bodyMatch,
+      design: designMatch,
+      color: colorMatch,
+      size: sizeMatch
+    };
+
+    const reasons = [
+      reasonForMatch("body", bodyMatch),
+      reasonForMatch("design", designMatch),
+      reasonForMatch("color", colorMatch),
+      reasonForMatch("size", sizeMatch)
+    ].filter(Boolean);
+
+    const allMatched = Object.values(matchResults).every(
+      result => result.status === MATCHED
     );
 
-  const designMatcher =
-    buildMasterMatcher(
-      masterDesigns
+    const anyAmbiguous = Object.values(matchResults).some(
+      result => result.status === AMBIGUOUS
     );
 
-  const colorMatcher =
-    buildMasterMatcher(
-      masterColors
-    );
+    const overallMatchStatus = allMatched
+      ? MATCHED
+      : anyAmbiguous
+        ? AMBIGUOUS
+        : UNMATCHED;
 
-  const sizeMatcher =
-    buildSizeMatcher(
-      master
-    );
+    const duplicate = sku
+      ? duplicateSkuMap.get(sku) || null
+      : null;
 
-  const variants = [];
-  const unmapped = [];
+    const skuStatus = !sku
+      ? "missing"
+      : duplicate
+        ? "duplicate"
+        : "ok";
 
-  inventory.forEach(
-    row => {
-      const pinkoiBodyId =
-        text(
-          row.bodyId
-        );
+    if (!sku) {
+      reasons.push("sku_missing");
+    }
 
-      const pinkoiDesignId =
-        text(
-          row.designId
-        );
+    if (duplicate) {
+      reasons.push(
+        duplicate.majorConflict
+          ? "duplicate_sku_conflict"
+          : "duplicate_sku"
+      );
+    }
 
-      const pinkoiColorId =
-        text(
-          row.colorId
-        );
-
-      const sizeText =
-        text(
-          row.size
-        );
-
-      const pinkoiBody =
-        bodyMap.get(
-          pinkoiBodyId
-        ) ||
-        null;
-
-      const pinkoiDesign =
-        designMap.get(
-          pinkoiDesignId
-        ) ||
-        null;
-
-      const pinkoiColor =
-        colorMap.get(
-          pinkoiColorId
-        ) ||
-        null;
-
-      const bodyId =
-        resolveMasterId({
-          pinkoiId:
-            pinkoiBodyId,
-          pinkoiItem:
-            pinkoiBody,
-          masterMap:
-            masterBodies,
-          matcher:
-            bodyMatcher
-        });
-
-      const designId =
-        resolveMasterId({
-          pinkoiId:
-            pinkoiDesignId,
-          pinkoiItem:
-            pinkoiDesign,
-          masterMap:
-            masterDesigns,
-          matcher:
-            designMatcher
-        });
-
-      const colorId =
-        resolveMasterId({
-          pinkoiId:
-            pinkoiColorId,
-          pinkoiItem:
-            pinkoiColor,
-          masterMap:
-            masterColors,
-          matcher:
-            colorMatcher
-        });
-
-      const sizeId =
-        resolveSizeId(
-          master,
-          sizeText,
-          sizeMatcher
-        );
-
-      const reasons = [];
-
-      if (!bodyId) {
-        reasons.push(
-          "body"
-        );
-      }
-
-      if (!designId) {
-        reasons.push(
-          "design"
-        );
-      }
-
-      if (!colorId) {
-        reasons.push(
-          "color"
-        );
-      }
-
-      if (!sizeId) {
-        reasons.push(
-          "size"
-        );
-      }
-
-      if (
-        reasons.length
-      ) {
-        unmapped.push({
-          id:
-            row.id,
-
-          sku:
-            text(
-              row.sku
-            ),
-
+    const product =
+      productMap.get(
+        productKey(
           pinkoiBodyId,
-          pinkoiDesignId,
-          pinkoiColorId,
+          pinkoiDesignId
+        )
+      ) || null;
 
-          bodyName:
-            displayName(
-              pinkoiBody,
-              pinkoiBodyId
-            ),
+    const price = diagnosePrice(product, row);
 
-          designName:
-            displayName(
-              pinkoiDesign,
-              pinkoiDesignId
-            ),
+    const bodyId = bodyMatch.masterId;
+    const designId = designMatch.masterId;
+    const colorId = colorMatch.masterId;
+    const sizeId = sizeMatch.masterId;
 
-          colorName:
-            displayName(
-              pinkoiColor,
-              pinkoiColorId
-            ),
-
-          size:
-            sizeText,
-
-          reasons
-        });
-
-        return;
-      }
-
-      /*
-       * Product lookup must use Pinkoi IDs.
-       * Inventory linkage must use tshirtStock/master IDs.
-       */
-      const product =
-        productMap.get(
-          pinkoiProductKey(
-            pinkoiBodyId,
-            pinkoiDesignId
-          )
-        ) ||
-        null;
-
-      const price =
-        productPriceJpy(
-          product,
-          row
-        );
-
-      const variantId =
-        createVariantId(
+    const masterStock = allMatched
+      ? readMasterStock(
+          master,
           bodyId,
           designId,
           colorId,
           sizeId
-        );
+        )
+      : null;
 
-      variants.push({
-        variantId,
+    const pinkoiInventoryStock = Math.max(
+      0,
+      Number(row?.stock || 0)
+    );
 
-        productId:
-          "tshirt",
+    const pinkoiStock = Math.max(
+      0,
+      Number(row?.pinkoiStock || 0)
+    );
 
-        category:
-          "tshirt",
+    const stockReasons = allMatched
+      ? stockStatus({
+          masterStock,
+          pinkoiInventoryStock,
+          pinkoiStock
+        })
+      : [];
 
+    const syncEligible =
+      skuStatus === "ok" &&
+      allMatched;
+
+    const variantId = syncEligible
+      ? createVariantId(
+          bodyId,
+          designId,
+          colorId,
+          sizeId
+        )
+      : "";
+
+    return {
+      inventoryId: row.id,
+      sku,
+      skuStatus,
+      duplicateSkuCount: duplicate?.count || 0,
+      duplicateSkuMajorConflict:
+        Boolean(duplicate?.majorConflict),
+
+      pinkoi: {
+        bodyId: pinkoiBodyId,
+        designId: pinkoiDesignId,
+        colorId: pinkoiColorId,
+        size: sizeValue,
+        stock: pinkoiInventoryStock,
+        pinkoiStock,
+        priceJpy: positiveNumber(row?.priceJpy),
+        pinkoiProductId: text(row?.pinkoiProductId)
+      },
+
+      names: {
+        body: displayName(pinkoiBody, pinkoiBodyId),
+        design: displayName(pinkoiDesign, pinkoiDesignId),
+        color: displayName(pinkoiColor, pinkoiColorId)
+      },
+
+      sourceMasters: {
+        body: pinkoiBody,
+        design: pinkoiDesign,
+        color: pinkoiColor
+      },
+
+      masterMatch: {
+        status: overallMatchStatus,
+        reasons,
+        body: bodyMatch,
+        design: designMatch,
+        color: colorMatch,
+        size: sizeMatch,
         bodyId,
         designId,
         colorId,
-        sizeId,
+        sizeId
+      },
 
-        pinkoiBodyId,
-        pinkoiDesignId,
-        pinkoiColorId,
+      masterStock,
+      pinkoiInventoryStock,
+      pinkoiStock,
+      stockStatus: stockReasons,
 
-        body:
-          masterDisplayName(
-            masterBodies,
-            bodyId,
-            [
-              "managementName",
-              "salesName"
-            ]
-          ),
+      price,
 
-        design:
-          masterDisplayName(
-            masterDesigns,
-            designId,
-            [
-              "managementName",
-              "legacyKey",
-              "salesName"
-            ]
-          ),
+      product: product
+        ? {
+            id: product.id || "",
+            priceJpy: positiveNumber(product?.priceJpy),
+            status: product?.status || "",
+            pinkoiProductId:
+              text(product?.pinkoiProductId)
+          }
+        : null,
 
-        color:
-          masterDisplayName(
-            masterColors,
-            colorId,
-            [
-              "managementName",
-              "legacyKey",
-              "pinkoiName"
-            ]
-          ),
+      syncEligible,
+      variantId,
 
-        size:
-          masterDisplayName(
-            masters?.sizes ||
-            {},
-            sizeId,
-            [
-              "managementName",
-              "salesName"
-            ]
-          ) ||
-          sizeText,
-
-        sku:
-          text(
-            row.sku
-          ),
-
-        pinkoiSku:
-          text(
-            row.sku
-          ),
-
-        pinkoiInventoryId:
-          row.id,
-
-        pinkoiProductId:
-          text(
-            product?.pinkoiProductId ||
-            row?.pinkoiProductId
-          ),
-
-        pinkoiProductKey:
-          pinkoiProductKey(
-            pinkoiBodyId,
-            pinkoiDesignId
-          ),
-
-        pinkoiProductStatus:
-          product?.status ||
-          "",
-
-        titleJa:
-          product?.titleJa ||
-          "",
-
-        titleEn:
-          product?.titleEn ||
-          product?.customTitle ||
-          "",
-
-        titleZh:
-          product?.titleZh ||
-          "",
-
-        defaultPriceJPY:
-          price.priceJPY,
-
-        pinkoiPriceJPY:
-          price.priceJPY,
-
-        priceSource:
-          price.priceSource,
-
-        pinkoiStock:
-          Math.max(
-            0,
-            Number(
-              row?.pinkoiStock ||
-              0
-            )
-          ),
-
-        pinkoiSyncedStock:
-          Math.max(
-            0,
-            Number(
-              row?.stock ||
-              0
-            )
-          ),
-
-        inventorySource:
-          "tshirt",
-
-        inventoryKey:
-          createStockTargetId(
+      inventoryKey: syncEligible
+        ? createStockTargetId(
             bodyId,
             designId,
             colorId,
             sizeId
-          ),
+          )
+        : "",
 
-        inventoryStatus:
-          "tracked",
+      display: {
+        body: allMatched
+          ? masterDisplayName(masterBodies, bodyId)
+          : displayName(pinkoiBody, pinkoiBodyId),
+        design: allMatched
+          ? masterDisplayName(masterDesigns, designId)
+          : displayName(pinkoiDesign, pinkoiDesignId),
+        color: allMatched
+          ? masterDisplayName(masterColors, colorId)
+          : displayName(pinkoiColor, pinkoiColorId),
+        size: allMatched
+          ? masterDisplayName(masterSizes, sizeId)
+          : sizeValue
+      }
+    };
+  });
 
-        saleStatus:
-          "active",
+  const variants = items
+    .filter(item => item.syncEligible)
+    .map(item => ({
+      variantId: item.variantId,
+      productId: "tshirt",
+      category: "tshirt",
 
-        active:
-          true,
+      bodyId: item.masterMatch.bodyId,
+      designId: item.masterMatch.designId,
+      colorId: item.masterMatch.colorId,
+      sizeId: item.masterMatch.sizeId,
 
-        catalogAuthority:
-          "pinkoi",
+      pinkoiBodyId: item.pinkoi.bodyId,
+      pinkoiDesignId: item.pinkoi.designId,
+      pinkoiColorId: item.pinkoi.colorId,
 
-        source:
-          "pinkoi_inventory"
-      });
-    }
+      body: item.display.body,
+      design: item.display.design,
+      color: item.display.color,
+      size: item.display.size,
+
+      sku: item.sku,
+      pinkoiSku: item.sku,
+
+      pinkoiInventoryId: item.inventoryId,
+      pinkoiProductId:
+        item.product?.pinkoiProductId ||
+        item.pinkoi.pinkoiProductId ||
+        "",
+      pinkoiProductStatus:
+        item.product?.status || "",
+
+      defaultPriceJPY:
+        item.price.priceStatus === "ok"
+          ? item.price.priceJpy
+          : 0,
+
+      pinkoiPriceJPY:
+        item.price.priceStatus === "ok"
+          ? item.price.priceJpy
+          : 0,
+
+      priceSource: item.price.priceSource,
+      priceStatus: item.price.priceStatus,
+      productPriceJpy: item.price.productPriceJpy,
+      inventoryPriceJpy: item.price.inventoryPriceJpy,
+
+      masterStock: item.masterStock,
+      pinkoiInventoryStock: item.pinkoiInventoryStock,
+      pinkoiStock: item.pinkoiStock,
+      stockStatus: item.stockStatus,
+
+      inventorySource: "tshirt",
+      inventoryKey: item.inventoryKey,
+      inventoryStatus: "tracked",
+      saleStatus: "active",
+      active: true,
+      catalogAuthority: "pinkoi",
+      source: "pinkoi_inventory"
+    }));
+
+  const unmatched = items.filter(
+    item =>
+      item.masterMatch.status === UNMATCHED ||
+      item.skuStatus === "missing" ||
+      item.skuStatus === "duplicate"
   );
 
-  const pricedCount =
-    variants.filter(
-      item =>
-        Number(
-          item.defaultPriceJPY ||
-          0
-        ) > 0
-    ).length;
+  const ambiguous = items.filter(
+    item =>
+      item.masterMatch.status === AMBIGUOUS
+  );
 
-  const skuCount =
-    variants.filter(
+  const summary = {
+    inventoryCount: items.length,
+    inventoryDocuments: items.length,
+
+    skuCount: items.filter(item => item.skuStatus !== "missing").length,
+    missingSkuCount: items.filter(item => item.skuStatus === "missing").length,
+    duplicateSkuCount: items.filter(item => item.skuStatus === "duplicate").length,
+
+    matchedCount: items.filter(
+      item => item.masterMatch.status === MATCHED
+    ).length,
+    mappedVariants: items.filter(
+      item => item.masterMatch.status === MATCHED
+    ).length,
+
+    unmatchedCount: items.filter(
+      item => item.masterMatch.status === UNMATCHED
+    ).length,
+    unmappedVariants: items.filter(
+      item => item.masterMatch.status !== MATCHED
+    ).length,
+
+    ambiguousCount: items.filter(
+      item => item.masterMatch.status === AMBIGUOUS
+    ).length,
+
+    priceCount: items.filter(
+      item => item.price.priceStatus === "ok"
+    ).length,
+    pricedCount: items.filter(
+      item => item.price.priceStatus === "ok"
+    ).length,
+
+    missingPriceCount: items.filter(
+      item => item.price.priceStatus === "price_missing"
+    ).length,
+
+    priceConflictCount: items.filter(
+      item => item.price.priceStatus === "price_conflict"
+    ).length,
+
+    masterStockCount: items.filter(
       item =>
-        Boolean(
-          text(
-            item.pinkoiSku
-          )
-        )
-    ).length;
+        item.masterMatch.status === MATCHED &&
+        Number(item.masterStock || 0) > 0
+    ).length,
+
+    masterStockZeroCount: items.filter(
+      item =>
+        item.masterMatch.status === MATCHED &&
+        Number(item.masterStock || 0) === 0
+    ).length,
+
+    zeroStockCatalogCount: items.filter(
+      item =>
+        item.masterMatch.status === MATCHED &&
+        Number(item.masterStock || 0) === 0
+    ).length,
+
+    syncEligibleCount: variants.length
+  };
 
   return {
-    summary: {
-      inventoryDocuments:
-        inventory.length,
-
-      mappedVariants:
-        variants.length,
-
-      unmappedVariants:
-        unmapped.length,
-
-      products:
-        products.length,
-
-      skuCount,
-
-      pricedCount,
-
-      zeroStockCatalogCount:
-        variants.filter(
-          item =>
-            Number(
-              item.pinkoiSyncedStock ||
-              0
-            ) === 0
-        ).length
-    },
-
+    error: null,
+    summary,
+    items,
     variants,
-
-    unmapped,
-
-    byVariantId:
-      new Map(
-        variants.map(
-          item => [
-            item.variantId,
-            item
-          ]
-        )
-      )
+    unmapped: unmatched,
+    ambiguous,
+    byVariantId: new Map(
+      variants.map(item => [item.variantId, item])
+    )
   };
 }
 
 export async function syncPinkoiTshirtCatalog() {
-  const db =
-    await requireDb();
-
-  const catalog =
-    await loadPinkoiTshirtCatalog();
+  const db = await requireDb();
+  const catalog = await loadPinkoiTshirtCatalog();
 
   const {
     doc,
     writeBatch,
     serverTimestamp
-  } =
-    await firestoreModule();
+  } = await firestoreModule();
 
   {
-    const batch =
-      writeBatch(
-        db
-      );
+    const batch = writeBatch(db);
 
     batch.set(
-      doc(
-        db,
-        "products",
-        "tshirt"
-      ),
+      doc(db, "products", "tshirt"),
       {
-        name:
-          "T Shirt",
-
-        category:
-          "tshirt",
-
-        inventoryMode:
-          "variant",
-
-        inventorySource:
-          "tshirt",
-
-        inventoryStatus:
-          "tracked",
-
-        saleStatus:
-          "active",
-
-        defaultTrackingMode:
-          "semi",
-
-        semiFields: [
-          "size"
-        ],
-
-        catalogAuthority:
-          "pinkoi",
-
-        priceAuthorityJPY:
-          "pinkoi",
-
-        active:
-          true,
-
-        updatedAt:
-          serverTimestamp()
+        name: "T Shirt",
+        category: "tshirt",
+        inventoryMode: "variant",
+        inventorySource: "tshirt",
+        inventoryStatus: "tracked",
+        saleStatus: "active",
+        defaultTrackingMode: "semi",
+        semiFields: ["size"],
+        catalogAuthority: "pinkoi",
+        priceAuthorityJPY: "pinkoi",
+        active: true,
+        updatedAt: serverTimestamp()
       },
-      {
-        merge:
-          true
-      }
+      { merge: true }
     );
 
     await batch.commit();
   }
 
-  const CHUNK =
-    350;
-
-  let processed =
-    0;
+  const CHUNK = 350;
+  let processed = 0;
 
   for (
     let start = 0;
-    start <
-      catalog.variants.length;
-    start +=
-      CHUNK
+    start < catalog.variants.length;
+    start += CHUNK
   ) {
-    const batch =
-      writeBatch(
-        db
+    const batch = writeBatch(db);
+    const chunk = catalog.variants.slice(start, start + CHUNK);
+
+    chunk.forEach(row => {
+      batch.set(
+        doc(db, "productVariants", row.variantId),
+        {
+          variantId: row.variantId,
+          productId: "tshirt",
+          category: "tshirt",
+
+          sku: row.pinkoiSku || row.variantId,
+          pinkoiSku: row.pinkoiSku || "",
+
+          pinkoiInventoryId: row.pinkoiInventoryId || "",
+          pinkoiProductId: row.pinkoiProductId || "",
+          pinkoiProductStatus: row.pinkoiProductStatus || "",
+
+          bodyId: row.bodyId,
+          designId: row.designId,
+          colorId: row.colorId,
+          sizeId: row.sizeId,
+
+          pinkoiBodyId: row.pinkoiBodyId || "",
+          pinkoiDesignId: row.pinkoiDesignId || "",
+          pinkoiColorId: row.pinkoiColorId || "",
+
+          body: row.body,
+          design: row.design,
+          color: row.color,
+          size: row.size,
+
+          inventorySource: "tshirt",
+          inventoryKey: row.inventoryKey,
+          inventoryStatus: "tracked",
+
+          saleStatus: "active",
+          active: true,
+          catalogAuthority: "pinkoi",
+
+          priceAuthorityJPY: row.priceSource,
+          priceStatus: row.priceStatus,
+          defaultPriceJPY: Number(row.defaultPriceJPY || 0),
+          pinkoiPriceJPY: Number(row.pinkoiPriceJPY || 0),
+          productPriceJpy: Number(row.productPriceJpy || 0),
+          inventoryPriceJpy: Number(row.inventoryPriceJpy || 0),
+
+          masterStock: Number(row.masterStock || 0),
+          pinkoiInventoryStock: Number(row.pinkoiInventoryStock || 0),
+          pinkoiStock: Number(row.pinkoiStock || 0),
+          stockStatus: row.stockStatus || [],
+
+          source: "pinkoi_inventory",
+          updatedAt: serverTimestamp()
+        },
+        { merge: true }
       );
-
-    const chunk =
-      catalog.variants.slice(
-        start,
-        start +
-          CHUNK
-      );
-
-    chunk.forEach(
-      row => {
-        const data = {
-          variantId:
-            row.variantId,
-
-          productId:
-            "tshirt",
-
-          category:
-            "tshirt",
-
-          sku:
-            row.pinkoiSku ||
-            row.variantId,
-
-          pinkoiSku:
-            row.pinkoiSku ||
-            "",
-
-          pinkoiInventoryId:
-            row.pinkoiInventoryId ||
-            "",
-
-          pinkoiProductId:
-            row.pinkoiProductId ||
-            "",
-
-          pinkoiProductKey:
-            row.pinkoiProductKey ||
-            "",
-
-          pinkoiProductStatus:
-            row.pinkoiProductStatus ||
-            "",
-
-          titleJa:
-            row.titleJa ||
-            "",
-
-          titleEn:
-            row.titleEn ||
-            "",
-
-          titleZh:
-            row.titleZh ||
-            "",
-
-          bodyId:
-            row.bodyId,
-
-          designId:
-            row.designId,
-
-          colorId:
-            row.colorId,
-
-          sizeId:
-            row.sizeId,
-
-          pinkoiBodyId:
-            row.pinkoiBodyId ||
-            "",
-
-          pinkoiDesignId:
-            row.pinkoiDesignId ||
-            "",
-
-          pinkoiColorId:
-            row.pinkoiColorId ||
-            "",
-
-          body:
-            row.body,
-
-          design:
-            row.design,
-
-          color:
-            row.color,
-
-          size:
-            row.size,
-
-          inventorySource:
-            "tshirt",
-
-          inventoryKey:
-            row.inventoryKey,
-
-          inventoryStatus:
-            "tracked",
-
-          saleStatus:
-            "active",
-
-          active:
-            true,
-
-          catalogAuthority:
-            "pinkoi",
-
-          priceAuthorityJPY:
-            row.priceSource,
-
-          defaultPriceJPY:
-            Number(
-              row.defaultPriceJPY ||
-              0
-            ),
-
-          pinkoiPriceJPY:
-            Number(
-              row.pinkoiPriceJPY ||
-              0
-            ),
-
-          pinkoiStock:
-            Number(
-              row.pinkoiStock ||
-              0
-            ),
-
-          pinkoiSyncedStock:
-            Number(
-              row.pinkoiSyncedStock ||
-              0
-            ),
-
-          source:
-            "pinkoi_inventory",
-
-          updatedAt:
-            serverTimestamp()
-        };
-
-        batch.set(
-          doc(
-            db,
-            "productVariants",
-            row.variantId
-          ),
-          data,
-          {
-            merge:
-              true
-          }
-        );
-      }
-    );
+    });
 
     await batch.commit();
-
-    processed +=
-      chunk.length;
+    processed += chunk.length;
   }
 
   return {
     processed,
-
-    mapped:
-      catalog.summary
-        .mappedVariants,
-
-    unmapped:
-      catalog.summary
-        .unmappedVariants,
-
-    skuCount:
-      catalog.summary
-        .skuCount,
-
-    pricedCount:
-      catalog.summary
-        .pricedCount
+    mapped: catalog.summary.matchedCount,
+    unmatched: catalog.summary.unmatchedCount,
+    ambiguous: catalog.summary.ambiguousCount,
+    skuCount: catalog.summary.skuCount,
+    missingSkuCount: catalog.summary.missingSkuCount,
+    duplicateSkuCount: catalog.summary.duplicateSkuCount,
+    pricedCount: catalog.summary.priceCount,
+    missingPriceCount: catalog.summary.missingPriceCount,
+    priceConflictCount: catalog.summary.priceConflictCount
   };
 }
