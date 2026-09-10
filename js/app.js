@@ -7,7 +7,7 @@ import { loadTshirtProductVariants, syncTshirtCurrentStockRows } from "./service
 import { listAllProductVariants, registerTshirtVariant, registerGeneralProduct, syncAccessoryCatalogRows } from "./services/productAdminService.js";
 import { CATEGORY_TEMPLATES, getCategoryTemplate } from "./data/categoryTemplates.js";
 import { loadQuickPriceBook, saveQuickPrices, QUICK_PRICE_CURRENCIES } from "./services/priceBookService.js";
-import { listSalesSessions, createEventSession, updateEventSession, SESSION_CURRENCIES } from "./services/sessionService.js";
+import { listSalesSessions, createEventSession, updateEventSession, updateEventExpenses, SESSION_CURRENCIES } from "./services/sessionService.js";
 import { commitQuickSale } from "./services/transactionService.js";
 import { listSessionTransactions } from "./services/salesHistoryService.js";
 
@@ -1586,6 +1586,88 @@ function categorySalesSummary(
     );
 }
 
+const EVENT_EXPENSE_LABELS = {
+  boothFee:
+    "出店料",
+  flight:
+    "航空券",
+  hotel:
+    "宿泊費",
+  shipping:
+    "送料",
+  transport:
+    "交通費",
+  interpreter:
+    "通訳費",
+  other:
+    "その他"
+};
+
+const EVENT_EXPENSE_ORDER = [
+  "boothFee",
+  "flight",
+  "hotel",
+  "shipping",
+  "transport",
+  "interpreter",
+  "other"
+];
+
+function sessionExpenseTotalJPY(
+  session
+) {
+  return Number(
+    session
+      ?.expenseSummary
+      ?.totalJPY || 0
+  );
+}
+
+function sessionNetSalesJPY(
+  session
+) {
+  if (
+    session?.currency ===
+    "JPY"
+  ) {
+    return Number(
+      session
+        ?.salesSummary
+        ?.netSales || 0
+    );
+  }
+
+  const stored =
+    Number(
+      session
+        ?.salesSummary
+        ?.netSalesJPY || 0
+    );
+
+  if (stored > 0) {
+    return stored;
+  }
+
+  const rate =
+    Number(
+      session?.fxRateToJPY || 0
+    );
+
+  if (rate > 0) {
+    return (
+      Number(
+        session
+          ?.salesSummary
+          ?.netSales || 0
+      ) *
+      rate
+    );
+  }
+
+  return 0;
+}
+
+
 async function renderSessions(
   sequence
 ) {
@@ -2330,6 +2412,29 @@ async function renderSessions(
                     dayCount
                   : 0;
 
+              const totalExpensesJPY =
+                sessionExpenseTotalJPY(
+                  selectedDetailSession
+                );
+
+              const netSalesJPY =
+                sessionNetSalesJPY(
+                  selectedDetailSession
+                );
+
+              const eventBalanceJPY =
+                netSalesJPY -
+                totalExpensesJPY;
+
+              const expenseRate =
+                netSalesJPY > 0
+                  ? (
+                      totalExpensesJPY /
+                      netSalesJPY
+                    ) *
+                    100
+                  : 0;
+
               const categories =
                 categorySalesSummary(
                   sessionTransactions
@@ -2534,6 +2639,281 @@ async function renderSessions(
                       `
                       : ""
                   }
+
+
+                  <div
+                    style="
+                      margin-top:14px;
+                      padding-top:12px;
+                      border-top:1px solid #ecece7;
+                    "
+                  >
+                    <div
+                      style="
+                        display:flex;
+                        justify-content:space-between;
+                        gap:10px;
+                        align-items:center;
+                        margin-bottom:6px;
+                      "
+                    >
+                      <div class="card-title">
+                        イベント経費
+                      </div>
+
+                      <strong>
+                        ${formatMoney(
+                          totalExpensesJPY,
+                          "JPY"
+                        )}
+                      </strong>
+                    </div>
+
+                    ${EVENT_EXPENSE_ORDER.map(
+                      key => {
+                        const item =
+                          selectedDetailSession
+                            ?.expenses
+                            ?.[key] || {
+                              amount: 0,
+                              currency: "JPY",
+                              amountJPY: 0
+                            };
+
+                        return `
+                          <div class="list-row">
+                            <span>
+                              ${escapeHtml(
+                                EVENT_EXPENSE_LABELS[
+                                  key
+                                ]
+                              )}
+                            </span>
+
+                            <span
+                              style="
+                                text-align:right;
+                              "
+                            >
+                              <strong>
+                                ${formatMoney(
+                                  Number(
+                                    item.amount || 0
+                                  ),
+                                  item.currency || "JPY"
+                                )}
+                              </strong>
+
+                              ${
+                                item.currency !== "JPY" &&
+                                Number(
+                                  item.amount || 0
+                                ) > 0
+                                  ? `
+                                    <div class="muted">
+                                      ${formatMoney(
+                                        Number(
+                                          item.amountJPY || 0
+                                        ),
+                                        "JPY"
+                                      )}
+                                    </div>
+                                  `
+                                  : ""
+                              }
+                            </span>
+                          </div>
+                        `;
+                      }
+                    ).join("")}
+
+                    <div
+                      class="list-row"
+                      style="
+                        margin-top:8px;
+                        font-size:18px;
+                      "
+                    >
+                      <strong>
+                        経費差引収支
+                      </strong>
+
+                      <strong>
+                        ${formatMoney(
+                          eventBalanceJPY,
+                          "JPY"
+                        )}
+                      </strong>
+                    </div>
+
+                    <div class="list-row">
+                      <span>
+                        イベント費用率
+                      </span>
+
+                      <strong>
+                        ${expenseRate.toFixed(1)}%
+                      </strong>
+                    </div>
+
+                    <div
+                      class="muted"
+                      style="
+                        margin-top:10px;
+                        line-height:1.55;
+                      "
+                    >
+                      商品原価はまだ未反映です。最終利益は商品原価履歴を接続した後に計算します。
+                    </div>
+
+                    <details
+                      style="
+                        margin-top:14px;
+                      "
+                    >
+                      <summary
+                        style="
+                          cursor:pointer;
+                          font-weight:800;
+                          padding:10px 0;
+                        "
+                      >
+                        経費を編集
+                      </summary>
+
+                      <div
+                        style="
+                          display:grid;
+                          gap:10px;
+                          margin-top:8px;
+                        "
+                      >
+                        ${EVENT_EXPENSE_ORDER.map(
+                          key => {
+                            const item =
+                              selectedDetailSession
+                                ?.expenses
+                                ?.[key] || {
+                                  amount: 0,
+                                  currency: "JPY"
+                                };
+
+                            const localCurrency =
+                              selectedDetailSession.currency;
+
+                            return `
+                              <div
+                                style="
+                                  display:grid;
+                                  grid-template-columns:
+                                    minmax(0,1fr)
+                                    120px
+                                    92px;
+                                  gap:8px;
+                                  align-items:center;
+                                "
+                              >
+                                <div>
+                                  ${escapeHtml(
+                                    EVENT_EXPENSE_LABELS[
+                                      key
+                                    ]
+                                  )}
+                                </div>
+
+                                <input
+                                  class="eventExpenseAmount"
+                                  data-expense-key="${key}"
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  inputmode="decimal"
+                                  value="${
+                                    Number(
+                                      item.amount || 0
+                                    ) || ""
+                                  }"
+                                  placeholder="0"
+                                  style="
+                                    width:100%;
+                                    min-height:42px;
+                                    padding:0 8px;
+                                    border:1px solid #deded9;
+                                    border-radius:10px;
+                                    text-align:right;
+                                  "
+                                >
+
+                                <select
+                                  class="eventExpenseCurrency"
+                                  data-expense-key="${key}"
+                                  style="
+                                    width:100%;
+                                    min-height:42px;
+                                    padding:0 6px;
+                                    border:1px solid #deded9;
+                                    border-radius:10px;
+                                    background:white;
+                                  "
+                                >
+                                  <option
+                                    value="JPY"
+                                    ${
+                                      item.currency === "JPY"
+                                        ? "selected"
+                                        : ""
+                                    }
+                                  >
+                                    JPY
+                                  </option>
+
+                                  ${
+                                    localCurrency !== "JPY"
+                                      ? `
+                                        <option
+                                          value="${escapeHtml(
+                                            localCurrency
+                                          )}"
+                                          ${
+                                            item.currency ===
+                                            localCurrency
+                                              ? "selected"
+                                              : ""
+                                          }
+                                        >
+                                          ${escapeHtml(
+                                            localCurrency
+                                          )}
+                                        </option>
+                                      `
+                                      : ""
+                                  }
+                                </select>
+                              </div>
+                            `;
+                          }
+                        ).join("")}
+
+                        <button
+                          id="saveEventExpensesButton"
+                          class="button"
+                          type="button"
+                          style="
+                            width:100%;
+                            min-height:50px;
+                            margin-top:4px;
+                          "
+                        >
+                          経費を保存
+                        </button>
+
+                        <div
+                          id="saveEventExpensesMessage"
+                          class="muted"
+                        ></div>
+                      </div>
+                    </details>
+                  </div>
 
 
                   ${
@@ -2997,6 +3377,99 @@ async function renderSessions(
               );
             }
           );
+        }
+      );
+
+
+    document
+      .querySelector(
+        "#saveEventExpensesButton"
+      )
+      ?.addEventListener(
+        "click",
+        async event => {
+          if (!selectedDetailSession) {
+            return;
+          }
+
+          const button =
+            event.currentTarget;
+
+          const messageBox =
+            document.querySelector(
+              "#saveEventExpensesMessage"
+            );
+
+          button.disabled =
+            true;
+
+          button.textContent =
+            "保存中";
+
+          if (messageBox) {
+            messageBox.textContent =
+              "";
+          }
+
+          const expenseInput = {};
+
+          EVENT_EXPENSE_ORDER.forEach(
+            key => {
+              const amountInput =
+                document.querySelector(
+                  `.eventExpenseAmount[data-expense-key="${key}"]`
+                );
+
+              const currencyInput =
+                document.querySelector(
+                  `.eventExpenseCurrency[data-expense-key="${key}"]`
+                );
+
+              expenseInput[key] = {
+                amount:
+                  Number(
+                    amountInput
+                      ?.value || 0
+                  ),
+                currency:
+                  currencyInput
+                    ?.value || "JPY"
+              };
+            }
+          );
+
+          try {
+            await updateEventExpenses(
+              selectedDetailSession.sessionId,
+              expenseInput
+            );
+
+            button.textContent =
+              "保存済み";
+
+            setTimeout(
+              () => {
+                renderSessions(
+                  ++renderSequence
+                );
+              },
+              400
+            );
+
+          } catch (error) {
+            button.disabled =
+              false;
+
+            button.textContent =
+              "経費を保存";
+
+            if (messageBox) {
+              messageBox.textContent =
+                error.code ||
+                error.message ||
+                String(error);
+            }
+          }
         }
       );
 
