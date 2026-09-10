@@ -70,6 +70,17 @@ let editingSessionId =
 let posPriceSettingsOpen =
   false;
 
+let posMode =
+  localStorage.getItem(
+    "icelolly-sales-pos-mode"
+  ) || "quick";
+
+let posSkuCategory =
+  "tshirt";
+
+let posSkuSearch =
+  "";
+
 let sessionDetailId =
   "";
 
@@ -5077,22 +5088,25 @@ function addQuickItem(
   return true;
 }
 
-function changeQuickQuantity(
-  category,
+function changePosQuantity(
+  key,
   change
 ) {
   invalidatePendingCheckout();
 
   const item =
     posCart.get(
-      category
+      key
     );
 
   if (!item) {
-    return;
+    return {
+      success:
+        false
+    };
   }
 
-  item.quantity =
+  const next =
     Math.max(
       0,
       Number(
@@ -5104,12 +5118,193 @@ function changeQuickQuantity(
     );
 
   if (
+    Number(
+      change || 0
+    ) > 0 &&
+    item.availableStock !==
+      undefined &&
+    item.availableStock !==
+      null &&
+    next >
+      Number(
+        item.availableStock
+      )
+  ) {
+    return {
+      success:
+        false,
+      message:
+        `${item.label} の在庫は ${item.availableStock} 点です。`
+    };
+  }
+
+  item.quantity =
+    next;
+
+  if (
     item.quantity <= 0
   ) {
     posCart.delete(
-      category
+      key
     );
   }
+
+  return {
+    success:
+      true
+  };
+}
+
+function skuDisplayLabel(
+  row
+) {
+  if (
+    row.category ===
+    "tshirt"
+  ) {
+    return (
+      row.design ||
+      "Tシャツ"
+    );
+  }
+
+  return (
+    row.displayName ||
+    row.design ||
+    POS_CATEGORY_LABELS[
+      row.category
+    ] ||
+    row.category
+  );
+}
+
+function skuDisplayDetail(
+  row
+) {
+  if (
+    row.category ===
+    "tshirt"
+  ) {
+    return [
+      row.body,
+      row.color,
+      row.size
+    ]
+      .filter(Boolean)
+      .join(" / ");
+  }
+
+  return (
+    POS_CATEGORY_LABELS[
+      row.category
+    ] ||
+    row.category
+  );
+}
+
+function addSkuItem(
+  row
+) {
+  invalidatePendingCheckout();
+
+  const price =
+    posPrice(
+      row.category
+    );
+
+  if (
+    price <= 0
+  ) {
+    return {
+      success:
+        false,
+      message:
+        `${POS_CATEGORY_LABELS[row.category]} の ${posCurrency} 価格を先に設定してください。`
+    };
+  }
+
+  const key =
+    `sku:${row.variantId}`;
+
+  const existing =
+    posCart.get(
+      key
+    );
+
+  if (existing) {
+    if (
+      existing.quantity >=
+      Number(
+        row.quantity || 0
+      )
+    ) {
+      return {
+        success:
+          false,
+        message:
+          `${existing.label} の在庫は ${row.quantity} 点です。`
+      };
+    }
+
+    existing.quantity +=
+      1;
+
+    return {
+      success:
+        true
+    };
+  }
+
+  posCart.set(
+    key,
+    {
+      key,
+
+      category:
+        row.category,
+
+      label:
+        skuDisplayLabel(
+          row
+        ),
+
+      detail:
+        skuDisplayDetail(
+          row
+        ),
+
+      quantity:
+        1,
+
+      unitPrice:
+        price,
+
+      trackingMode:
+        "sku",
+
+      variantId:
+        row.variantId,
+
+      inventoryKey:
+        row.inventoryKey ||
+        row.stockTargetId ||
+        null,
+
+      inventorySource:
+        row.inventorySource ||
+        null,
+
+      availableStock:
+        Number(
+          row.quantity || 0
+        )
+    }
+  );
+
+  return {
+    success:
+      true
+  };
 }
 
 async function renderPos(
@@ -5175,6 +5370,78 @@ async function renderPos(
       );
     }
 
+    let posSkuRows = [];
+
+    if (
+      posMode ===
+      "sku"
+    ) {
+      const [
+        tshirtInventory,
+        accessoryInventory,
+        registeredVariants
+      ] =
+        await Promise.all([
+          tshirtAdapter
+            .getInventorySnapshot(),
+          accessoryAdapter
+            .getCatalogSnapshot(),
+          listAllProductVariants()
+        ]);
+
+      const registeredMap =
+        new Map(
+          registeredVariants.map(
+            item => [
+              item.variantId ||
+              item.id,
+              item
+            ]
+          )
+        );
+
+      const tshirtRows =
+        tshirtInventory.rows
+          .filter(
+            row =>
+              registeredMap.has(
+                row.variantId
+              )
+          )
+          .map(
+            row => ({
+              ...row,
+              inventoryKey:
+                row.stockTargetId,
+              inventorySource:
+                "tshirt"
+            })
+          );
+
+      const accessoryRows =
+        accessoryInventory.rows
+          .filter(
+            row =>
+              registeredMap.has(
+                row.variantId
+              )
+          )
+          .map(
+            row => ({
+              ...row,
+              inventoryKey:
+                row.inventoryKey,
+              inventorySource:
+                "accessory"
+            })
+          );
+
+      posSkuRows = [
+        ...tshirtRows,
+        ...accessoryRows
+      ];
+    }
+
     if (
       sequence !==
       renderSequence
@@ -5206,12 +5473,51 @@ async function renderPos(
               EVENT POS
             </h1>
 
-            <p
-              class="page-note"
-              style="margin:0;"
+            <div
+              style="
+                display:flex;
+                gap:6px;
+                margin-top:8px;
+              "
             >
-              Quick
-            </p>
+              <button
+                id="posModeQuick"
+                type="button"
+                style="
+                  min-height:36px;
+                  padding:0 14px;
+                  border:1px solid #deded9;
+                  border-radius:18px;
+                  ${
+                    posMode === "quick"
+                      ? "background:#1f1f1f;color:white;"
+                      : "background:white;"
+                  }
+                  font-weight:700;
+                "
+              >
+                Quick
+              </button>
+
+              <button
+                id="posModeSku"
+                type="button"
+                style="
+                  min-height:36px;
+                  padding:0 14px;
+                  border:1px solid #deded9;
+                  border-radius:18px;
+                  ${
+                    posMode === "sku"
+                      ? "background:#1f1f1f;color:white;"
+                      : "background:white;"
+                  }
+                  font-weight:700;
+                "
+              >
+                SKU
+              </button>
+            </div>
           </div>
 
           <select
@@ -5438,6 +5744,9 @@ async function renderPos(
         }
 
 
+        ${
+          posMode === "quick"
+            ? `
         <section class="card">
 
           <div
@@ -5581,6 +5890,279 @@ async function renderPos(
           </div>
 
         </section>
+
+
+
+              `
+            : `
+              <section class="card">
+
+                <div
+                  style="
+                    display:flex;
+                    justify-content:space-between;
+                    align-items:center;
+                    gap:10px;
+                    margin-bottom:12px;
+                  "
+                >
+                  <div class="card-title">
+                    SKUを選択
+                  </div>
+
+                  <button
+                    id="togglePosPriceSettings"
+                    class="button button-secondary"
+                    type="button"
+                    style="
+                      min-height:38px;
+                      padding:0 14px;
+                    "
+                  >
+                    ${
+                      posPriceSettingsOpen
+                        ? "価格設定を閉じる"
+                        : "価格設定"
+                    }
+                  </button>
+                </div>
+
+
+                <div
+                  style="
+                    display:grid;
+                    grid-template-columns:
+                      150px
+                      minmax(0,1fr);
+                    gap:8px;
+                    margin-bottom:10px;
+                  "
+                >
+                  <select
+                    id="posSkuCategory"
+                    style="
+                      width:100%;
+                      min-height:44px;
+                      padding:0 8px;
+                      border:1px solid #deded9;
+                      border-radius:11px;
+                      background:white;
+                    "
+                  >
+                    ${[
+                      "tshirt",
+                      "pierce",
+                      "earring",
+                      "drop_pierce",
+                      "drop_earring"
+                    ].map(
+                      category => `
+                        <option
+                          value="${category}"
+                          ${
+                            category ===
+                            posSkuCategory
+                              ? "selected"
+                              : ""
+                          }
+                        >
+                          ${escapeHtml(
+                            POS_CATEGORY_LABELS[
+                              category
+                            ]
+                          )}
+                        </option>
+                      `
+                    ).join("")}
+                  </select>
+
+                  <input
+                    id="posSkuSearch"
+                    type="search"
+                    value="${escapeHtml(
+                      posSkuSearch
+                    )}"
+                    placeholder="商品名、色、サイズで検索"
+                    style="
+                      width:100%;
+                      min-height:44px;
+                      padding:0 10px;
+                      border:1px solid #deded9;
+                      border-radius:11px;
+                    "
+                  >
+                </div>
+
+
+                ${
+                  (() => {
+                    const query =
+                      posSkuSearch
+                        .trim()
+                        .toLocaleLowerCase();
+
+                    const rows =
+                      posSkuRows.filter(
+                        row => {
+                          if (
+                            row.category !==
+                            posSkuCategory
+                          ) {
+                            return false;
+                          }
+
+                          if (!query) {
+                            return true;
+                          }
+
+                          const text =
+                            [
+                              skuDisplayLabel(
+                                row
+                              ),
+                              skuDisplayDetail(
+                                row
+                              ),
+                              row.body,
+                              row.design,
+                              row.color,
+                              row.size
+                            ]
+                              .filter(Boolean)
+                              .join(" ")
+                              .toLocaleLowerCase();
+
+                          return text.includes(
+                            query
+                          );
+                        }
+                      );
+
+                    if (!rows.length) {
+                      return `
+                        <div
+                          class="muted"
+                          style="
+                            padding:18px 0;
+                            text-align:center;
+                          "
+                        >
+                          在庫のある登録済みSKUがありません。
+                        </div>
+                      `;
+                    }
+
+                    return `
+                      <div
+                        style="
+                          display:grid;
+                          gap:8px;
+                        "
+                      >
+                        ${rows.map(
+                          row => {
+                            const cartQty =
+                              posCart
+                                .get(
+                                  `sku:${row.variantId}`
+                                )
+                                ?.quantity || 0;
+
+                            return `
+                              <button
+                                class="posSkuItem"
+                                data-variant-id="${escapeHtml(
+                                  row.variantId
+                                )}"
+                                type="button"
+                                style="
+                                  width:100%;
+                                  min-height:66px;
+                                  padding:10px 12px;
+                                  border:1px solid #deded9;
+                                  border-radius:13px;
+                                  background:white;
+                                  text-align:left;
+                                  display:grid;
+                                  grid-template-columns:
+                                    minmax(0,1fr)
+                                    auto;
+                                  gap:10px;
+                                  align-items:center;
+                                  touch-action:manipulation;
+                                "
+                              >
+                                <div>
+                                  <div
+                                    style="
+                                      font-weight:800;
+                                    "
+                                  >
+                                    ${escapeHtml(
+                                      skuDisplayLabel(
+                                        row
+                                      )
+                                    )}
+                                  </div>
+
+                                  <div
+                                    class="muted"
+                                    style="
+                                      margin-top:3px;
+                                      line-height:1.35;
+                                    "
+                                  >
+                                    ${escapeHtml(
+                                      skuDisplayDetail(
+                                        row
+                                      )
+                                    )}
+                                  </div>
+                                </div>
+
+                                <div
+                                  style="
+                                    text-align:right;
+                                  "
+                                >
+                                  <div
+                                    style="
+                                      font-weight:800;
+                                    "
+                                  >
+                                    ${formatMoney(
+                                      posPrice(
+                                        row.category
+                                      )
+                                    )}
+                                  </div>
+
+                                  <div
+                                    class="muted"
+                                    style="
+                                      margin-top:3px;
+                                    "
+                                  >
+                                    在庫 ${row.quantity}
+                                    ${
+                                      cartQty > 0
+                                        ? ` / 会計 ${cartQty}`
+                                        : ""
+                                    }
+                                  </div>
+                                </div>
+                              </button>
+                            `;
+                          }
+                        ).join("")}
+                      </div>
+                    `;
+                  })()
+                }
+
+              </section>
+            `
+        }
 
 
         <section
@@ -5736,6 +6318,23 @@ async function renderPos(
                           )}
                         </div>
 
+                        ${
+                          item.detail
+                            ? `
+                              <div
+                                class="muted"
+                                style="
+                                  margin-top:3px;
+                                "
+                              >
+                                ${escapeHtml(
+                                  item.detail
+                                )}
+                              </div>
+                            `
+                            : ""
+                        }
+
                         <div
                           class="muted"
                           style="
@@ -5758,7 +6357,9 @@ async function renderPos(
                       >
                         <button
                           class="posQtyButton"
-                          data-category="${item.category}"
+                          data-key="${escapeHtml(
+                            item.key
+                          )}"
                           data-change="-1"
                           type="button"
                           style="
@@ -5786,7 +6387,9 @@ async function renderPos(
 
                         <button
                           class="posQtyButton"
-                          data-category="${item.category}"
+                          data-key="${escapeHtml(
+                            item.key
+                          )}"
                           data-change="1"
                           type="button"
                           style="
@@ -5969,11 +6572,218 @@ async function renderPos(
               line-height:1.6;
             "
           >
-            Quick会計ではカテゴリ単位で売上を記録します。SKU未指定のため在庫は自動で減らさず、棚卸し時に照合できる未割当の販売履歴として残します。
+            Quickはカテゴリ単位で売上だけを記録します。SKUモードで選んだTシャツとアクセサリーは、会計確定と同時に実在庫を減らし、販売履歴も同じtransaction IDで保存します。
           </div>
 
         </section>
       `;
+
+
+      document
+        .querySelector(
+          "#posModeQuick"
+        )
+        ?.addEventListener(
+          "click",
+          () => {
+            if (
+              posMode ===
+              "quick"
+            ) {
+              return;
+            }
+
+            if (
+              posCart.size > 0
+            ) {
+              const confirmed =
+                window.confirm(
+                  "現在の会計内容をクリアしてQuickモードに切り替えますか？"
+                );
+
+              if (!confirmed) {
+                return;
+              }
+
+              posCart =
+                new Map();
+
+              posOrderDiscount =
+                0;
+
+              invalidatePendingCheckout();
+            }
+
+            posMode =
+              "quick";
+
+            localStorage.setItem(
+              "icelolly-sales-pos-mode",
+              posMode
+            );
+
+            renderPos(
+              ++renderSequence
+            );
+          }
+        );
+
+
+      document
+        .querySelector(
+          "#posModeSku"
+        )
+        ?.addEventListener(
+          "click",
+          () => {
+            if (
+              posMode ===
+              "sku"
+            ) {
+              return;
+            }
+
+            if (
+              posCart.size > 0
+            ) {
+              const confirmed =
+                window.confirm(
+                  "現在の会計内容をクリアしてSKUモードに切り替えますか？"
+                );
+
+              if (!confirmed) {
+                return;
+              }
+
+              posCart =
+                new Map();
+
+              posOrderDiscount =
+                0;
+
+              invalidatePendingCheckout();
+            }
+
+            posMode =
+              "sku";
+
+            localStorage.setItem(
+              "icelolly-sales-pos-mode",
+              posMode
+            );
+
+            renderPos(
+              ++renderSequence
+            );
+          }
+        );
+
+
+      document
+        .querySelector(
+          "#posSkuCategory"
+        )
+        ?.addEventListener(
+          "change",
+          event => {
+            posSkuCategory =
+              event.target.value;
+
+            posSkuSearch =
+              "";
+
+            renderPosBody();
+          }
+        );
+
+
+      document
+        .querySelector(
+          "#posSkuSearch"
+        )
+        ?.addEventListener(
+          "input",
+          event => {
+            posSkuSearch =
+              event.target.value;
+
+            renderPosBody();
+
+            requestAnimationFrame(
+              () => {
+                const input =
+                  document.querySelector(
+                    "#posSkuSearch"
+                  );
+
+                if (input) {
+                  input.focus();
+
+                  const length =
+                    input.value.length;
+
+                  input.setSelectionRange(
+                    length,
+                    length
+                  );
+                }
+              }
+            );
+          }
+        );
+
+
+      document
+        .querySelectorAll(
+          ".posSkuItem"
+        )
+        .forEach(
+          button => {
+            button.addEventListener(
+              "click",
+              () => {
+                const row =
+                  posSkuRows.find(
+                    item =>
+                      item.variantId ===
+                      button.dataset.variantId
+                  );
+
+                if (!row) {
+                  return;
+                }
+
+                const result =
+                  addSkuItem(
+                    row
+                  );
+
+                if (
+                  !result.success
+                ) {
+                  if (
+                    result.message
+                      ?.includes(
+                        "価格"
+                      )
+                  ) {
+                    posPriceSettingsOpen =
+                      true;
+                  }
+
+                  renderPosBody(
+                    result.message ||
+                    "追加できませんでした。"
+                  );
+
+                  return;
+                }
+
+                renderPosBody();
+              }
+            );
+          }
+        );
 
 
       document
@@ -6168,15 +6978,19 @@ async function renderPos(
             button.addEventListener(
               "click",
               () => {
-                changeQuickQuantity(
-                  button.dataset.category,
-                  Number(
-                    button.dataset.change ||
-                    0
-                  )
-                );
+                const result =
+                  changePosQuantity(
+                    button.dataset.key,
+                    Number(
+                      button.dataset.change ||
+                      0
+                    )
+                  );
 
-                renderPosBody();
+                renderPosBody(
+                  result.message ||
+                  ""
+                );
               }
             );
           }
@@ -6426,10 +7240,15 @@ async function renderPos(
                         unitPrice:
                           item.unitPrice,
                         trackingMode:
+                          item.trackingMode ||
                           "quick",
+
                         variantId:
+                          item.variantId ||
                           null,
+
                         inventoryKey:
+                          item.inventoryKey ||
                           null
                       })
                     ),
