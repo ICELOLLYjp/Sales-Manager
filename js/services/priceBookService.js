@@ -52,6 +52,70 @@ function cleanPrice(value) {
   return number;
 }
 
+function cleanDiscountOffers(value) {
+  const source =
+    Array.isArray(value)
+      ? value
+      : (
+          value &&
+          typeof value === "object"
+        )
+        ? [value]
+        : [];
+
+  const seen =
+    new Set();
+
+  return source
+    .map(
+      offer => ({
+        quantity:
+          Math.max(
+            0,
+            Math.floor(
+              Number(
+                offer?.quantity ||
+                0
+              )
+            )
+          ),
+
+        discount:
+          cleanPrice(
+            offer?.discount
+          )
+      })
+    )
+    .filter(
+      offer =>
+        offer.quantity >= 2 &&
+        offer.discount > 0
+    )
+    .filter(
+      offer => {
+        const key =
+          `${offer.quantity}|${offer.discount}`;
+
+        if (
+          seen.has(key)
+        ) {
+          return false;
+        }
+
+        seen.add(key);
+        return true;
+      }
+    )
+    .sort(
+      (a, b) =>
+        a.quantity -
+        b.quantity ||
+        a.discount -
+        b.discount
+    );
+}
+
+
 function cleanSetOffers(value) {
   const source =
     Array.isArray(value)
@@ -162,6 +226,16 @@ export async function loadPosPriceConfig() {
   const bodySetOffers =
     emptyBodySetOfferBook();
 
+  const tshirtMixMatchDiscounts = {};
+
+  CURRENCIES.forEach(
+    currency => {
+      tshirtMixMatchDiscounts[
+        currency
+      ] = [];
+    }
+  );
+
   await Promise.all(
     CATEGORY_IDS.map(
       async categoryId => {
@@ -229,6 +303,15 @@ export async function loadPosPriceConfig() {
                     );
                 }
               );
+
+              tshirtMixMatchDiscounts[
+                currency
+              ] =
+                cleanDiscountOffers(
+                  data
+                    ?.mixMatchDiscounts
+                    ?.[currency]
+                );
             }
           }
         );
@@ -240,7 +323,8 @@ export async function loadPosPriceConfig() {
     prices,
     setOffers,
     bodyPrices,
-    bodySetOffers
+    bodySetOffers,
+    tshirtMixMatchDiscounts
   };
 }
 
@@ -249,7 +333,8 @@ export async function savePosPriceConfig(
   prices,
   setOffers,
   bodyPrices = {},
-  bodySetOffers = {}
+  bodySetOffers = {},
+  tshirtMixMatchDiscounts = []
 ) {
   const db = await requireDb();
 
@@ -344,6 +429,13 @@ export async function savePosPriceConfig(
         payload.bodySetOffers = {
           [currency]:
             cleanedBodySetOffers
+        };
+
+        payload.mixMatchDiscounts = {
+          [currency]:
+            cleanDiscountOffers(
+              tshirtMixMatchDiscounts
+            )
         };
       }
 
