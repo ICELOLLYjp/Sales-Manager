@@ -26,7 +26,9 @@ import {
 
 
 const view =
-  document.querySelector("#view");
+  document.querySelector(
+    "#view"
+  );
 
 
 const syncStatus =
@@ -47,13 +49,29 @@ let currentRoute =
 let renderSequence = 0;
 
 
-function escapeHtml(value) {
+function escapeHtml(
+  value
+) {
 
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
+  return String(
+    value ?? ""
+  )
+    .replaceAll(
+      "&",
+      "&amp;"
+    )
+    .replaceAll(
+      "<",
+      "&lt;"
+    )
+    .replaceAll(
+      ">",
+      "&gt;"
+    )
+    .replaceAll(
+      '"',
+      "&quot;"
+    )
     .replaceAll(
       "'",
       "&#039;"
@@ -67,14 +85,16 @@ function updateNavigation() {
     .querySelectorAll(
       ".nav-btn"
     )
-    .forEach(btn => {
+    .forEach(
+      btn => {
 
-      btn.classList.toggle(
-        "active",
-        btn.dataset.route ===
-          currentRoute
-      );
-    });
+        btn.classList.toggle(
+          "active",
+          btn.dataset.route ===
+            currentRoute
+        );
+      }
+    );
 }
 
 
@@ -160,13 +180,16 @@ function renderLogin() {
     "click",
     async () => {
 
-      button.disabled = true;
+      button.disabled =
+        true;
+
 
       button.textContent =
         "ログイン中";
 
 
-      authError = null;
+      authError =
+        null;
 
 
       try {
@@ -181,7 +204,9 @@ function renderLogin() {
         );
 
 
-        authError = error;
+        authError =
+          error;
+
 
         renderLogin();
       }
@@ -220,6 +245,55 @@ function simplePage(
 }
 
 
+function uniqueValues(
+  rows,
+  field
+) {
+
+  return Array
+    .from(
+      new Set(
+        rows
+          .map(
+            row =>
+              row?.[field]
+          )
+          .filter(Boolean)
+      )
+    )
+    .sort(
+      (
+        a,
+        b
+      ) =>
+        String(a)
+          .localeCompare(
+            String(b),
+            "ja"
+          )
+    );
+}
+
+
+function optionHtml(
+  values
+) {
+
+  return values
+    .map(
+      value => `
+
+        <option
+          value="${escapeHtml(value)}"
+        >
+          ${escapeHtml(value)}
+        </option>
+      `
+    )
+    .join("");
+}
+
+
 async function renderInventory(
   sequence
 ) {
@@ -231,13 +305,13 @@ async function renderInventory(
     </h1>
 
     <p class="page-note">
-      Tシャツ実在庫を読み込んでいます
+      Tシャツ商品カタログを読み込んでいます
     </p>
 
     <section class="card">
 
       <div class="muted">
-        tshirtStock/master に接続しています
+        tshirtStock/master と tshirtStock/shared に接続しています
       </div>
 
     </section>
@@ -246,17 +320,9 @@ async function renderInventory(
 
   try {
 
-    const [
-      summary,
-      rows
-    ] = await Promise.all([
-
-      tshirtAdapter
-        .getMasterSummary(),
-
-      tshirtAdapter
-        .listInventoryRows()
-    ]);
+    const snapshot =
+      await tshirtAdapter
+        .getCatalogSnapshot();
 
 
     if (
@@ -267,6 +333,35 @@ async function renderInventory(
     }
 
 
+    const summary =
+      snapshot.summary;
+
+
+    const rows =
+      snapshot.rows;
+
+
+    const bodyOptions =
+      uniqueValues(
+        rows,
+        "body"
+      );
+
+
+    const designOptions =
+      uniqueValues(
+        rows,
+        "design"
+      );
+
+
+    const colorOptions =
+      uniqueValues(
+        rows,
+        "color"
+      );
+
+
     const authorityWarning =
       summary.inventoryAuthority ===
       "master"
@@ -274,7 +369,7 @@ async function renderInventory(
         : `
           <div class="warning">
             inventoryAuthority が master ではありません。
-            在庫の書き込みは行いません。
+            在庫変更は行いません。
           </div>
         `;
 
@@ -286,7 +381,7 @@ async function renderInventory(
       </h1>
 
       <p class="page-note">
-        Tシャツ実在庫
+        Tシャツ商品カタログ
       </p>
 
 
@@ -298,7 +393,7 @@ async function renderInventory(
         <section class="card">
 
           <div class="metric">
-            ${summary.total}
+            ${summary.totalStock}
           </div>
 
           <div class="metric-label">
@@ -311,11 +406,37 @@ async function renderInventory(
         <section class="card">
 
           <div class="metric">
-            ${summary.skuCount}
+            ${summary.inStockSkuCount}
           </div>
 
           <div class="metric-label">
-            Active SKU
+            In Stock SKU
+          </div>
+
+        </section>
+
+
+        <section class="card">
+
+          <div class="metric">
+            ${summary.catalogSkuCount}
+          </div>
+
+          <div class="metric-label">
+            Catalog SKU
+          </div>
+
+        </section>
+
+
+        <section class="card">
+
+          <div class="metric">
+            ${summary.outOfStockSkuCount}
+          </div>
+
+          <div class="metric-label">
+            Out of Stock SKU
           </div>
 
         </section>
@@ -329,23 +450,29 @@ async function renderInventory(
           Source
         </div>
 
+
         <div class="code-note">
           ${escapeHtml(
-            summary.source
+            summary.catalogSource
           )}
         </div>
+
 
         <div
           class="muted"
           style="margin-top:8px;"
         >
+
           Schema v${summary.schemaVersion}
+
           /
+
           Authority:
           ${escapeHtml(
             summary.inventoryAuthority ||
             "unknown"
           )}
+
         </div>
 
       </section>
@@ -354,74 +481,169 @@ async function renderInventory(
       <section class="card">
 
         <div class="card-title">
-          T Shirt Inventory
+          Filter
         </div>
 
 
-        ${
-          rows.length
-            ? rows.map(
-                row => `
+        <div
+          style="
+            display:grid;
+            grid-template-columns:
+              repeat(
+                auto-fit,
+                minmax(150px,1fr)
+              );
+            gap:10px;
+          "
+        >
 
-                  <div class="list-row">
-
-                    <div>
-
-                      <div
-                        style="
-                          font-weight:700;
-                          margin-bottom:4px;
-                        "
-                      >
-                        ${escapeHtml(
-                          row.design
-                        )}
-                      </div>
-
-                      <div class="muted">
-
-                        ${escapeHtml(
-                          row.body
-                        )}
-
-                        /
-
-                        ${escapeHtml(
-                          row.color
-                        )}
-
-                        /
-
-                        ${escapeHtml(
-                          row.size
-                        )}
-
-                      </div>
-
-                    </div>
+          <input
+            id="inventorySearch"
+            type="text"
+            placeholder="Search"
+            style="
+              width:100%;
+              height:42px;
+              padding:0 10px;
+              border:1px solid #deded9;
+              border-radius:10px;
+              background:white;
+            "
+          >
 
 
-                    <div
-                      style="
-                        font-size:20px;
-                        font-weight:800;
-                        min-width:36px;
-                        text-align:right;
-                      "
-                    >
-                      ${row.quantity}
-                    </div>
+          <select
+            id="inventoryStatusFilter"
+            style="
+              width:100%;
+              height:42px;
+              padding:0 10px;
+              border:1px solid #deded9;
+              border-radius:10px;
+              background:white;
+            "
+          >
 
-                  </div>
+            <option value="in_stock">
+              在庫あり
+            </option>
 
-                `
-              ).join("")
-            : `
-              <div class="muted">
-                在庫のあるSKUはありません。
-              </div>
-            `
-        }
+            <option value="all">
+              すべて
+            </option>
+
+            <option value="out_of_stock">
+              在庫0
+            </option>
+
+            <option value="not_initialized">
+              在庫未設定
+            </option>
+
+          </select>
+
+
+          <select
+            id="inventoryBodyFilter"
+            style="
+              width:100%;
+              height:42px;
+              padding:0 10px;
+              border:1px solid #deded9;
+              border-radius:10px;
+              background:white;
+            "
+          >
+
+            <option value="">
+              All Body
+            </option>
+
+            ${optionHtml(
+              bodyOptions
+            )}
+
+          </select>
+
+
+          <select
+            id="inventoryDesignFilter"
+            style="
+              width:100%;
+              height:42px;
+              padding:0 10px;
+              border:1px solid #deded9;
+              border-radius:10px;
+              background:white;
+            "
+          >
+
+            <option value="">
+              All Design
+            </option>
+
+            ${optionHtml(
+              designOptions
+            )}
+
+          </select>
+
+
+          <select
+            id="inventoryColorFilter"
+            style="
+              width:100%;
+              height:42px;
+              padding:0 10px;
+              border:1px solid #deded9;
+              border-radius:10px;
+              background:white;
+            "
+          >
+
+            <option value="">
+              All Color
+            </option>
+
+            ${optionHtml(
+              colorOptions
+            )}
+
+          </select>
+
+        </div>
+
+      </section>
+
+
+      <section class="card">
+
+        <div
+          style="
+            display:flex;
+            justify-content:space-between;
+            gap:12px;
+            align-items:center;
+            margin-bottom:10px;
+          "
+        >
+
+          <div class="card-title">
+            T Shirt Catalog
+          </div>
+
+
+          <div
+            id="inventoryResultCount"
+            class="pill"
+          ></div>
+
+        </div>
+
+
+        <div
+          id="inventoryRows"
+        ></div>
 
       </section>
 
@@ -429,25 +651,357 @@ async function renderInventory(
       <section class="card">
 
         <div class="card-title">
-          Phase 1 Safety
+          Catalog Connection
+        </div>
+
+
+        <div class="muted">
+
+          各行には内部的に
+
+          productId
+
+          variantId
+
+          stockTargetId
+
+          Body
+
+          Design
+
+          Color
+
+          Size
+
+          が設定されています。
+
+          次の段階で productVariants Collectionへ同期します。
+
+        </div>
+
+      </section>
+
+
+      <section class="card">
+
+        <div class="card-title">
+          Safety
         </div>
 
         <div class="muted">
           現在は読み取り専用です。
-          Sales ManagerからTシャツ在庫の数量変更はまだ行いません。
+          Sales Managerから在庫数量は変更しません。
         </div>
 
       </section>
     `;
 
 
+    const searchInput =
+      document.querySelector(
+        "#inventorySearch"
+      );
+
+
+    const statusFilter =
+      document.querySelector(
+        "#inventoryStatusFilter"
+      );
+
+
+    const bodyFilter =
+      document.querySelector(
+        "#inventoryBodyFilter"
+      );
+
+
+    const designFilter =
+      document.querySelector(
+        "#inventoryDesignFilter"
+      );
+
+
+    const colorFilter =
+      document.querySelector(
+        "#inventoryColorFilter"
+      );
+
+
+    const resultCount =
+      document.querySelector(
+        "#inventoryResultCount"
+      );
+
+
+    const rowsBox =
+      document.querySelector(
+        "#inventoryRows"
+      );
+
+
+    function renderRows() {
+
+      const search =
+        String(
+          searchInput?.value || ""
+        )
+          .trim()
+          .toLocaleLowerCase(
+            "en-US"
+          );
+
+
+      const status =
+        statusFilter?.value ||
+        "in_stock";
+
+
+      const body =
+        bodyFilter?.value || "";
+
+
+      const design =
+        designFilter?.value || "";
+
+
+      const color =
+        colorFilter?.value || "";
+
+
+      const filtered =
+        rows.filter(
+          row => {
+
+            if (
+              status !== "all" &&
+              row.catalogStatus !==
+                status
+            ) {
+              return false;
+            }
+
+
+            if (
+              body &&
+              row.body !== body
+            ) {
+              return false;
+            }
+
+
+            if (
+              design &&
+              row.design !== design
+            ) {
+              return false;
+            }
+
+
+            if (
+              color &&
+              row.color !== color
+            ) {
+              return false;
+            }
+
+
+            if (search) {
+
+              const haystack =
+                [
+                  row.body,
+                  row.design,
+                  row.color,
+                  row.size,
+                  row.variantId
+                ]
+                  .join(" ")
+                  .toLocaleLowerCase(
+                    "en-US"
+                  );
+
+
+              if (
+                !haystack.includes(
+                  search
+                )
+              ) {
+
+                return false;
+              }
+            }
+
+
+            return true;
+          }
+        );
+
+
+      if (resultCount) {
+
+        resultCount.textContent =
+          `${filtered.length}`;
+      }
+
+
+      if (!rowsBox) {
+        return;
+      }
+
+
+      if (
+        !filtered.length
+      ) {
+
+        rowsBox.innerHTML = `
+
+          <div class="muted">
+            該当する商品はありません。
+          </div>
+        `;
+
+        return;
+      }
+
+
+      rowsBox.innerHTML =
+        filtered
+          .map(
+            row => {
+
+              let quantityHtml =
+                row.quantity;
+
+
+              if (
+                row.catalogStatus ===
+                "not_initialized"
+              ) {
+
+                quantityHtml =
+                  `<span class="muted">未設定</span>`;
+              }
+
+
+              return `
+
+                <div class="list-row">
+
+                  <div
+                    style="
+                      min-width:0;
+                    "
+                  >
+
+                    <div
+                      style="
+                        font-weight:700;
+                        margin-bottom:4px;
+                      "
+                    >
+
+                      ${escapeHtml(
+                        row.design
+                      )}
+
+                    </div>
+
+
+                    <div class="muted">
+
+                      ${escapeHtml(
+                        row.body
+                      )}
+
+                      /
+
+                      ${escapeHtml(
+                        row.color
+                      )}
+
+                      /
+
+                      ${escapeHtml(
+                        row.size
+                      )}
+
+                    </div>
+
+
+                    ${
+                      row.catalogStatus ===
+                      "out_of_stock"
+                        ? `
+                          <div
+                            class="muted"
+                            style="
+                              margin-top:4px;
+                            "
+                          >
+                            Sold out
+                          </div>
+                        `
+                        : ""
+                    }
+
+                  </div>
+
+
+                  <div
+                    style="
+                      font-size:20px;
+                      font-weight:800;
+                      min-width:55px;
+                      text-align:right;
+                    "
+                  >
+
+                    ${quantityHtml}
+
+                  </div>
+
+                </div>
+              `;
+            }
+          )
+          .join("");
+    }
+
+
+    [
+      searchInput,
+      statusFilter,
+      bodyFilter,
+      designFilter,
+      colorFilter
+    ].forEach(
+      element => {
+
+        element?.addEventListener(
+          "input",
+          renderRows
+        );
+
+
+        element?.addEventListener(
+          "change",
+          renderRows
+        );
+      }
+    );
+
+
+    renderRows();
+
+
     syncStatus.textContent =
       "Firebase";
+
 
   } catch (error) {
 
     console.error(
-      "T-shirt inventory load failed",
+      "T-shirt catalog load failed",
       error
     );
 
@@ -458,14 +1012,15 @@ async function renderInventory(
         Inventory
       </h1>
 
+
       <p class="page-note">
-        Tシャツ実在庫
+        Tシャツ商品カタログ
       </p>
 
 
       <div class="warning">
 
-        Tシャツ在庫を読み込めませんでした。
+        Tシャツ商品カタログを読み込めませんでした。
 
         <br><br>
 
@@ -486,6 +1041,8 @@ async function renderInventory(
 
         <div class="code-note">
           tshirtStock/master
+          +
+          tshirtStock/shared
         </div>
 
       </section>
@@ -512,9 +1069,7 @@ function renderMorePage() {
         </div>
 
 
-        <div
-          class="list-row"
-        >
+        <div class="list-row">
 
           <span>
             Google
@@ -563,7 +1118,9 @@ async function render(
   route = currentRoute
 ) {
 
-  currentRoute = route;
+  currentRoute =
+    route;
+
 
   const sequence =
     ++renderSequence;
@@ -578,6 +1135,7 @@ async function render(
   ) {
 
     renderLogin();
+
     return;
   }
 
@@ -676,6 +1234,7 @@ async function start() {
       "dashboard"
     );
 
+
     return;
   }
 
@@ -690,9 +1249,12 @@ async function start() {
       error
     ) => {
 
-      currentUser = user;
+      currentUser =
+        user;
 
-      authError = error;
+
+      authError =
+        error;
 
 
       if (user) {
