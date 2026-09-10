@@ -132,6 +132,32 @@ export async function listSessionTransactions(
             ?.mode ||
           "quick",
 
+        status:
+          item.data()
+            ?.status ||
+          "completed",
+
+        voidReason:
+          item.data()
+            ?.voidReason ||
+          "",
+
+        voidedByEmail:
+          item.data()
+            ?.voidedByEmail ||
+          "",
+
+        voidedAt:
+          item.data()
+            ?.voidedAt ||
+          null,
+
+        voidedAtMs:
+          timestampMs(
+            item.data()
+              ?.voidedAt
+          ),
+
         createdAt:
           item.data()
             ?.createdAt ||

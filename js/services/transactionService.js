@@ -1114,3 +1114,680 @@ export async function commitQuickSale({
 
   return result;
 }
+
+
+export async function voidSaleTransaction({
+  transactionId,
+  voidedByEmail = "",
+  reason = "manual_void"
+}) {
+  const db = await requireDb();
+
+  const id =
+    String(
+      transactionId || ""
+    ).trim();
+
+  if (!id) {
+    throw new Error(
+      "取消する会計IDがありません。"
+    );
+  }
+
+  const {
+    doc,
+    runTransaction,
+    serverTimestamp,
+    FieldPath
+  } = await firestoreModule();
+
+  const saleRef =
+    doc(
+      db,
+      "salesTransactions",
+      id
+    );
+
+  const lockRef =
+    doc(
+      db,
+      "transactionLocks",
+      id
+    );
+
+  const tshirtMasterRef =
+    doc(
+      db,
+      "tshirtStock",
+      "master"
+    );
+
+  const accessorySharedRef =
+    doc(
+      db,
+      "accessoryStock",
+      "shared"
+    );
+
+  return await runTransaction(
+    db,
+    async transaction => {
+      const saleSnapshot =
+        await transaction.get(
+          saleRef
+        );
+
+      if (!saleSnapshot.exists()) {
+        throw new Error(
+          "取消する会計が見つかりません。"
+        );
+      }
+
+      const sale =
+        saleSnapshot.data();
+
+      if (
+        sale?.status ===
+        "voided"
+      ) {
+        return {
+          transactionId:
+            id,
+          duplicate:
+            true,
+          status:
+            "voided"
+        };
+      }
+
+      if (
+        sale?.status &&
+        sale.status !==
+          "completed"
+      ) {
+        throw new Error(
+          "この会計は取消できる状態ではありません。"
+        );
+      }
+
+      const sessionId =
+        String(
+          sale?.sessionId ||
+          ""
+        ).trim();
+
+      if (!sessionId) {
+        throw new Error(
+          "会計の販売セッションを確認できません。"
+        );
+      }
+
+      const sessionRef =
+        doc(
+          db,
+          "salesSessions",
+          sessionId
+        );
+
+      const sessionSnapshot =
+        await transaction.get(
+          sessionRef
+        );
+
+      if (!sessionSnapshot.exists()) {
+        throw new Error(
+          "販売セッションが見つかりません。"
+        );
+      }
+
+      const session =
+        sessionSnapshot.data();
+
+      const items =
+        Array.isArray(
+          sale?.items
+        )
+          ? sale.items
+          : [];
+
+      const appliedItems =
+        items.filter(
+          item =>
+            item?.inventoryApplied ===
+            true
+        );
+
+      const needsTshirt =
+        appliedItems.some(
+          item =>
+            item?.inventorySource ===
+            "tshirt"
+        );
+
+      const needsAccessory =
+        appliedItems.some(
+          item =>
+            item?.inventorySource ===
+            "accessory"
+        );
+
+      const tshirtSnapshot =
+        needsTshirt
+          ? await transaction.get(
+              tshirtMasterRef
+            )
+          : null;
+
+      const accessorySnapshot =
+        needsAccessory
+          ? await transaction.get(
+              accessorySharedRef
+            )
+          : null;
+
+      if (
+        needsTshirt &&
+        !tshirtSnapshot?.exists()
+      ) {
+        throw new Error(
+          "Tシャツ実在庫を確認できないため取消できません。"
+        );
+      }
+
+      if (
+        needsAccessory &&
+        !accessorySnapshot?.exists()
+      ) {
+        throw new Error(
+          "アクセサリー実在庫を確認できないため取消できません。"
+        );
+      }
+
+      const tshirtMaster =
+        tshirtSnapshot?.data() ||
+        null;
+
+      const tshirtRestore =
+        new Map();
+
+      appliedItems
+        .filter(
+          item =>
+            item?.inventorySource ===
+            "tshirt"
+        )
+        .forEach(
+          item => {
+            const target =
+              parseTshirtInventoryKey(
+                item?.inventoryKey
+              );
+
+            if (!target) {
+              throw new Error(
+                `${item?.label || "Tシャツ"} の在庫キーが不正なため取消できません。`
+              );
+            }
+
+            const key =
+              [
+                target.bodyId,
+                target.designId,
+                target.colorId,
+                target.sizeId
+              ].join("|");
+
+            const existing =
+              tshirtRestore.get(
+                key
+              );
+
+            if (existing) {
+              existing.quantity +=
+                Math.max(
+                  0,
+                  Math.floor(
+                    safeNumber(
+                      item?.quantity
+                    )
+                  )
+                );
+            } else {
+              tshirtRestore.set(
+                key,
+                {
+                  target,
+                  quantity:
+                    Math.max(
+                      0,
+                      Math.floor(
+                        safeNumber(
+                          item?.quantity
+                        )
+                      )
+                    )
+                }
+              );
+            }
+          }
+        );
+
+      let accessoryDesigns =
+        Array.isArray(
+          accessorySnapshot
+            ?.data()
+            ?.designs
+        )
+          ? accessorySnapshot
+              .data()
+              .designs
+              .map(
+                item => ({
+                  ...item
+                })
+              )
+          : [];
+
+      appliedItems
+        .filter(
+          item =>
+            item?.inventorySource ===
+            "accessory"
+        )
+        .forEach(
+          item => {
+            const target =
+              parseAccessoryInventoryKey(
+                item?.inventoryKey
+              );
+
+            if (!target) {
+              throw new Error(
+                `${item?.label || "アクセサリー"} の在庫キーが不正なため取消できません。`
+              );
+            }
+
+            const index =
+              accessoryDesigns
+                .findIndex(
+                  design =>
+                    String(
+                      design?.id ||
+                      ""
+                    ) ===
+                    target.sourceId
+                );
+
+            if (index < 0) {
+              throw new Error(
+                `${item?.label || "アクセサリー"} の実在庫が見つからないため取消できません。`
+              );
+            }
+
+            const quantity =
+              Math.max(
+                0,
+                Math.floor(
+                  safeNumber(
+                    item?.quantity
+                  )
+                )
+              );
+
+            const currentQty =
+              Math.max(
+                0,
+                Number(
+                  accessoryDesigns[
+                    index
+                  ]?.[
+                    target.stockField
+                  ] || 0
+                )
+              );
+
+            accessoryDesigns[
+              index
+            ][
+              target.stockField
+            ] =
+              currentQty +
+              quantity;
+          }
+        );
+
+      /*
+       * All reads are complete. Writes start here.
+       */
+      if (
+        tshirtRestore.size
+      ) {
+        const args = [
+          tshirtMasterRef
+        ];
+
+        tshirtRestore
+          .forEach(
+            entry => {
+              const currentQty =
+                readTshirtQty(
+                  tshirtMaster,
+                  entry.target
+                );
+
+              args.push(
+                new FieldPath(
+                  "inventory_v2",
+                  entry.target.bodyId,
+                  entry.target.designId,
+                  entry.target.colorId,
+                  entry.target.sizeId,
+                  "qty"
+                )
+              );
+
+              args.push(
+                currentQty +
+                entry.quantity
+              );
+            }
+          );
+
+        args.push(
+          "updatedAt",
+          serverTimestamp()
+        );
+
+        transaction.update(
+          ...args
+        );
+      }
+
+      if (needsAccessory) {
+        transaction.update(
+          accessorySharedRef,
+          {
+            designs:
+              accessoryDesigns,
+            updatedAt:
+              serverTimestamp()
+          }
+        );
+      }
+
+      const currentSummary =
+        session?.salesSummary ||
+        {};
+
+      const nextSummary = {
+        grossSales:
+          Math.max(
+            0,
+            safeNumber(
+              currentSummary.grossSales
+            ) -
+            safeNumber(
+              sale?.grossSales
+            )
+          ),
+
+        discount:
+          Math.max(
+            0,
+            safeNumber(
+              currentSummary.discount
+            ) -
+            safeNumber(
+              sale?.discount
+            )
+          ),
+
+        netSales:
+          Math.max(
+            0,
+            safeNumber(
+              currentSummary.netSales
+            ) -
+            safeNumber(
+              sale?.netSales
+            )
+          ),
+
+        transactionCount:
+          Math.max(
+            0,
+            Math.floor(
+              safeNumber(
+                currentSummary
+                  .transactionCount
+              )
+            ) -
+            1
+          ),
+
+        itemCount:
+          Math.max(
+            0,
+            Math.floor(
+              safeNumber(
+                currentSummary
+                  .itemCount
+              )
+            ) -
+            Math.floor(
+              safeNumber(
+                sale?.itemCount
+              )
+            )
+          )
+      };
+
+      if (
+        sale?.grossSalesJPY !==
+        null &&
+        sale?.grossSalesJPY !==
+        undefined
+      ) {
+        nextSummary.grossSalesJPY =
+          Math.max(
+            0,
+            safeNumber(
+              currentSummary.grossSalesJPY
+            ) -
+            safeNumber(
+              sale.grossSalesJPY
+            )
+          );
+      }
+
+      if (
+        sale?.discountJPY !==
+        null &&
+        sale?.discountJPY !==
+        undefined
+      ) {
+        nextSummary.discountJPY =
+          Math.max(
+            0,
+            safeNumber(
+              currentSummary.discountJPY
+            ) -
+            safeNumber(
+              sale.discountJPY
+            )
+          );
+      }
+
+      if (
+        sale?.netSalesJPY !==
+        null &&
+        sale?.netSalesJPY !==
+        undefined
+      ) {
+        nextSummary.netSalesJPY =
+          Math.max(
+            0,
+            safeNumber(
+              currentSummary.netSalesJPY
+            ) -
+            safeNumber(
+              sale.netSalesJPY
+            )
+          );
+      }
+
+      transaction.update(
+        sessionRef,
+        {
+          salesSummary:
+            nextSummary,
+          lastVoidAt:
+            serverTimestamp(),
+          updatedAt:
+            serverTimestamp()
+        }
+      );
+
+      transaction.update(
+        saleRef,
+        {
+          status:
+            "voided",
+          voidReason:
+            String(
+              reason ||
+              "manual_void"
+            ),
+          voidedByEmail:
+            String(
+              voidedByEmail ||
+              ""
+            ),
+          voidedAt:
+            serverTimestamp(),
+          updatedAt:
+            serverTimestamp()
+        }
+      );
+
+      transaction.set(
+        lockRef,
+        {
+          transactionId:
+            id,
+          sessionId,
+          status:
+            "voided",
+          voidedAt:
+            serverTimestamp()
+        },
+        {
+          merge:
+            true
+        }
+      );
+
+      items.forEach(
+        (item, index) => {
+          const quantity =
+            Math.max(
+              0,
+              Math.floor(
+                safeNumber(
+                  item?.quantity
+                )
+              )
+            );
+
+          const inventoryWasApplied =
+            item?.inventoryApplied ===
+            true;
+
+          const movementRef =
+            doc(
+              db,
+              "inventoryMovements",
+              `${id}__void__${index + 1}`
+            );
+
+          transaction.set(
+            movementRef,
+            {
+              movementId:
+                `${id}__void__${index + 1}`,
+              transactionId:
+                id,
+              reversalOfTransactionId:
+                id,
+              sessionId,
+              type:
+                "return",
+              reason:
+                "return",
+              sourceAction:
+                "sale_void",
+              category:
+                item?.category ||
+                "",
+              label:
+                item?.label ||
+                "",
+              quantity,
+              expectedInventoryDelta:
+                inventoryWasApplied
+                  ? quantity
+                  : 0,
+              appliedInventoryDelta:
+                inventoryWasApplied
+                  ? quantity
+                  : 0,
+              inventoryApplied:
+                inventoryWasApplied,
+              trackingMode:
+                item?.trackingMode ||
+                "quick",
+              variantId:
+                item?.variantId ||
+                null,
+              inventoryKey:
+                item?.inventoryKey ||
+                null,
+              inventorySource:
+                item?.inventorySource ||
+                null,
+              status:
+                inventoryWasApplied
+                  ? "applied"
+                  : "not_applied_originally",
+              createdAt:
+                serverTimestamp()
+            }
+          );
+        }
+      );
+
+      return {
+        transactionId:
+          id,
+        duplicate:
+          false,
+        status:
+          "voided",
+        restoredItemCount:
+          appliedItems.reduce(
+            (sum, item) =>
+              sum +
+              Math.max(
+                0,
+                Math.floor(
+                  safeNumber(
+                    item?.quantity
+                  )
+                )
+              ),
+            0
+          )
+      };
+    }
+  );
+}
