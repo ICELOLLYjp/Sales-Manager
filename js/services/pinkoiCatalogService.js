@@ -860,10 +860,39 @@ export async function loadPinkoiTshirtCatalog() {
           ?.method ||
         "none",
 
-      body: item.display.body,
-      design: item.display.design,
-      color: item.display.color,
-      size: item.display.size,
+      /*
+       * Display names come from Pinkoi masters.
+       * Inventory identity remains tshirtStock/master IDs.
+       * This lets POS search/display "Squids Night" while decrementing
+       * the master-side "Squids" inventory safely.
+       */
+      body:
+        item.names.body ||
+        item.display.body,
+
+      design:
+        item.names.design ||
+        item.display.design,
+
+      color:
+        item.names.color ||
+        item.display.color,
+
+      size:
+        item.pinkoi.size ||
+        item.display.size,
+
+      masterBodyName:
+        item.display.body,
+
+      masterDesignName:
+        item.display.design,
+
+      masterColorName:
+        item.display.color,
+
+      masterSizeName:
+        item.display.size,
 
       sku: item.sku,
       pinkoiSku: item.sku,
@@ -1087,6 +1116,18 @@ export async function syncPinkoiTshirtCatalog() {
           design: row.design,
           color: row.color,
           size: row.size,
+
+          masterBodyName:
+            row.masterBodyName || "",
+
+          masterDesignName:
+            row.masterDesignName || "",
+
+          masterColorName:
+            row.masterColorName || "",
+
+          masterSizeName:
+            row.masterSizeName || "",
 
           inventorySource: "tshirt",
           inventoryKey: row.inventoryKey,
