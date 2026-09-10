@@ -6860,6 +6860,203 @@ async function renderPos(
         }
 
 
+        <details
+          id="posPriceSettings"
+          class="card"
+          ${posPriceSettingsOpen ? "open" : ""}
+        >
+
+          <summary
+            style="
+              cursor:pointer;
+              font-weight:800;
+              font-size:18px;
+              padding:2px 0 10px;
+            "
+          >
+            価格設定
+          </summary>
+
+          <div class="card-title">
+            ${posCurrency} 価格・セット設定
+          </div>
+
+          <div
+            class="muted"
+            style="margin-bottom:12px;"
+          >
+            通常価格に加えて、カテゴリごとに「何点でいくら」のセット価格を設定できます。iPhoneではこの「価格設定」をタップして開閉できます。
+          </div>
+
+
+          <div
+            style="
+              display:grid;
+              gap:10px;
+            "
+          >
+            ${POS_CATEGORY_ORDER.map(
+              category => {
+                const offer =
+                  posSetOffer(
+                    category
+                  );
+
+                return `
+                  <div
+                    style="
+                      padding:10px 0;
+                      border-bottom:1px solid #ecece7;
+                    "
+                  >
+                    <div
+                      style="
+                        font-weight:700;
+                        margin-bottom:8px;
+                      "
+                    >
+                      ${escapeHtml(
+                        POS_CATEGORY_LABELS[
+                          category
+                        ]
+                      )}
+                    </div>
+
+                    <div
+                      style="
+                        display:grid;
+                        grid-template-columns:
+                          minmax(0,1fr)
+                          120px;
+                        gap:8px;
+                        align-items:center;
+                      "
+                    >
+                      <span class="muted">
+                        通常価格
+                      </span>
+
+                      <input
+                        class="posPriceInput"
+                        data-category="${category}"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        inputmode="decimal"
+                        value="${
+                          posPrice(
+                            category
+                          ) || ""
+                        }"
+                        placeholder="0"
+                        style="
+                          width:100%;
+                          min-height:42px;
+                          padding:0 10px;
+                          border:1px solid #deded9;
+                          border-radius:10px;
+                          text-align:right;
+                        "
+                      >
+                    </div>
+
+                    <div
+                      style="
+                        display:grid;
+                        grid-template-columns:
+                          minmax(0,1fr)
+                          70px
+                          110px;
+                        gap:8px;
+                        align-items:center;
+                        margin-top:8px;
+                      "
+                    >
+                      <span class="muted">
+                        セット価格
+                      </span>
+
+                      <input
+                        class="posSetQuantityInput"
+                        data-category="${category}"
+                        type="number"
+                        min="0"
+                        step="1"
+                        inputmode="numeric"
+                        value="${
+                          offer.quantity || ""
+                        }"
+                        placeholder="個数"
+                        aria-label="${escapeHtml(
+                          POS_CATEGORY_LABELS[
+                            category
+                          ]
+                        )} セット個数"
+                        style="
+                          width:100%;
+                          min-height:42px;
+                          padding:0 8px;
+                          border:1px solid #deded9;
+                          border-radius:10px;
+                          text-align:center;
+                        "
+                      >
+
+                      <input
+                        class="posSetPriceInput"
+                        data-category="${category}"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        inputmode="decimal"
+                        value="${
+                          offer.price || ""
+                        }"
+                        placeholder="合計"
+                        aria-label="${escapeHtml(
+                          POS_CATEGORY_LABELS[
+                            category
+                          ]
+                        )} セット合計価格"
+                        style="
+                          width:100%;
+                          min-height:42px;
+                          padding:0 8px;
+                          border:1px solid #deded9;
+                          border-radius:10px;
+                          text-align:right;
+                        "
+                      >
+                    </div>
+                  </div>
+                `;
+              }
+            ).join("")}
+          </div>
+
+
+          <button
+            id="savePosPrices"
+            class="button"
+            type="button"
+            style="
+              width:100%;
+              margin-top:14px;
+            "
+          >
+            ${posCurrency} の価格を保存
+          </button>
+
+
+          <div
+            id="posPriceMessage"
+            class="muted"
+            style="margin-top:10px;"
+          ></div>
+
+        </details>
+
+
         ${
           posMode === "quick"
             ? `
@@ -6878,21 +7075,6 @@ async function renderPos(
               商品をタップ
             </div>
 
-            <button
-              id="togglePosPriceSettings"
-              class="button button-secondary"
-              type="button"
-              style="
-                min-height:38px;
-                padding:0 14px;
-              "
-            >
-              ${
-                posPriceSettingsOpen
-                  ? "価格設定を閉じる"
-                  : "価格設定"
-              }
-            </button>
           </div>
 
 
@@ -7049,21 +7231,6 @@ async function renderPos(
                     SKUを選択
                   </div>
 
-                  <button
-                    id="togglePosPriceSettings"
-                    class="button button-secondary"
-                    type="button"
-                    style="
-                      min-height:38px;
-                      padding:0 14px;
-                    "
-                  >
-                    ${
-                      posPriceSettingsOpen
-                        ? "価格設定を閉じる"
-                        : "価格設定"
-                    }
-                  </button>
                 </div>
 
 
@@ -7310,196 +7477,6 @@ async function renderPos(
         }
 
 
-        <section
-          id="posPriceSettings"
-          class="card"
-          style="
-            ${
-              posPriceSettingsOpen
-                ? ""
-                : "display:none;"
-            }
-          "
-        >
-
-          <div class="card-title">
-            ${posCurrency} Quick価格
-          </div>
-
-          <div
-            class="muted"
-            style="margin-bottom:12px;"
-          >
-            通常価格に加えて、カテゴリごとに「何点でいくら」のセット価格を設定できます。セット価格は同じカテゴリ・同じ単価の商品に自動適用します。
-          </div>
-
-
-          <div
-            style="
-              display:grid;
-              gap:10px;
-            "
-          >
-            ${POS_CATEGORY_ORDER.map(
-              category => {
-                const offer =
-                  posSetOffer(
-                    category
-                  );
-
-                return `
-                  <div
-                    style="
-                      padding:10px 0;
-                      border-bottom:1px solid #ecece7;
-                    "
-                  >
-                    <div
-                      style="
-                        font-weight:700;
-                        margin-bottom:8px;
-                      "
-                    >
-                      ${escapeHtml(
-                        POS_CATEGORY_LABELS[
-                          category
-                        ]
-                      )}
-                    </div>
-
-                    <div
-                      style="
-                        display:grid;
-                        grid-template-columns:
-                          minmax(0,1fr)
-                          120px;
-                        gap:8px;
-                        align-items:center;
-                      "
-                    >
-                      <span class="muted">
-                        通常価格
-                      </span>
-
-                      <input
-                        class="posPriceInput"
-                        data-category="${category}"
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        inputmode="decimal"
-                        value="${
-                          posPrice(
-                            category
-                          ) || ""
-                        }"
-                        placeholder="0"
-                        style="
-                          width:100%;
-                          min-height:42px;
-                          padding:0 10px;
-                          border:1px solid #deded9;
-                          border-radius:10px;
-                          text-align:right;
-                        "
-                      >
-                    </div>
-
-                    <div
-                      style="
-                        display:grid;
-                        grid-template-columns:
-                          minmax(0,1fr)
-                          70px
-                          110px;
-                        gap:8px;
-                        align-items:center;
-                        margin-top:8px;
-                      "
-                    >
-                      <span class="muted">
-                        セット価格
-                      </span>
-
-                      <input
-                        class="posSetQuantityInput"
-                        data-category="${category}"
-                        type="number"
-                        min="0"
-                        step="1"
-                        inputmode="numeric"
-                        value="${
-                          offer.quantity || ""
-                        }"
-                        placeholder="個数"
-                        aria-label="${escapeHtml(
-                          POS_CATEGORY_LABELS[
-                            category
-                          ]
-                        )} セット個数"
-                        style="
-                          width:100%;
-                          min-height:42px;
-                          padding:0 8px;
-                          border:1px solid #deded9;
-                          border-radius:10px;
-                          text-align:center;
-                        "
-                      >
-
-                      <input
-                        class="posSetPriceInput"
-                        data-category="${category}"
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        inputmode="decimal"
-                        value="${
-                          offer.price || ""
-                        }"
-                        placeholder="合計"
-                        aria-label="${escapeHtml(
-                          POS_CATEGORY_LABELS[
-                            category
-                          ]
-                        )} セット合計価格"
-                        style="
-                          width:100%;
-                          min-height:42px;
-                          padding:0 8px;
-                          border:1px solid #deded9;
-                          border-radius:10px;
-                          text-align:right;
-                        "
-                      >
-                    </div>
-                  </div>
-                `;
-              }
-            ).join("")}
-          </div>
-
-
-          <button
-            id="savePosPrices"
-            class="button"
-            type="button"
-            style="
-              width:100%;
-              margin-top:14px;
-            "
-          >
-            ${posCurrency} の価格を保存
-          </button>
-
-
-          <div
-            id="posPriceMessage"
-            class="muted"
-            style="margin-top:10px;"
-          ></div>
-
-        </section>
 
 
         <section class="card">
@@ -8394,51 +8371,16 @@ async function renderPos(
 
       document
         .querySelector(
-          "#togglePosPriceSettings"
+          "#posPriceSettings"
         )
         ?.addEventListener(
-          "click",
+          "toggle",
           event => {
             posPriceSettingsOpen =
-              !posPriceSettingsOpen;
-
-            const button =
-              event.currentTarget;
-
-            const panel =
-              document.querySelector(
-                "#posPriceSettings"
+              Boolean(
+                event.currentTarget
+                  ?.open
               );
-
-            if (panel) {
-              panel.style.display =
-                posPriceSettingsOpen
-                  ? ""
-                  : "none";
-            }
-
-            if (button) {
-              button.textContent =
-                posPriceSettingsOpen
-                  ? "価格設定を閉じる"
-                  : "価格設定";
-            }
-
-            if (
-              posPriceSettingsOpen &&
-              panel
-            ) {
-              requestAnimationFrame(
-                () => {
-                  panel.scrollIntoView({
-                    behavior:
-                      "smooth",
-                    block:
-                      "start"
-                  });
-                }
-              );
-            }
           }
         );
 
