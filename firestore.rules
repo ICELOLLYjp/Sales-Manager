@@ -1,0 +1,19 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function allowedUser() {
+      return signedIn();
+      // Phase 1:
+      // 実運用ではここを許可メールまたはusers Collection参照へ変更します。
+    }
+
+    match /{document=**} {
+      allow read, write: if allowedUser();
+    }
+  }
+}
