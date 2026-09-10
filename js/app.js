@@ -998,6 +998,7 @@ async function renderMorePage(sequence) {
               priceConflictCount: 0,
               masterStockCount: 0,
               masterStockZeroCount: 0,
+              explicitDesignLinkCount: 0,
               syncEligibleCount: 0,
               zeroStockCatalogCount: 0,
               explicitDesignLinkCount: 0,
@@ -1237,13 +1238,8 @@ async function renderMorePage(sequence) {
               </div>
 
               <div class="list-row">
-                <span>Design明示リンク</span>
-                <strong>${pinkoiTshirtCatalog.summary.explicitDesignLinkCount || 0}</strong>
-              </div>
-
-              <div class="list-row">
-                <span>既存Design互換</span>
-                <strong>${pinkoiTshirtCatalog.summary.compatibilityAliasCount || 0}</strong>
+                <span>Design明示リンクSKU</span>
+                <strong>${pinkoiTshirtCatalog.summary.explicitDesignLinkCount}</strong>
               </div>
 
               ${
@@ -2274,7 +2270,7 @@ async function renderMorePage(sequence) {
 
             if (messageBox) {
               messageBox.textContent =
-                `${result.processed} SKUを更新しました。matched ${result.mapped}、unmatched ${result.unmatched}、ambiguous ${result.ambiguous}、SKUなし ${result.missingSkuCount}、重複SKU ${result.duplicateSkuCount}、価格なし ${result.missingPriceCount}、価格不一致 ${result.priceConflictCount}。`;
+                `${result.processed} SKUを更新しました。matched ${result.mapped}、unmatched ${result.unmatched}、ambiguous ${result.ambiguous}、Design明示リンク ${result.explicitDesignLinkCount}、SKUなし ${result.missingSkuCount}、重複SKU ${result.duplicateSkuCount}、価格なし ${result.missingPriceCount}、価格不一致 ${result.priceConflictCount}。`;
             }
 
             setTimeout(
