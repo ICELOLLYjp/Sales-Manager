@@ -7,6 +7,7 @@ import { loadTshirtProductVariants, syncTshirtCurrentStockRows } from "./service
 import { listAllProductVariants, registerTshirtVariant, registerGeneralProduct, syncAccessoryCatalogRows } from "./services/productAdminService.js";
 import { CATEGORY_TEMPLATES, getCategoryTemplate } from "./data/categoryTemplates.js";
 import { loadQuickPriceBook, saveQuickPrices, QUICK_PRICE_CURRENCIES } from "./services/priceBookService.js";
+import { listSalesSessions, createEventSession, SESSION_CURRENCIES } from "./services/sessionService.js";
 
 const view = document.querySelector("#view");
 const syncStatus = document.querySelector("#syncStatus");
@@ -48,6 +49,11 @@ let posPriceBook = {};
 let posPriceBookLoaded = false;
 let posCart = new Map();
 let posOrderDiscount = 0;
+
+let activeSessionId =
+  localStorage.getItem(
+    "icelolly-sales-active-session"
+  ) || "";
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -1376,6 +1382,685 @@ async function renderMorePage(sequence) {
   }
 }
 
+function dateText(
+  startDate,
+  endDate
+) {
+  if (!startDate) {
+    return "";
+  }
+
+  if (
+    !endDate ||
+    startDate === endDate
+  ) {
+    return startDate.replaceAll(
+      "-",
+      "/"
+    );
+  }
+
+  return (
+    startDate.replaceAll(
+      "-",
+      "/"
+    ) +
+    " 〜 " +
+    endDate.replaceAll(
+      "-",
+      "/"
+    )
+  );
+}
+
+async function renderSessions(
+  sequence
+) {
+  view.innerHTML = `
+    <h1 class="page-title">
+      Sessions
+    </h1>
+
+    <p class="page-note">
+      販売セッションを読み込んでいます
+    </p>
+  `;
+
+  try {
+    const sessions =
+      await listSalesSessions();
+
+    if (
+      sequence !==
+      renderSequence
+    ) {
+      return;
+    }
+
+    const openSessions =
+      sessions.filter(
+        session =>
+          session.status ===
+          "open"
+      );
+
+    view.innerHTML = `
+      <h1 class="page-title">
+        Sessions
+      </h1>
+
+      <p class="page-note">
+        Event
+      </p>
+
+
+      <section class="card">
+
+        <div class="card-title">
+          新しいイベント
+        </div>
+
+
+        <div
+          style="
+            display:grid;
+            gap:10px;
+          "
+        >
+
+          <input
+            id="sessionEventName"
+            type="text"
+            placeholder="イベント名"
+            style="${inputStyle()}"
+          >
+
+
+          <div
+            style="
+              display:grid;
+              grid-template-columns:
+                repeat(
+                  2,
+                  minmax(0,1fr)
+                );
+              gap:10px;
+            "
+          >
+
+            <input
+              id="sessionCountry"
+              type="text"
+              placeholder="国"
+              style="${inputStyle()}"
+            >
+
+            <input
+              id="sessionCity"
+              type="text"
+              placeholder="都市"
+              style="${inputStyle()}"
+            >
+
+          </div>
+
+
+          <div
+            style="
+              display:grid;
+              grid-template-columns:
+                repeat(
+                  2,
+                  minmax(0,1fr)
+                );
+              gap:10px;
+            "
+          >
+
+            <label>
+              <div
+                class="muted"
+                style="
+                  margin-bottom:5px;
+                "
+              >
+                開始日
+              </div>
+
+              <input
+                id="sessionStartDate"
+                type="date"
+                style="${inputStyle()}"
+              >
+            </label>
+
+
+            <label>
+              <div
+                class="muted"
+                style="
+                  margin-bottom:5px;
+                "
+              >
+                終了日
+              </div>
+
+              <input
+                id="sessionEndDate"
+                type="date"
+                style="${inputStyle()}"
+              >
+            </label>
+
+          </div>
+
+
+          <div
+            style="
+              display:grid;
+              grid-template-columns:
+                120px
+                minmax(0,1fr);
+              gap:10px;
+            "
+          >
+
+            <select
+              id="sessionCurrency"
+              style="${selectStyle()}"
+            >
+              ${SESSION_CURRENCIES.map(
+                currency => `
+                  <option
+                    value="${currency}"
+                  >
+                    ${currency}
+                  </option>
+                `
+              ).join("")}
+            </select>
+
+
+            <input
+              id="sessionFxRate"
+              type="number"
+              min="0"
+              step="0.0001"
+              inputmode="decimal"
+              placeholder="1通貨あたりの円換算レート"
+              style="${inputStyle()}"
+            >
+
+          </div>
+
+
+          <div
+            class="muted"
+            style="
+              line-height:1.55;
+            "
+          >
+            為替レートは後から収支計算時に設定しても大丈夫です。
+          </div>
+
+
+          <button
+            id="createEventSessionButton"
+            class="button"
+            type="button"
+            style="
+              width:100%;
+              min-height:52px;
+            "
+          >
+            イベントを作成
+          </button>
+
+
+          <div
+            id="createEventSessionMessage"
+            class="muted"
+          ></div>
+
+        </div>
+
+      </section>
+
+
+      <section class="card">
+
+        <div
+          style="
+            display:flex;
+            justify-content:space-between;
+            gap:10px;
+            align-items:center;
+            margin-bottom:10px;
+          "
+        >
+          <div class="card-title">
+            Open Sessions
+          </div>
+
+          <strong>
+            ${openSessions.length}
+          </strong>
+        </div>
+
+
+        ${
+          openSessions.length
+            ? openSessions.map(
+                session => `
+                  <div
+                    style="
+                      padding:14px 0;
+                      border-bottom:1px solid #ecece7;
+                    "
+                  >
+
+                    <div
+                      style="
+                        display:flex;
+                        justify-content:space-between;
+                        gap:12px;
+                        align-items:flex-start;
+                      "
+                    >
+
+                      <div
+                        style="
+                          min-width:0;
+                          flex:1;
+                        "
+                      >
+
+                        <div
+                          style="
+                            font-weight:800;
+                            font-size:16px;
+                          "
+                        >
+                          ${escapeHtml(
+                            session.eventName
+                          )}
+                        </div>
+
+
+                        <div
+                          class="muted"
+                          style="
+                            margin-top:5px;
+                            line-height:1.5;
+                          "
+                        >
+                          ${escapeHtml(
+                            [
+                              session.city,
+                              session.country
+                            ]
+                              .filter(Boolean)
+                              .join(", ")
+                          )}
+
+                          <br>
+
+                          ${escapeHtml(
+                            dateText(
+                              session.startDate,
+                              session.endDate
+                            )
+                          )}
+
+                          <br>
+
+                          ${escapeHtml(
+                            session.currency
+                          )}
+
+                          ${
+                            session.fxRateToJPY
+                              ? `
+                                /
+                                1 ${escapeHtml(
+                                  session.currency
+                                )}
+                                =
+                                ${escapeHtml(
+                                  session.fxRateToJPY
+                                )}
+                                JPY
+                              `
+                              : ""
+                          }
+                        </div>
+
+                      </div>
+
+
+                      <button
+                        type="button"
+                        class="sessionUseButton button ${
+                          session.sessionId ===
+                          activeSessionId
+                            ? "button-secondary"
+                            : ""
+                        }"
+                        data-session-id="${escapeHtml(
+                          session.sessionId
+                        )}"
+                        style="
+                          min-width:92px;
+                          min-height:44px;
+                          padding:0 12px;
+                        "
+                      >
+                        ${
+                          session.sessionId ===
+                          activeSessionId
+                            ? "使用中"
+                            : "POSで使用"
+                        }
+                      </button>
+
+                    </div>
+
+                  </div>
+                `
+              ).join("")
+            : `
+              <div
+                class="muted"
+                style="
+                  padding:16px 0;
+                  text-align:center;
+                "
+              >
+                まだ販売セッションはありません。
+              </div>
+            `
+        }
+
+      </section>
+
+
+      <section class="card">
+
+        <div class="card-title">
+          次の段階
+        </div>
+
+        <div
+          class="muted"
+          style="
+            line-height:1.6;
+          "
+        >
+          委託販売と卸売も同じ販売セッション構造に追加します。
+        </div>
+
+      </section>
+    `;
+
+
+    const currencySelect =
+      document.querySelector(
+        "#sessionCurrency"
+      );
+
+
+    const rateInput =
+      document.querySelector(
+        "#sessionFxRate"
+      );
+
+
+    function refreshRateField() {
+      if (
+        !currencySelect ||
+        !rateInput
+      ) {
+        return;
+      }
+
+      if (
+        currencySelect.value ===
+        "JPY"
+      ) {
+        rateInput.value =
+          "1";
+
+        rateInput.disabled =
+          true;
+      } else {
+        rateInput.disabled =
+          false;
+
+        if (
+          rateInput.value ===
+          "1"
+        ) {
+          rateInput.value =
+            "";
+        }
+      }
+    }
+
+
+    refreshRateField();
+
+
+    currencySelect
+      ?.addEventListener(
+        "change",
+        refreshRateField
+      );
+
+
+    document
+      .querySelector(
+        "#createEventSessionButton"
+      )
+      ?.addEventListener(
+        "click",
+        async event => {
+
+          const button =
+            event.currentTarget;
+
+          const messageBox =
+            document.querySelector(
+              "#createEventSessionMessage"
+            );
+
+
+          button.disabled =
+            true;
+
+          button.textContent =
+            "作成中";
+
+
+          if (messageBox) {
+            messageBox.textContent =
+              "";
+          }
+
+
+          try {
+            const created =
+              await createEventSession({
+                eventName:
+                  document
+                    .querySelector(
+                      "#sessionEventName"
+                    )
+                    ?.value,
+
+                country:
+                  document
+                    .querySelector(
+                      "#sessionCountry"
+                    )
+                    ?.value,
+
+                city:
+                  document
+                    .querySelector(
+                      "#sessionCity"
+                    )
+                    ?.value,
+
+                startDate:
+                  document
+                    .querySelector(
+                      "#sessionStartDate"
+                    )
+                    ?.value,
+
+                endDate:
+                  document
+                    .querySelector(
+                      "#sessionEndDate"
+                    )
+                    ?.value,
+
+                currency:
+                  currencySelect
+                    ?.value ||
+                  "JPY",
+
+                fxRateToJPY:
+                  rateInput
+                    ?.value ||
+                  null
+              });
+
+
+            activeSessionId =
+              created.sessionId;
+
+            localStorage.setItem(
+              "icelolly-sales-active-session",
+              activeSessionId
+            );
+
+
+            posCurrency =
+              created.currency;
+
+            localStorage.setItem(
+              "icelolly-sales-pos-currency",
+              posCurrency
+            );
+
+
+            posCart =
+              new Map();
+
+            posOrderDiscount =
+              0;
+
+
+            await renderSessions(
+              ++renderSequence
+            );
+
+
+          } catch (error) {
+            button.disabled =
+              false;
+
+            button.textContent =
+              "イベントを作成";
+
+            if (messageBox) {
+              messageBox.textContent =
+                error.code ||
+                error.message ||
+                String(error);
+            }
+          }
+        }
+      );
+
+
+    document
+      .querySelectorAll(
+        ".sessionUseButton"
+      )
+      .forEach(
+        button => {
+          button.addEventListener(
+            "click",
+            () => {
+              const session =
+                openSessions.find(
+                  item =>
+                    item.sessionId ===
+                    button.dataset.sessionId
+                );
+
+              if (!session) {
+                return;
+              }
+
+              activeSessionId =
+                session.sessionId;
+
+              localStorage.setItem(
+                "icelolly-sales-active-session",
+                activeSessionId
+              );
+
+              posCurrency =
+                session.currency;
+
+              localStorage.setItem(
+                "icelolly-sales-pos-currency",
+                posCurrency
+              );
+
+              posCart =
+                new Map();
+
+              posOrderDiscount =
+                0;
+
+              render(
+                "pos"
+              );
+            }
+          );
+        }
+      );
+
+
+    syncStatus.textContent =
+      "Firebase";
+
+
+  } catch (error) {
+    console.error(
+      error
+    );
+
+    view.innerHTML = `
+      <h1 class="page-title">
+        Sessions
+      </h1>
+
+      <div class="warning">
+        ${escapeHtml(
+          error.code ||
+          error.message ||
+          error
+        )}
+      </div>
+    `;
+  }
+}
+
 function formatMoney(
   value,
   currency = posCurrency
@@ -1561,6 +2246,45 @@ async function renderPos(
         true;
     }
 
+    const sessions =
+      await listSalesSessions();
+
+    const openSessions =
+      sessions.filter(
+        session =>
+          session.status ===
+          "open"
+      );
+
+    let activeSession =
+      openSessions.find(
+        session =>
+          session.sessionId ===
+          activeSessionId
+      ) || null;
+
+    if (
+      activeSessionId &&
+      !activeSession
+    ) {
+      activeSessionId =
+        "";
+
+      localStorage.removeItem(
+        "icelolly-sales-active-session"
+      );
+    }
+
+    if (activeSession) {
+      posCurrency =
+        activeSession.currency;
+
+      localStorage.setItem(
+        "icelolly-sales-pos-currency",
+        posCurrency
+      );
+    }
+
     if (
       sequence !==
       renderSequence
@@ -1602,6 +2326,7 @@ async function renderPos(
 
           <select
             id="posCurrency"
+            ${activeSession ? "disabled" : ""}
             style="
               min-height:44px;
               padding:0 12px;
@@ -1628,6 +2353,134 @@ async function renderPos(
             ).join("")}
           </select>
         </div>
+
+
+        <section
+          class="card"
+          style="
+            margin-bottom:14px;
+          "
+        >
+
+          <div class="card-title">
+            販売セッション
+          </div>
+
+
+          <select
+            id="posSessionSelect"
+            style="
+              width:100%;
+              min-height:48px;
+              padding:0 12px;
+              border:1px solid #deded9;
+              border-radius:12px;
+              background:white;
+              font-weight:700;
+            "
+          >
+            <option value="">
+              販売セッションを選択
+            </option>
+
+            ${openSessions.map(
+              session => `
+                <option
+                  value="${escapeHtml(
+                    session.sessionId
+                  )}"
+                  ${
+                    session.sessionId ===
+                    activeSessionId
+                      ? "selected"
+                      : ""
+                  }
+                >
+                  ${escapeHtml(
+                    session.eventName
+                  )}
+                  /
+                  ${escapeHtml(
+                    session.currency
+                  )}
+                </option>
+              `
+            ).join("")}
+          </select>
+
+
+          ${
+            activeSession
+              ? `
+                <div
+                  class="muted"
+                  style="
+                    margin-top:10px;
+                    line-height:1.55;
+                  "
+                >
+                  ${escapeHtml(
+                    [
+                      activeSession.city,
+                      activeSession.country
+                    ]
+                      .filter(Boolean)
+                      .join(", ")
+                  )}
+
+                  <br>
+
+                  ${escapeHtml(
+                    dateText(
+                      activeSession.startDate,
+                      activeSession.endDate
+                    )
+                  )}
+
+                  ${
+                    activeSession.fxRateToJPY
+                      ? `
+                        <br>
+                        1
+                        ${escapeHtml(
+                          activeSession.currency
+                        )}
+                        =
+                        ${escapeHtml(
+                          activeSession.fxRateToJPY
+                        )}
+                        JPY
+                      `
+                      : ""
+                  }
+                </div>
+              `
+              : `
+                <div
+                  class="muted"
+                  style="
+                    margin-top:10px;
+                    line-height:1.55;
+                  "
+                >
+                  Sessionsでイベントを作成すると、ここから選択できます。
+                </div>
+
+                <button
+                  id="goToSessionsButton"
+                  class="button button-secondary"
+                  type="button"
+                  style="
+                    width:100%;
+                    margin-top:10px;
+                  "
+                >
+                  Sessionsを開く
+                </button>
+              `
+          }
+
+        </section>
 
 
         ${
@@ -2117,7 +2970,11 @@ async function renderPos(
               opacity:.55;
             "
           >
-            セッション連携後に会計確定
+            ${
+              activeSession
+                ? "次の更新で会計確定を接続"
+                : "販売セッションを選択"
+            }
           </button>
 
 
@@ -2148,11 +3005,103 @@ async function renderPos(
               line-height:1.6;
             "
           >
-            今回は会計画面と価格設定までです。売上記録と在庫減少は販売セッションを接続してから有効にします。
+            販売セッションと通貨は接続済みです。次の更新で会計確定、売上記録、transaction IDを接続します。
           </div>
 
         </section>
       `;
+
+
+      document
+        .querySelector(
+          "#posSessionSelect"
+        )
+        ?.addEventListener(
+          "change",
+          event => {
+            const nextId =
+              event.target.value;
+
+            if (
+              nextId ===
+              activeSessionId
+            ) {
+              return;
+            }
+
+            if (
+              posCart.size > 0
+            ) {
+              const confirmed =
+                window.confirm(
+                  "会計内容をクリアして販売セッションを変更しますか？"
+                );
+
+              if (!confirmed) {
+                renderPosBody();
+                return;
+              }
+            }
+
+            const nextSession =
+              openSessions.find(
+                session =>
+                  session.sessionId ===
+                  nextId
+              ) || null;
+
+            activeSessionId =
+              nextSession
+                ? nextSession.sessionId
+                : "";
+
+            if (activeSessionId) {
+              localStorage.setItem(
+                "icelolly-sales-active-session",
+                activeSessionId
+              );
+            } else {
+              localStorage.removeItem(
+                "icelolly-sales-active-session"
+              );
+            }
+
+            activeSession =
+              nextSession;
+
+            if (nextSession) {
+              posCurrency =
+                nextSession.currency;
+
+              localStorage.setItem(
+                "icelolly-sales-pos-currency",
+                posCurrency
+              );
+            }
+
+            posCart =
+              new Map();
+
+            posOrderDiscount =
+              0;
+
+            renderPosBody();
+          }
+        );
+
+
+      document
+        .querySelector(
+          "#goToSessionsButton"
+        )
+        ?.addEventListener(
+          "click",
+          () => {
+            render(
+              "sessions"
+            );
+          }
+        );
 
 
       document
@@ -2473,10 +3422,7 @@ async function render(route = currentRoute) {
     });
 
   } else if (route === "sessions") {
-    view.innerHTML = simplePage(
-      "Sessions",
-      "Event / Consignment / Wholesale"
-    );
+    await renderSessions(sequence);
 
   } else if (route === "pos") {
     await renderPos(sequence);
