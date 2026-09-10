@@ -17,9 +17,12 @@ async function loadSharedDocument() {
     throw new Error("Firebase is not connected.");
   }
 
-  const { doc, getDoc } = await firestoreModule();
+  const {
+    doc,
+    getDocFromServer
+  } = await firestoreModule();
 
-  const snapshot = await getDoc(
+  const snapshot = await getDocFromServer(
     doc(db, COLLECTION, DOCUMENT)
   );
 
@@ -266,6 +269,46 @@ function stockSummary(
   };
 }
 
+
+function timestampText(value) {
+  if (!value) return "";
+
+  try {
+    if (typeof value.toDate === "function") {
+      return value.toDate().toISOString();
+    }
+
+    if (value.seconds) {
+      return new Date(
+        Number(value.seconds) * 1000
+      ).toISOString();
+    }
+  } catch (error) {
+    console.warn(
+      "Accessory updatedAt could not be formatted.",
+      error
+    );
+  }
+
+  return String(value || "");
+}
+
+function topPositiveRows(rows) {
+  return [...rows]
+    .filter(row => Number(row.quantity || 0) > 0)
+    .sort(
+      (a, b) =>
+        Number(b.quantity || 0) -
+        Number(a.quantity || 0)
+    )
+    .slice(0, 5)
+    .map(row => ({
+      name: row.displayName,
+      category: row.categoryLabel,
+      quantity: row.quantity
+    }));
+}
+
 export const accessoryAdapter = {
   async getCatalogSnapshot() {
     const shared =
@@ -327,7 +370,20 @@ export const accessoryAdapter = {
         localTotalStock:
           local.totalStock,
 
-        sourceState
+        sourceState,
+
+        readMode:
+          "server",
+
+        updatedAt:
+          timestampText(
+            shared?.updatedAt
+          ),
+
+        topPositive:
+          topPositiveRows(
+            cloud.rows
+          )
       },
 
       rows:
