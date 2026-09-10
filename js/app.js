@@ -332,6 +332,53 @@ async function renderMorePage(sequence) {
           <strong>${accessoryCatalog.summary.totalStock}</strong>
         </div>
 
+        <div class="list-row">
+          <span>読み込み方法</span>
+          <strong>Server</strong>
+        </div>
+
+        <div class="list-row">
+          <span>Firestore 更新時刻</span>
+          <strong style="font-size:12px;text-align:right;">
+            ${escapeHtml(
+              accessoryCatalog.summary.updatedAt ||
+              "未記録"
+            )}
+          </strong>
+        </div>
+
+        ${
+          accessoryCatalog.summary.topPositive?.length
+            ? `
+              <div
+                style="
+                  margin-top:14px;
+                  padding-top:12px;
+                  border-top:1px solid #ecece7;
+                "
+              >
+                <div class="muted" style="margin-bottom:8px;">
+                  Firestore 在庫あり商品
+                </div>
+
+                ${accessoryCatalog.summary.topPositive.map(
+                  item => `
+                    <div class="list-row">
+                      <span>
+                        ${escapeHtml(item.name)}
+                        <span class="muted">
+                          / ${escapeHtml(item.category)}
+                        </span>
+                      </span>
+                      <strong>${item.quantity}</strong>
+                    </div>
+                  `
+                ).join("")}
+              </div>
+            `
+            : ""
+        }
+
         ${
           accessoryCatalog.summary.localTotalStock > 0
             ? `
