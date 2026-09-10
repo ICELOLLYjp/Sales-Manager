@@ -12,33 +12,6 @@ const MATCHED = "matched";
 const AMBIGUOUS = "ambiguous";
 const UNMATCHED = "unmatched";
 
-/*
- * Compatibility aliases are only for existing legacy data.
- * New Pinkoi designs should use pinkoi_designs.masterDesignId.
- */
-const LEGACY_DESIGN_ALIASES = new Map([
-  [
-    "gullsandlemons",
-    [
-      "Gull",
-      "Gulls and Lemons"
-    ]
-  ],
-  [
-    "spaceodysseyray",
-    [
-      "Rays",
-      "Space Odyssey RAY"
-    ]
-  ],
-  [
-    "squidsnight",
-    [
-      "Squids",
-      "Squids Night"
-    ]
-  ]
-]);
 
 async function firestoreModule() {
   return await import(
@@ -229,45 +202,6 @@ function diagnoseMasterMatch({
   };
 }
 
-function legacyDesignCandidates(
-  sourceId,
-  sourceItem
-) {
-  const keys = new Set(
-    candidateValues(
-      sourceItem,
-      sourceId
-    )
-      .map(
-        normalizeValue
-      )
-      .filter(Boolean)
-  );
-
-  const aliases = [];
-
-  keys.forEach(
-    key => {
-      const values =
-        LEGACY_DESIGN_ALIASES.get(
-          key
-        );
-
-      if (values) {
-        aliases.push(
-          ...values
-        );
-      }
-    }
-  );
-
-  return Array.from(
-    new Set(
-      aliases
-    )
-  );
-}
-
 function diagnoseDesignMatch({
   sourceId,
   sourceItem,
@@ -300,16 +234,12 @@ function diagnoseDesignMatch({
       };
     }
 
-    /*
-     * An explicit link exists but points to a missing master.
-     * Do not silently replace it with a name match.
-     */
     return {
       status: UNMATCHED,
       masterId: "",
       candidates: [],
       method:
-        "masterDesignId_invalid",
+        "none",
       linkError:
         "design_link_invalid"
     };
@@ -319,12 +249,7 @@ function diagnoseDesignMatch({
     sourceId,
     sourceItem,
     masterMap,
-    candidateIndex,
-    extraCandidates:
-      legacyDesignCandidates(
-        sourceId,
-        sourceItem
-      )
+    candidateIndex
   });
 }
 
@@ -919,6 +844,17 @@ export async function loadPinkoiTshirtCatalog() {
       pinkoiDesignId: item.pinkoi.designId,
       pinkoiColorId: item.pinkoi.colorId,
 
+      masterDesignId:
+        item.explicitLinks
+          ?.masterDesignId ||
+        "",
+
+      designMatchMethod:
+        item.masterMatch
+          ?.design
+          ?.method ||
+        "none",
+
       body: item.display.body,
       design: item.display.design,
       color: item.display.color,
@@ -1122,19 +1058,15 @@ export async function syncPinkoiTshirtCatalog() {
           pinkoiColorId: row.pinkoiColorId || "",
 
           masterDesignId:
+            row.masterDesignId ||
+            "",
+
+          resolvedMasterDesignId:
             row.designId,
 
           designMatchMethod:
-            (
-              catalog.items.find(
-                item =>
-                  item.variantId ===
-                  row.variantId
-              )
-                ?.masterMatch
-                ?.design
-                ?.method
-            ) || "",
+            row.designMatchMethod ||
+            "none",
 
           body: row.body,
           design: row.design,
