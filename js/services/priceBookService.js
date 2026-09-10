@@ -11,6 +11,12 @@ const CATEGORY_IDS = [
   "art_print"
 ];
 
+const TSHIRT_BODY_IDS = [
+  "Vintage",
+  "Organic",
+  "MIJ"
+];
+
 const CURRENCIES = [
   "JPY",
   "TWD",
@@ -57,8 +63,7 @@ function cleanSetOffers(value) {
         ? [value]
         : [];
 
-  const seen =
-    new Set();
+  const seen = new Set();
 
   return source
     .map(
@@ -89,18 +94,11 @@ function cleanSetOffers(value) {
         const key =
           `${offer.quantity}|${offer.price}`;
 
-        if (
-          seen.has(
-            key
-          )
-        ) {
+        if (seen.has(key)) {
           return false;
         }
 
-        seen.add(
-          key
-        );
-
+        seen.add(key);
         return true;
       }
     )
@@ -113,6 +111,41 @@ function cleanSetOffers(value) {
     );
 }
 
+function emptyBodyPriceBook() {
+  const result = {};
+
+  TSHIRT_BODY_IDS.forEach(
+    bodyId => {
+      result[bodyId] = {};
+
+      CURRENCIES.forEach(
+        currency => {
+          result[bodyId][currency] = 0;
+        }
+      );
+    }
+  );
+
+  return result;
+}
+
+function emptyBodySetOfferBook() {
+  const result = {};
+
+  TSHIRT_BODY_IDS.forEach(
+    bodyId => {
+      result[bodyId] = {};
+
+      CURRENCIES.forEach(
+        currency => {
+          result[bodyId][currency] = [];
+        }
+      );
+    }
+  );
+
+  return result;
+}
 
 export async function loadPosPriceConfig() {
   const db = await requireDb();
@@ -124,6 +157,10 @@ export async function loadPosPriceConfig() {
 
   const prices = {};
   const setOffers = {};
+  const bodyPrices =
+    emptyBodyPriceBook();
+  const bodySetOffers =
+    emptyBodySetOfferBook();
 
   await Promise.all(
     CATEGORY_IDS.map(
@@ -160,6 +197,39 @@ export async function loadPosPriceConfig() {
                   currency
                 ]
               );
+
+            if (
+              categoryId ===
+              "tshirt"
+            ) {
+              TSHIRT_BODY_IDS.forEach(
+                bodyId => {
+                  bodyPrices[
+                    bodyId
+                  ][
+                    currency
+                  ] =
+                    cleanPrice(
+                      data
+                        ?.bodyPrices
+                        ?.[currency]
+                        ?.[bodyId]
+                    );
+
+                  bodySetOffers[
+                    bodyId
+                  ][
+                    currency
+                  ] =
+                    cleanSetOffers(
+                      data
+                        ?.bodySetOffers
+                        ?.[currency]
+                        ?.[bodyId]
+                    );
+                }
+              );
+            }
           }
         );
       }
@@ -168,14 +238,18 @@ export async function loadPosPriceConfig() {
 
   return {
     prices,
-    setOffers
+    setOffers,
+    bodyPrices,
+    bodySetOffers
   };
 }
 
 export async function savePosPriceConfig(
   currency,
   prices,
-  setOffers
+  setOffers,
+  bodyPrices = {},
+  bodySetOffers = {}
 ) {
   const db = await requireDb();
 
@@ -207,33 +281,75 @@ export async function savePosPriceConfig(
           categoryId
         );
 
+      const payload = {
+        category:
+          categoryId,
+
+        prices: {
+          [currency]:
+            cleanPrice(
+              prices?.[
+                categoryId
+              ]
+            )
+        },
+
+        setOffers: {
+          [currency]:
+            cleanSetOffers(
+              setOffers?.[
+                categoryId
+              ]
+            )
+        },
+
+        updatedAt:
+          serverTimestamp()
+      };
+
+      if (
+        categoryId ===
+        "tshirt"
+      ) {
+        const cleanedBodyPrices = {};
+        const cleanedBodySetOffers = {};
+
+        TSHIRT_BODY_IDS.forEach(
+          bodyId => {
+            cleanedBodyPrices[
+              bodyId
+            ] =
+              cleanPrice(
+                bodyPrices?.[
+                  bodyId
+                ]
+              );
+
+            cleanedBodySetOffers[
+              bodyId
+            ] =
+              cleanSetOffers(
+                bodySetOffers?.[
+                  bodyId
+                ]
+              );
+          }
+        );
+
+        payload.bodyPrices = {
+          [currency]:
+            cleanedBodyPrices
+        };
+
+        payload.bodySetOffers = {
+          [currency]:
+            cleanedBodySetOffers
+        };
+      }
+
       batch.set(
         ref,
-        {
-          category:
-            categoryId,
-
-          prices: {
-            [currency]:
-              cleanPrice(
-                prices?.[
-                  categoryId
-                ]
-              )
-          },
-
-          setOffers: {
-            [currency]:
-              cleanSetOffers(
-                setOffers?.[
-                  categoryId
-                ]
-              )
-          },
-
-          updatedAt:
-            serverTimestamp()
-        },
+        payload,
         {
           merge:
             true
@@ -249,118 +365,28 @@ export async function savePosPriceConfig(
   };
 }
 
-
 export async function loadQuickPriceBook() {
-  const db = await requireDb();
+  const config =
+    await loadPosPriceConfig();
 
-  const {
-    doc,
-    getDocFromServer
-  } = await firestoreModule();
-
-  const result = {};
-
-  await Promise.all(
-    CATEGORY_IDS.map(
-      async categoryId => {
-        const snapshot =
-          await getDocFromServer(
-            doc(
-              db,
-              "products",
-              categoryId
-            )
-          );
-
-        const prices =
-          snapshot.exists()
-            ? snapshot.data()?.prices || {}
-            : {};
-
-        result[categoryId] = {};
-
-        CURRENCIES.forEach(
-          currency => {
-            result[categoryId][currency] =
-              cleanPrice(
-                prices?.[currency]
-              );
-          }
-        );
-      }
-    )
-  );
-
-  return result;
+  return config.prices;
 }
 
 export async function saveQuickPrices(
   currency,
   prices
 ) {
-  const db = await requireDb();
-
-  if (
-    !CURRENCIES.includes(
-      currency
-    )
-  ) {
-    throw new Error(
-      "Unsupported currency."
-    );
-  }
-
-  const {
-    doc,
-    writeBatch,
-    serverTimestamp
-  } = await firestoreModule();
-
-  const batch =
-    writeBatch(db);
-
-  CATEGORY_IDS.forEach(
-    categoryId => {
-      const value =
-        cleanPrice(
-          prices?.[categoryId]
-        );
-
-      const ref =
-        doc(
-          db,
-          "products",
-          categoryId
-        );
-
-      batch.set(
-        ref,
-        {
-          category:
-            categoryId,
-
-          prices: {
-            [currency]:
-              value
-          },
-
-          updatedAt:
-            serverTimestamp()
-        },
-        {
-          merge:
-            true
-        }
-      );
-    }
+  return await savePosPriceConfig(
+    currency,
+    prices,
+    {},
+    {},
+    {}
   );
-
-  await batch.commit();
-
-  return {
-    currency
-  };
 }
 
 export const QUICK_PRICE_CURRENCIES =
   [...CURRENCIES];
+
+export const TSHIRT_PRICE_BODY_IDS =
+  [...TSHIRT_BODY_IDS];
