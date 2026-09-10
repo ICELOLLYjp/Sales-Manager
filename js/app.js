@@ -2,8 +2,9 @@ import { initFirebase } from "./firebase.js";
 import { initAuth, loginWithGoogle, logout } from "./auth.js";
 import { renderDashboard } from "./views/dashboardView.js";
 import { tshirtAdapter } from "./inventoryAdapters/tshirtAdapter.js";
+import { accessoryAdapter } from "./inventoryAdapters/accessoryAdapter.js";
 import { loadTshirtProductVariants, syncTshirtCurrentStockRows } from "./services/catalogService.js";
-import { listAllProductVariants, registerTshirtVariant, registerGeneralProduct } from "./services/productAdminService.js";
+import { listAllProductVariants, registerTshirtVariant, registerGeneralProduct, syncAccessoryCatalogRows } from "./services/productAdminService.js";
 import { CATEGORY_TEMPLATES, getCategoryTemplate } from "./data/categoryTemplates.js";
 
 const view = document.querySelector("#view");
@@ -257,8 +258,9 @@ async function renderMorePage(sequence) {
   `;
 
   try {
-    const [tshirtOptions, allVariants] = await Promise.all([
+    const [tshirtOptions, accessoryCatalog, allVariants] = await Promise.all([
       tshirtAdapter.getMasterOptions(),
+      accessoryAdapter.getCatalogSnapshot(),
       listAllProductVariants()
     ]);
 
@@ -270,7 +272,26 @@ async function renderMorePage(sequence) {
       counts[key] = (counts[key] || 0) + 1;
     });
 
-    const otherTemplates = CATEGORY_TEMPLATES.filter(item => item.id !== "tshirt");
+    const otherTemplates = CATEGORY_TEMPLATES.filter(
+      item =>
+        ![
+          "tshirt",
+          "pierce",
+          "earring",
+          "drop_pierce",
+          "drop_earring"
+        ].includes(item.id)
+    );
+
+    const registeredAccessoryIds = new Set(
+      allVariants
+        .filter(item => item.inventorySource === "accessory")
+        .map(item => item.variantId || item.id)
+    );
+
+    const accessoryUnregistered = accessoryCatalog.rows.filter(
+      row => !registeredAccessoryIds.has(row.variantId)
+    );
 
     view.innerHTML = `
       <h1 class="page-title">More</h1>
@@ -287,6 +308,59 @@ async function renderMorePage(sequence) {
             </div>
           `).join("")}
         </div>
+      </section>
+
+      <section class="card">
+        <div class="card-title">アクセサリー在庫連携</div>
+
+        <div class="muted" style="margin-bottom:12px;">
+          accessoryStock/shared の商品カタログを読み込みます。
+        </div>
+
+        <div class="list-row">
+          <span>デザイン数</span>
+          <strong>${accessoryCatalog.summary.designCount}</strong>
+        </div>
+
+        <div class="list-row">
+          <span>アクセサリー SKU</span>
+          <strong>${accessoryCatalog.summary.skuCount}</strong>
+        </div>
+
+        <div class="list-row">
+          <span>未登録 SKU</span>
+          <strong>${accessoryUnregistered.length}</strong>
+        </div>
+
+        <div class="list-row">
+          <span>現在在庫 合計</span>
+          <strong>${accessoryCatalog.summary.totalStock}</strong>
+        </div>
+
+        ${
+          accessoryUnregistered.length
+            ? `
+              <button
+                id="syncAccessoryCatalogButton"
+                class="button"
+                type="button"
+                style="width:100%;margin-top:14px;"
+              >
+                アクセサリーSKUを商品登録
+              </button>
+
+              <div
+                id="syncAccessoryCatalogMessage"
+                class="muted"
+                style="margin-top:10px;"
+              ></div>
+            `
+            : `
+              <div class="muted" style="margin-top:12px;">
+                アクセサリーSKUはすべて商品登録済みです。
+              </div>
+            `
+        }
       </section>
 
       <section class="card">
@@ -362,6 +436,52 @@ async function renderMorePage(sequence) {
         </button>
       </section>
     `;
+
+    document
+      .querySelector("#syncAccessoryCatalogButton")
+      ?.addEventListener("click", async event => {
+        const button = event.currentTarget;
+        const message = document.querySelector(
+          "#syncAccessoryCatalogMessage"
+        );
+
+        button.disabled = true;
+        button.textContent = "登録中";
+
+        if (message) {
+          message.textContent = "";
+        }
+
+        try {
+          const result = await syncAccessoryCatalogRows(
+            accessoryUnregistered
+          );
+
+          if (message) {
+            message.textContent =
+              `${result.processed} SKUを登録しました。`;
+          }
+
+          button.textContent = "登録済み";
+
+          setTimeout(
+            () => render("more"),
+            700
+          );
+
+        } catch (error) {
+          button.disabled = false;
+          button.textContent =
+            "アクセサリーSKUを商品登録";
+
+          if (message) {
+            message.textContent =
+              error.code ||
+              error.message ||
+              String(error);
+          }
+        }
+      });
 
     const bodySelect = document.querySelector("#tshirtBody");
     const colorSelect = document.querySelector("#tshirtColor");
