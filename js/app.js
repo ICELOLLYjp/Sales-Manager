@@ -12,9 +12,72 @@ import { commitQuickSale, voidSaleTransaction } from "./services/transactionServ
 import { listSessionTransactions } from "./services/salesHistoryService.js?v=20260910-setdiscount-2";
 import { saveCategoryCost, loadAllCategoryCostHistories, resolveCategoryUnitCost, saveTshirtBodyCost, loadTshirtBodyCostHistories, resolveBodyUnitCost, saveVariantCost, loadVariantCostHistories, calculateResolvedCogs } from "./services/costHistoryService.js";
 import { loadPinkoiTshirtCatalog, syncPinkoiTshirtCatalog } from "./services/pinkoiCatalogService.js";
-import { loadEventInventoryCount, saveEventOpeningInventory, saveEventClosingInventory } from "./services/inventoryCountService.js?v=20260910-eventcount-1";
+
+let inventoryCountServicePromise =
+  null;
+
+async function inventoryCountService() {
+  if (
+    !inventoryCountServicePromise
+  ) {
+    inventoryCountServicePromise =
+      import(
+        "./services/inventoryCountService.js?v=20260910-eventcount-2"
+      )
+        .catch(
+          error => {
+            inventoryCountServicePromise =
+              null;
+
+            throw new Error(
+              `イベント在庫確認モジュールを読み込めませんでした。js/services/inventoryCountService.js の配置を確認してください。 ${error?.message || error}`
+            );
+          }
+        );
+  }
+
+  return await inventoryCountServicePromise;
+}
+
+async function loadEventInventoryCount(
+  ...args
+) {
+  const service =
+    await inventoryCountService();
+
+  return await service
+    .loadEventInventoryCount(
+      ...args
+    );
+}
+
+async function saveEventOpeningInventory(
+  ...args
+) {
+  const service =
+    await inventoryCountService();
+
+  return await service
+    .saveEventOpeningInventory(
+      ...args
+    );
+}
+
+async function saveEventClosingInventory(
+  ...args
+) {
+  const service =
+    await inventoryCountService();
+
+  return await service
+    .saveEventClosingInventory(
+      ...args
+    );
+}
+
 
 const view = document.querySelector("#view");
+view.dataset.booted = "true";
 const syncStatus = document.querySelector("#syncStatus");
 
 let firebaseState = null;
