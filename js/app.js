@@ -4351,9 +4351,15 @@ async function renderSessions(
                               </span>
 
                               <strong>
-                                ${grossMargin.toFixed(
-                                  1
-                                )}%
+                                ${
+                                  Number.isFinite(
+                                    grossMargin
+                                  )
+                                    ? `${grossMargin.toFixed(
+                                        1
+                                      )}%`
+                                    : "—"
+                                }
                               </strong>
                             </div>
 
@@ -4382,9 +4388,15 @@ async function renderSessions(
                               </span>
 
                               <strong>
-                                ${finalMargin.toFixed(
-                                  1
-                                )}%
+                                ${
+                                  Number.isFinite(
+                                    finalMargin
+                                  )
+                                    ? `${finalMargin.toFixed(
+                                        1
+                                      )}%`
+                                    : "—"
+                                }
                               </strong>
                             </div>
                           `
