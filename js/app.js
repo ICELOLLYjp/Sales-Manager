@@ -12,6 +12,7 @@ import { commitQuickSale, voidSaleTransaction } from "./services/transactionServ
 import { listSessionTransactions } from "./services/salesHistoryService.js?v=20260910-setdiscount-2";
 import { saveCategoryCost, loadAllCategoryCostHistories, resolveCategoryUnitCost, saveTshirtBodyCost, loadTshirtBodyCostHistories, resolveBodyUnitCost, saveVariantCost, loadVariantCostHistories, calculateResolvedCogs } from "./services/costHistoryService.js";
 import { loadPinkoiTshirtCatalog, syncPinkoiTshirtCatalog } from "./services/pinkoiCatalogService.js";
+import { loadEventInventoryCount, saveEventOpeningInventory, saveEventClosingInventory } from "./services/inventoryCountService.js?v=20260910-eventcount-1";
 
 const view = document.querySelector("#view");
 const syncStatus = document.querySelector("#syncStatus");
@@ -84,6 +85,9 @@ let posSkuSearch =
   "";
 
 let sessionDetailId =
+  "";
+
+let sessionInventoryCountId =
   "";
 
 function escapeHtml(value) {
@@ -3078,6 +3082,607 @@ function sessionNetSalesJPY(
 }
 
 
+
+const EVENT_COUNT_TRACKED_CATEGORIES =
+  new Set([
+    "tshirt",
+    "pierce",
+    "earring",
+    "drop_pierce",
+    "drop_earring"
+  ]);
+
+function countTimestampText(
+  value
+) {
+  if (!value) {
+    return "";
+  }
+
+  try {
+    const date =
+      typeof value.toDate ===
+      "function"
+        ? value.toDate()
+        : (
+            value.seconds
+              ? new Date(
+                  Number(
+                    value.seconds
+                  ) *
+                  1000
+                )
+              : new Date(value)
+          );
+
+    if (
+      Number.isNaN(
+        date.getTime()
+      )
+    ) {
+      return "";
+    }
+
+    return new Intl.DateTimeFormat(
+      "ja-JP",
+      {
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit"
+      }
+    ).format(date);
+
+  } catch (error) {
+    return "";
+  }
+}
+
+function buildEventInventorySnapshotRows({
+  tshirtSnapshot,
+  accessorySnapshot,
+  variants
+}) {
+  const variantMap =
+    new Map(
+      (
+        Array.isArray(variants)
+          ? variants
+          : []
+      ).map(
+        item => [
+          item.variantId ||
+          item.id,
+          item
+        ]
+      )
+    );
+
+  const rows = [];
+
+  (
+    tshirtSnapshot
+      ?.rows ||
+    []
+  ).forEach(
+    row => {
+      const variant =
+        variantMap.get(
+          row.variantId
+        ) || {};
+
+      const displayDesign =
+        variant.design ||
+        row.design ||
+        "Tシャツ";
+
+      const body =
+        variant.body ||
+        row.body ||
+        "";
+
+      const color =
+        variant.color ||
+        row.color ||
+        "";
+
+      const size =
+        variant.size ||
+        row.size ||
+        "";
+
+      rows.push({
+        variantId:
+          row.variantId,
+
+        category:
+          "tshirt",
+
+        inventorySource:
+          "tshirt",
+
+        inventoryKey:
+          variant.inventoryKey ||
+          row.stockTargetId ||
+          "",
+
+        sku:
+          variant.pinkoiSku ||
+          variant.sku ||
+          "",
+
+        label:
+          displayDesign,
+
+        detail:
+          [
+            body,
+            color,
+            size
+          ]
+            .filter(Boolean)
+            .join(" / "),
+
+        openingQty:
+          Math.max(
+            0,
+            Math.floor(
+              Number(
+                row.quantity ||
+                0
+              )
+            )
+          )
+      });
+    }
+  );
+
+  (
+    accessorySnapshot
+      ?.rows ||
+    []
+  ).forEach(
+    row => {
+      const variant =
+        variantMap.get(
+          row.variantId
+        ) || {};
+
+      rows.push({
+        variantId:
+          row.variantId,
+
+        category:
+          row.category,
+
+        inventorySource:
+          "accessory",
+
+        inventoryKey:
+          variant.inventoryKey ||
+          row.inventoryKey ||
+          "",
+
+        sku:
+          variant.sku ||
+          "",
+
+        label:
+          variant.design ||
+          variant.displayName ||
+          row.displayName ||
+          row.design ||
+          "アクセサリー",
+
+        detail:
+          POS_CATEGORY_LABELS[
+            row.category
+          ] ||
+          row.categoryLabel ||
+          row.category ||
+          "",
+
+        openingQty:
+          Math.max(
+            0,
+            Math.floor(
+              Number(
+                row.quantity ||
+                0
+              )
+            )
+          )
+      });
+    }
+  );
+
+  return rows
+    .filter(
+      row =>
+        row.variantId &&
+        row.openingQty > 0
+    )
+    .sort(
+      (a, b) => {
+        const categoryCompare =
+          (
+            POS_CATEGORY_LABELS[
+              a.category
+            ] ||
+            a.category
+          ).localeCompare(
+            POS_CATEGORY_LABELS[
+              b.category
+            ] ||
+            b.category,
+            "ja"
+          );
+
+        if (
+          categoryCompare
+        ) {
+          return categoryCompare;
+        }
+
+        return (
+          `${a.label} ${a.detail}`
+        ).localeCompare(
+          `${b.label} ${b.detail}`,
+          "ja"
+        );
+      }
+    );
+}
+
+function currentInventoryMap(
+  rows
+) {
+  return new Map(
+    (
+      Array.isArray(rows)
+        ? rows
+        : []
+    ).map(
+      row => [
+        row.variantId,
+        Math.max(
+          0,
+          Math.floor(
+            Number(
+              row.openingQty ??
+              row.quantity ??
+              0
+            )
+          )
+        )
+      ]
+    )
+  );
+}
+
+function sessionInventorySalesBreakdown(
+  transactions,
+  openingIds
+) {
+  const exactByVariant =
+    new Map();
+
+  const quickByCategory =
+    new Map();
+
+  let exactTotal = 0;
+  let quickTotal = 0;
+  let otherUnallocated = 0;
+
+  (
+    Array.isArray(transactions)
+      ? transactions
+      : []
+  )
+    .filter(
+      transaction =>
+        transaction.status !==
+        "voided"
+    )
+    .forEach(
+      transaction => {
+        (
+          transaction.items ||
+          []
+        ).forEach(
+          item => {
+            const quantity =
+              Math.max(
+                0,
+                Math.floor(
+                  Number(
+                    item?.quantity ||
+                    0
+                  )
+                )
+              );
+
+            if (
+              quantity <= 0
+            ) {
+              return;
+            }
+
+            const variantId =
+              String(
+                item?.variantId ||
+                ""
+              ).trim();
+
+            const category =
+              String(
+                item?.category ||
+                ""
+              ).trim();
+
+            if (
+              variantId &&
+              openingIds.has(
+                variantId
+              )
+            ) {
+              exactByVariant.set(
+                variantId,
+                (
+                  exactByVariant.get(
+                    variantId
+                  ) ||
+                  0
+                ) +
+                quantity
+              );
+
+              exactTotal +=
+                quantity;
+
+              return;
+            }
+
+            if (
+              !variantId &&
+              EVENT_COUNT_TRACKED_CATEGORIES
+                .has(
+                  category
+                )
+            ) {
+              quickByCategory.set(
+                category,
+                (
+                  quickByCategory.get(
+                    category
+                  ) ||
+                  0
+                ) +
+                quantity
+              );
+
+              quickTotal +=
+                quantity;
+
+              return;
+            }
+
+            if (
+              variantId &&
+              EVENT_COUNT_TRACKED_CATEGORIES
+                .has(
+                  category
+                )
+            ) {
+              otherUnallocated +=
+                quantity;
+            }
+          }
+        );
+      }
+    );
+
+  return {
+    exactByVariant,
+    quickByCategory,
+    exactTotal,
+    quickTotal,
+    otherUnallocated
+  };
+}
+
+function closingCountMap(
+  countData
+) {
+  return new Map(
+    (
+      countData
+        ?.closing
+        ?.items ||
+      []
+    ).map(
+      item => [
+        item.variantId,
+        item
+      ]
+    )
+  );
+}
+
+function eventInventoryCountSummary({
+  openingItems,
+  closingMap,
+  sales
+}) {
+  let openingTotal = 0;
+  let exactSalesTotal = 0;
+  let recordedReductionTotal = 0;
+  let stockAdjustmentTotal = 0;
+  let actualTotal = 0;
+  let countedCount = 0;
+
+  (
+    openingItems ||
+    []
+  ).forEach(
+    opening => {
+      const openingQty =
+        Math.max(
+          0,
+          Number(
+            opening.openingQty ||
+            0
+          )
+        );
+
+      openingTotal +=
+        openingQty;
+
+      exactSalesTotal +=
+        sales.exactByVariant.get(
+          opening.variantId
+        ) ||
+        0;
+
+      const closing =
+        closingMap.get(
+          opening.variantId
+        ) || {};
+
+      recordedReductionTotal +=
+        Math.max(
+          0,
+          Number(
+            closing.loss ||
+            0
+          )
+        ) +
+        Math.max(
+          0,
+          Number(
+            closing.theft ||
+            0
+          )
+        ) +
+        Math.max(
+          0,
+          Number(
+            closing.damage ||
+            0
+          )
+        ) +
+        Math.max(
+          0,
+          Number(
+            closing.gift ||
+            0
+          )
+        ) +
+        Math.max(
+          0,
+          Number(
+            closing.sample ||
+            0
+          )
+        );
+
+      stockAdjustmentTotal +=
+        Number(
+          closing.stockAdjustment ||
+          0
+        );
+
+      if (
+        closing.closingQty !==
+          null &&
+        closing.closingQty !==
+          undefined &&
+        closing.closingQty !==
+          ""
+      ) {
+        actualTotal +=
+          Math.max(
+            0,
+            Number(
+              closing.closingQty ||
+              0
+            )
+          );
+
+        countedCount +=
+          1;
+      }
+    }
+  );
+
+  const expectedTotal =
+    openingTotal -
+    exactSalesTotal -
+    sales.quickTotal -
+    recordedReductionTotal +
+    stockAdjustmentTotal;
+
+  const complete =
+    openingItems.length > 0 &&
+    countedCount ===
+      openingItems.length;
+
+  const unclassifiedDifference =
+    complete
+      ? expectedTotal -
+        actualTotal
+      : null;
+
+  return {
+    openingTotal,
+    exactSalesTotal,
+    quickSalesTotal:
+      sales.quickTotal,
+    recordedReductionTotal,
+    stockAdjustmentTotal,
+    expectedTotal,
+    actualTotal,
+    countedCount,
+    totalSkuCount:
+      openingItems.length,
+    incompleteCount:
+      Math.max(
+        0,
+        openingItems.length -
+        countedCount
+      ),
+    complete,
+    unclassifiedDifference
+  };
+}
+
+function countDifferenceLabel(
+  value
+) {
+  if (
+    value === null ||
+    value === undefined
+  ) {
+    return "未確定";
+  }
+
+  const number =
+    Number(value || 0);
+
+  if (number === 0) {
+    return "0";
+  }
+
+  if (number > 0) {
+    return `不足 ${number}`;
+  }
+
+  return `超過 ${Math.abs(
+    number
+  )}`;
+}
+
+
 async function renderSessions(
   sequence
 ) {
@@ -3115,6 +3720,70 @@ async function renderSessions(
           transaction.status !==
           "voided"
       );
+
+    const selectedInventoryCountSession =
+      sessions.find(
+        session =>
+          session.sessionId ===
+          sessionInventoryCountId
+      ) || null;
+
+    let inventoryCountData = null;
+    let eventCurrentInventoryRows = [];
+    let eventInventoryTransactions = [];
+
+    if (
+      selectedInventoryCountSession
+    ) {
+      const [
+        countData,
+        tshirtSnapshot,
+        accessorySnapshot,
+        inventoryVariants,
+        countTransactions
+      ] =
+        await Promise.all([
+          loadEventInventoryCount(
+            selectedInventoryCountSession
+              .sessionId
+          ),
+
+          tshirtAdapter
+            .getInventorySnapshot(),
+
+          accessoryAdapter
+            .getCatalogSnapshot(),
+
+          listAllProductVariants(),
+
+          selectedDetailSession &&
+          selectedDetailSession
+            .sessionId ===
+            selectedInventoryCountSession
+              .sessionId
+            ? Promise.resolve(
+                sessionTransactions
+              )
+            : listSessionTransactions(
+                selectedInventoryCountSession
+                  .sessionId
+              )
+        ]);
+
+      inventoryCountData =
+        countData;
+
+      eventCurrentInventoryRows =
+        buildEventInventorySnapshotRows({
+          tshirtSnapshot,
+          accessorySnapshot,
+          variants:
+            inventoryVariants
+        });
+
+      eventInventoryTransactions =
+        countTransactions;
+    }
 
     const categoryCostHistories =
       selectedDetailSession
@@ -3825,6 +4494,20 @@ async function renderSessions(
                         >
                           売上詳細
                         </button>
+
+                        <button
+                          type="button"
+                          class="sessionInventoryCountButton button button-secondary"
+                          data-session-id="${escapeHtml(
+                            session.sessionId
+                          )}"
+                          style="
+                            min-height:40px;
+                            padding:0 12px;
+                          "
+                        >
+                          在庫確認
+                        </button>
                       </div>
 
                     </div>
@@ -3846,6 +4529,900 @@ async function renderSessions(
         }
 
       </section>
+
+
+      ${
+        selectedInventoryCountSession
+          ? (() => {
+              const openingItems =
+                inventoryCountData
+                  ?.opening
+                  ?.items ||
+                [];
+
+              const currentMap =
+                currentInventoryMap(
+                  eventCurrentInventoryRows
+                );
+
+              const openingIds =
+                new Set(
+                  openingItems.map(
+                    item =>
+                      item.variantId
+                  )
+                );
+
+              const sales =
+                sessionInventorySalesBreakdown(
+                  eventInventoryTransactions,
+                  openingIds
+                );
+
+              const closingMap =
+                closingCountMap(
+                  inventoryCountData
+                );
+
+              const countSummary =
+                eventInventoryCountSummary({
+                  openingItems,
+                  closingMap,
+                  sales
+                });
+
+              const currentTotal =
+                eventCurrentInventoryRows
+                  .reduce(
+                    (sum, row) =>
+                      sum +
+                      Number(
+                        row.openingQty ||
+                        0
+                      ),
+                    0
+                  );
+
+              const currentTshirtTotal =
+                eventCurrentInventoryRows
+                  .filter(
+                    row =>
+                      row.category ===
+                      "tshirt"
+                  )
+                  .reduce(
+                    (sum, row) =>
+                      sum +
+                      Number(
+                        row.openingQty ||
+                        0
+                      ),
+                    0
+                  );
+
+              const currentAccessoryTotal =
+                eventCurrentInventoryRows
+                  .filter(
+                    row =>
+                      row.category !==
+                      "tshirt"
+                  )
+                  .reduce(
+                    (sum, row) =>
+                      sum +
+                      Number(
+                        row.openingQty ||
+                        0
+                      ),
+                    0
+                  );
+
+              return `
+                <section
+                  class="card"
+                  id="sessionInventoryCountPanel"
+                >
+                  <div
+                    style="
+                      display:flex;
+                      justify-content:space-between;
+                      gap:10px;
+                      align-items:flex-start;
+                      margin-bottom:12px;
+                    "
+                  >
+                    <div>
+                      <div class="card-title">
+                        イベント在庫確認
+                      </div>
+
+                      <div
+                        style="
+                          margin-top:4px;
+                          font-weight:800;
+                        "
+                      >
+                        ${escapeHtml(
+                          selectedInventoryCountSession
+                            .eventName
+                        )}
+                      </div>
+                    </div>
+
+                    <button
+                      id="closeInventoryCountButton"
+                      class="button button-secondary"
+                      type="button"
+                      style="
+                        min-height:38px;
+                        padding:0 14px;
+                      "
+                    >
+                      閉じる
+                    </button>
+                  </div>
+
+                  ${
+                    !inventoryCountData
+                      ?.opening
+                      ? `
+                        <div
+                          class="warning"
+                          style="
+                            margin-bottom:12px;
+                          "
+                        >
+                          イベント販売を始める前に、現在の実在庫を開始在庫として保存してください。
+                        </div>
+
+                        <div class="list-row">
+                          <span>
+                            現在のTシャツ
+                          </span>
+
+                          <strong>
+                            ${currentTshirtTotal}
+                          </strong>
+                        </div>
+
+                        <div class="list-row">
+                          <span>
+                            現在のアクセサリー
+                          </span>
+
+                          <strong>
+                            ${currentAccessoryTotal}
+                          </strong>
+                        </div>
+
+                        <div class="list-row">
+                          <span>
+                            現在の合計
+                          </span>
+
+                          <strong>
+                            ${currentTotal}
+                          </strong>
+                        </div>
+
+                        <div class="list-row">
+                          <span>
+                            対象SKU
+                          </span>
+
+                          <strong>
+                            ${eventCurrentInventoryRows.length}
+                          </strong>
+                        </div>
+
+                        ${
+                          eventInventoryTransactions
+                            .filter(
+                              item =>
+                                item.status !==
+                                "voided"
+                            )
+                            .length
+                            ? `
+                              <div
+                                class="warning"
+                                style="
+                                  margin-top:12px;
+                                "
+                              >
+                                このセッションにはすでに有効な売上があります。実イベントでは販売開始前に開始在庫を保存してください。
+                              </div>
+                            `
+                            : ""
+                        }
+
+                        <button
+                          id="captureOpeningInventoryButton"
+                          class="button"
+                          type="button"
+                          style="
+                            width:100%;
+                            min-height:52px;
+                            margin-top:14px;
+                          "
+                        >
+                          現在庫を開始在庫として保存
+                        </button>
+
+                        <div
+                          id="inventoryCountMessage"
+                          class="muted"
+                          style="
+                            margin-top:10px;
+                          "
+                        ></div>
+                      `
+                      : `
+                        <div
+                          class="muted"
+                          style="
+                            margin-bottom:10px;
+                          "
+                        >
+                          開始在庫
+                          ${
+                            countTimestampText(
+                              inventoryCountData
+                                ?.opening
+                                ?.capturedAt
+                            ) ||
+                            "保存済み"
+                          }
+                        </div>
+
+                        <div
+                          class="grid grid-2"
+                          style="
+                            margin-bottom:12px;
+                          "
+                        >
+                          <div
+                            style="
+                              padding:12px;
+                              border:1px solid #ecece7;
+                              border-radius:14px;
+                            "
+                          >
+                            <div
+                              style="
+                                font-size:22px;
+                                font-weight:800;
+                              "
+                            >
+                              ${countSummary.openingTotal}
+                            </div>
+
+                            <div class="muted">
+                              開始在庫
+                            </div>
+                          </div>
+
+                          <div
+                            style="
+                              padding:12px;
+                              border:1px solid #ecece7;
+                              border-radius:14px;
+                            "
+                          >
+                            <div
+                              style="
+                                font-size:22px;
+                                font-weight:800;
+                              "
+                            >
+                              ${countSummary.exactSalesTotal}
+                            </div>
+
+                            <div class="muted">
+                              SKU販売
+                            </div>
+                          </div>
+
+                          <div
+                            style="
+                              padding:12px;
+                              border:1px solid #ecece7;
+                              border-radius:14px;
+                            "
+                          >
+                            <div
+                              style="
+                                font-size:22px;
+                                font-weight:800;
+                              "
+                            >
+                              ${countSummary.quickSalesTotal}
+                            </div>
+
+                            <div class="muted">
+                              Quick未割当販売
+                            </div>
+                          </div>
+
+                          <div
+                            style="
+                              padding:12px;
+                              border:1px solid #ecece7;
+                              border-radius:14px;
+                            "
+                          >
+                            <div
+                              style="
+                                font-size:22px;
+                                font-weight:800;
+                              "
+                            >
+                              ${countSummary.expectedTotal}
+                            </div>
+
+                            <div class="muted">
+                              計算上残数
+                            </div>
+                          </div>
+
+                          <div
+                            style="
+                              padding:12px;
+                              border:1px solid #ecece7;
+                              border-radius:14px;
+                            "
+                          >
+                            <div
+                              style="
+                                font-size:22px;
+                                font-weight:800;
+                              "
+                            >
+                              ${
+                                countSummary.complete
+                                  ? countSummary.actualTotal
+                                  : `${countSummary.countedCount}/${countSummary.totalSkuCount}`
+                              }
+                            </div>
+
+                            <div class="muted">
+                              ${
+                                countSummary.complete
+                                  ? "終了実数"
+                                  : "カウント済みSKU"
+                              }
+                            </div>
+                          </div>
+
+                          <div
+                            style="
+                              padding:12px;
+                              border:1px solid #ecece7;
+                              border-radius:14px;
+                            "
+                          >
+                            <div
+                              style="
+                                font-size:22px;
+                                font-weight:800;
+                              "
+                            >
+                              ${escapeHtml(
+                                countDifferenceLabel(
+                                  countSummary
+                                    .unclassifiedDifference
+                                )
+                              )}
+                            </div>
+
+                            <div class="muted">
+                              未分類差異
+                            </div>
+                          </div>
+                        </div>
+
+                        ${
+                          countSummary.recordedReductionTotal >
+                            0 ||
+                          countSummary.stockAdjustmentTotal !==
+                            0
+                            ? `
+                              <div class="list-row">
+                                <span>
+                                  記録済み減少
+                                </span>
+
+                                <strong>
+                                  ${countSummary.recordedReductionTotal}
+                                </strong>
+                              </div>
+
+                              <div class="list-row">
+                                <span>
+                                  在庫調整
+                                </span>
+
+                                <strong>
+                                  ${
+                                    countSummary.stockAdjustmentTotal >
+                                    0
+                                      ? "+"
+                                      : ""
+                                  }${countSummary.stockAdjustmentTotal}
+                                </strong>
+                              </div>
+                            `
+                            : ""
+                        }
+
+                        ${
+                          countSummary.quickSalesTotal >
+                          0
+                            ? `
+                              <div
+                                class="warning"
+                                style="
+                                  margin-top:12px;
+                                "
+                              >
+                                Quick販売
+                                ${countSummary.quickSalesTotal}
+                                点はSKUが特定されていないため、合計残数には反映しますがSKU別には自動配分しません。
+                              </div>
+                            `
+                            : ""
+                        }
+
+                        <details
+                          style="
+                            margin-top:14px;
+                          "
+                        >
+                          <summary
+                            style="
+                              cursor:pointer;
+                              font-weight:800;
+                              padding:8px 0;
+                            "
+                          >
+                            終了在庫を数える
+                          </summary>
+
+                          <div
+                            style="
+                              margin-top:10px;
+                            "
+                          >
+                            <div
+                              class="muted"
+                              style="
+                                line-height:1.55;
+                              "
+                            >
+                              「終了実数」には会場で実際に数えた数量を入力します。システム在庫のコピーは動作確認用・入力補助です。
+                            </div>
+
+                            <div
+                              style="
+                                display:grid;
+                                grid-template-columns:
+                                  repeat(
+                                    2,
+                                    minmax(0,1fr)
+                                  );
+                                gap:8px;
+                                margin-top:10px;
+                              "
+                            >
+                              <button
+                                id="copySystemStockToClosingButton"
+                                type="button"
+                                class="button button-secondary"
+                                style="
+                                  min-height:44px;
+                                "
+                              >
+                                システム在庫をコピー
+                              </button>
+
+                              <button
+                                id="clearClosingCountButton"
+                                type="button"
+                                class="button button-secondary"
+                                style="
+                                  min-height:44px;
+                                "
+                              >
+                                終了実数をクリア
+                              </button>
+                            </div>
+
+                            <input
+                              id="inventoryCountSearch"
+                              type="search"
+                              placeholder="SKU、商品名、色、サイズで検索"
+                              style="
+                                ${inputStyle()}
+                                margin-top:10px;
+                              "
+                            >
+
+                            <div
+                              id="inventoryCountRows"
+                              style="
+                                margin-top:8px;
+                              "
+                            >
+                              ${openingItems.map(
+                                opening => {
+                                  const closing =
+                                    closingMap.get(
+                                      opening.variantId
+                                    ) || {};
+
+                                  const skuSales =
+                                    sales.exactByVariant.get(
+                                      opening.variantId
+                                    ) || 0;
+
+                                  const systemQty =
+                                    currentMap.get(
+                                      opening.variantId
+                                    ) || 0;
+
+                                  const reasonTotal =
+                                    Number(
+                                      closing.loss ||
+                                      0
+                                    ) +
+                                    Number(
+                                      closing.theft ||
+                                      0
+                                    ) +
+                                    Number(
+                                      closing.damage ||
+                                      0
+                                    ) +
+                                    Number(
+                                      closing.gift ||
+                                      0
+                                    ) +
+                                    Number(
+                                      closing.sample ||
+                                      0
+                                    );
+
+                                  const rowExpected =
+                                    Number(
+                                      opening.openingQty ||
+                                      0
+                                    ) -
+                                    skuSales -
+                                    reasonTotal +
+                                    Number(
+                                      closing.stockAdjustment ||
+                                      0
+                                    );
+
+                                  const searchText =
+                                    [
+                                      opening.sku,
+                                      opening.label,
+                                      opening.detail,
+                                      POS_CATEGORY_LABELS[
+                                        opening.category
+                                      ] ||
+                                      opening.category
+                                    ]
+                                      .filter(Boolean)
+                                      .join(" ")
+                                      .toLocaleLowerCase();
+
+                                  return `
+                                    <div
+                                      class="inventoryCountRow"
+                                      data-search="${escapeHtml(
+                                        searchText
+                                      )}"
+                                      data-variant-id="${escapeHtml(
+                                        opening.variantId
+                                      )}"
+                                      data-system-qty="${systemQty}"
+                                      style="
+                                        padding:12px 0;
+                                        border-bottom:1px solid #ecece7;
+                                      "
+                                    >
+                                      <div
+                                        style="
+                                          display:flex;
+                                          justify-content:space-between;
+                                          gap:10px;
+                                          align-items:flex-start;
+                                        "
+                                      >
+                                        <div
+                                          style="
+                                            min-width:0;
+                                            flex:1;
+                                          "
+                                        >
+                                          <div
+                                            style="
+                                              font-weight:800;
+                                            "
+                                          >
+                                            ${escapeHtml(
+                                              opening.label
+                                            )}
+                                          </div>
+
+                                          <div
+                                            class="muted"
+                                            style="
+                                              margin-top:3px;
+                                              line-height:1.45;
+                                            "
+                                          >
+                                            ${escapeHtml(
+                                              opening.detail
+                                            )}
+
+                                            ${
+                                              opening.sku
+                                                ? `
+                                                  <br>
+                                                  ${escapeHtml(
+                                                    opening.sku
+                                                  )}
+                                                `
+                                                : ""
+                                            }
+                                          </div>
+                                        </div>
+
+                                        <div
+                                          style="
+                                            text-align:right;
+                                            white-space:nowrap;
+                                            font-size:12px;
+                                          "
+                                        >
+                                          <div>
+                                            開始
+                                            <strong>
+                                              ${opening.openingQty}
+                                            </strong>
+                                          </div>
+
+                                          <div>
+                                            販売
+                                            <strong>
+                                              ${skuSales}
+                                            </strong>
+                                          </div>
+
+                                          <div>
+                                            計算
+                                            <strong>
+                                              ${rowExpected}
+                                            </strong>
+                                          </div>
+
+                                          <div>
+                                            現在庫
+                                            <strong>
+                                              ${systemQty}
+                                            </strong>
+                                          </div>
+                                        </div>
+                                      </div>
+
+                                      <label
+                                        style="
+                                          display:grid;
+                                          grid-template-columns:
+                                            minmax(0,1fr)
+                                            110px;
+                                          gap:8px;
+                                          align-items:center;
+                                          margin-top:10px;
+                                        "
+                                      >
+                                        <span
+                                          style="
+                                            font-weight:700;
+                                          "
+                                        >
+                                          終了実数
+                                        </span>
+
+                                        <input
+                                          class="inventoryClosingQty"
+                                          data-variant-id="${escapeHtml(
+                                            opening.variantId
+                                          )}"
+                                          type="number"
+                                          min="0"
+                                          step="1"
+                                          inputmode="numeric"
+                                          value="${
+                                            closing.closingQty !==
+                                              null &&
+                                            closing.closingQty !==
+                                              undefined
+                                              ? closing.closingQty
+                                              : ""
+                                          }"
+                                          placeholder="未入力"
+                                          style="${inputStyle()}"
+                                        >
+                                      </label>
+
+                                      <details
+                                        style="
+                                          margin-top:8px;
+                                        "
+                                      >
+                                        <summary
+                                          style="
+                                            cursor:pointer;
+                                            font-size:13px;
+                                            font-weight:700;
+                                          "
+                                        >
+                                          紛失・破損などを記録
+                                        </summary>
+
+                                        <div
+                                          style="
+                                            display:grid;
+                                            grid-template-columns:
+                                              repeat(
+                                                2,
+                                                minmax(0,1fr)
+                                              );
+                                            gap:8px;
+                                            margin-top:8px;
+                                          "
+                                        >
+                                          ${[
+                                            ["loss", "紛失", false],
+                                            ["theft", "盗難", false],
+                                            ["damage", "破損", false],
+                                            ["gift", "プレゼント", false],
+                                            ["sample", "サンプル", false],
+                                            ["stockAdjustment", "在庫調整", true]
+                                          ].map(
+                                            ([key, label, signed]) => `
+                                              <label>
+                                                <div
+                                                  class="muted"
+                                                  style="
+                                                    margin-bottom:4px;
+                                                    font-size:12px;
+                                                  "
+                                                >
+                                                  ${label}
+                                                </div>
+
+                                                <input
+                                                  class="inventoryReasonInput"
+                                                  data-variant-id="${escapeHtml(
+                                                    opening.variantId
+                                                  )}"
+                                                  data-reason="${key}"
+                                                  type="number"
+                                                  ${
+                                                    signed
+                                                      ? ""
+                                                      : 'min="0"'
+                                                  }
+                                                  step="1"
+                                                  inputmode="${
+                                                    signed
+                                                      ? "decimal"
+                                                      : "numeric"
+                                                  }"
+                                                  value="${
+                                                    Number(
+                                                      closing[
+                                                        key
+                                                      ] ||
+                                                      0
+                                                    ) ||
+                                                    ""
+                                                  }"
+                                                  placeholder="0"
+                                                  style="${inputStyle()}"
+                                                >
+                                              </label>
+                                            `
+                                          ).join("")}
+                                        </div>
+
+                                        <div
+                                          class="muted"
+                                          style="
+                                            margin-top:7px;
+                                            font-size:11px;
+                                          "
+                                        >
+                                          在庫調整は増加を＋、減少を−で入力できます。ここでは記録だけを行い、実在庫は自動変更しません。
+                                        </div>
+                                      </details>
+                                    </div>
+                                  `;
+                                }
+                              ).join("")}
+                            </div>
+
+                            <button
+                              id="saveClosingInventoryButton"
+                              type="button"
+                              class="button"
+                              style="
+                                width:100%;
+                                min-height:52px;
+                                margin-top:14px;
+                              "
+                            >
+                              終了在庫・理由を保存
+                            </button>
+
+                            <div
+                              id="inventoryCountMessage"
+                              class="muted"
+                              style="
+                                margin-top:10px;
+                              "
+                            ></div>
+                          </div>
+                        </details>
+
+                        <details
+                          style="
+                            margin-top:14px;
+                          "
+                        >
+                          <summary
+                            style="
+                              cursor:pointer;
+                              font-weight:700;
+                              padding:8px 0;
+                            "
+                          >
+                            開始在庫を再取得
+                          </summary>
+
+                          <div
+                            class="warning"
+                            style="
+                              margin:8px 0 10px;
+                            "
+                          >
+                            開始在庫を再取得すると、保存済みの終了カウントはクリアされます。実イベントでは販売開始後に行わないでください。
+                          </div>
+
+                          <button
+                            id="recaptureOpeningInventoryButton"
+                            type="button"
+                            class="button button-secondary"
+                            style="
+                              width:100%;
+                              min-height:46px;
+                            "
+                          >
+                            現在庫で開始在庫を再保存
+                          </button>
+                        </details>
+                      `
+                  }
+                </section>
+              `;
+            })()
+          : ""
+      }
 
 
       ${
@@ -5106,6 +6683,460 @@ async function renderSessions(
 
     document
       .querySelectorAll(
+        ".sessionInventoryCountButton"
+      )
+      .forEach(
+        button => {
+          button.addEventListener(
+            "click",
+            () => {
+              sessionInventoryCountId =
+                button.dataset.sessionId ||
+                "";
+
+              sessionDetailId =
+                "";
+
+              renderSessions(
+                ++renderSequence
+              );
+
+              setTimeout(
+                () => {
+                  document
+                    .querySelector(
+                      "#sessionInventoryCountPanel"
+                    )
+                    ?.scrollIntoView({
+                      behavior:
+                        "smooth",
+                      block:
+                        "start"
+                    });
+                },
+                100
+              );
+            }
+          );
+        }
+      );
+
+
+    document
+      .querySelector(
+        "#closeInventoryCountButton"
+      )
+      ?.addEventListener(
+        "click",
+        () => {
+          sessionInventoryCountId =
+            "";
+
+          renderSessions(
+            ++renderSequence
+          );
+        }
+      );
+
+
+    async function captureOpeningInventory(
+      overwrite
+    ) {
+      if (
+        !selectedInventoryCountSession
+      ) {
+        return;
+      }
+
+      const button =
+        document.querySelector(
+          overwrite
+            ? "#recaptureOpeningInventoryButton"
+            : "#captureOpeningInventoryButton"
+        );
+
+      const message =
+        document.querySelector(
+          "#inventoryCountMessage"
+        );
+
+      if (
+        overwrite
+      ) {
+        const confirmed =
+          window.confirm(
+            "開始在庫を現在庫で再保存しますか？\n\n保存済みの終了カウントはクリアされます。販売開始後には行わないでください。"
+          );
+
+        if (!confirmed) {
+          return;
+        }
+      }
+
+      if (
+        button
+      ) {
+        button.disabled =
+          true;
+
+        button.textContent =
+          "保存中";
+      }
+
+      if (
+        message
+      ) {
+        message.textContent =
+          "";
+      }
+
+      try {
+        await saveEventOpeningInventory({
+          sessionId:
+            selectedInventoryCountSession
+              .sessionId,
+
+          items:
+            eventCurrentInventoryRows,
+
+          capturedByEmail:
+            currentUser?.email ||
+            "",
+
+          overwrite
+        });
+
+        await renderSessions(
+          ++renderSequence
+        );
+
+        setTimeout(
+          () => {
+            document
+              .querySelector(
+                "#sessionInventoryCountPanel"
+              )
+              ?.scrollIntoView({
+                behavior:
+                  "smooth",
+                block:
+                  "start"
+              });
+          },
+          100
+        );
+
+      } catch (error) {
+        if (
+          button
+        ) {
+          button.disabled =
+            false;
+
+          button.textContent =
+            overwrite
+              ? "現在庫で開始在庫を再保存"
+              : "現在庫を開始在庫として保存";
+        }
+
+        if (
+          message
+        ) {
+          message.textContent =
+            error.code ||
+            error.message ||
+            String(error);
+        }
+      }
+    }
+
+
+    document
+      .querySelector(
+        "#captureOpeningInventoryButton"
+      )
+      ?.addEventListener(
+        "click",
+        () =>
+          captureOpeningInventory(
+            false
+          )
+      );
+
+
+    document
+      .querySelector(
+        "#recaptureOpeningInventoryButton"
+      )
+      ?.addEventListener(
+        "click",
+        () =>
+          captureOpeningInventory(
+            true
+          )
+      );
+
+
+    document
+      .querySelector(
+        "#copySystemStockToClosingButton"
+      )
+      ?.addEventListener(
+        "click",
+        () => {
+          document
+            .querySelectorAll(
+              ".inventoryCountRow"
+            )
+            .forEach(
+              row => {
+                const input =
+                  row.querySelector(
+                    ".inventoryClosingQty"
+                  );
+
+                if (
+                  input
+                ) {
+                  input.value =
+                    row.dataset
+                      .systemQty ||
+                    "0";
+                }
+              }
+            );
+        }
+      );
+
+
+    document
+      .querySelector(
+        "#clearClosingCountButton"
+      )
+      ?.addEventListener(
+        "click",
+        () => {
+          document
+            .querySelectorAll(
+              ".inventoryClosingQty"
+            )
+            .forEach(
+              input => {
+                input.value =
+                  "";
+              }
+            );
+        }
+      );
+
+
+    document
+      .querySelector(
+        "#inventoryCountSearch"
+      )
+      ?.addEventListener(
+        "input",
+        event => {
+          const query =
+            String(
+              event.target.value ||
+              ""
+            )
+              .trim()
+              .toLocaleLowerCase();
+
+          document
+            .querySelectorAll(
+              ".inventoryCountRow"
+            )
+            .forEach(
+              row => {
+                const haystack =
+                  String(
+                    row.dataset.search ||
+                    ""
+                  ).toLocaleLowerCase();
+
+                row.style.display =
+                  !query ||
+                  haystack.includes(
+                    query
+                  )
+                    ? ""
+                    : "none";
+              }
+            );
+        }
+      );
+
+
+    document
+      .querySelector(
+        "#saveClosingInventoryButton"
+      )
+      ?.addEventListener(
+        "click",
+        async event => {
+          if (
+            !selectedInventoryCountSession
+          ) {
+            return;
+          }
+
+          const button =
+            event.currentTarget;
+
+          const message =
+            document.querySelector(
+              "#inventoryCountMessage"
+            );
+
+          const openingItems =
+            inventoryCountData
+              ?.opening
+              ?.items ||
+            [];
+
+          const rows =
+            openingItems.map(
+              opening => {
+                const closingInput =
+                  document.querySelector(
+                    `.inventoryClosingQty[data-variant-id="${CSS.escape(
+                      opening.variantId
+                    )}"]`
+                  );
+
+                const reasonValue =
+                  key => {
+                    const input =
+                      document.querySelector(
+                        `.inventoryReasonInput[data-variant-id="${CSS.escape(
+                          opening.variantId
+                        )}"][data-reason="${key}"]`
+                      );
+
+                    return Number(
+                      input?.value ||
+                      0
+                    );
+                  };
+
+                return {
+                  variantId:
+                    opening.variantId,
+
+                  closingQty:
+                    closingInput &&
+                    closingInput.value !==
+                      ""
+                      ? Number(
+                          closingInput.value
+                        )
+                      : null,
+
+                  loss:
+                    reasonValue(
+                      "loss"
+                    ),
+
+                  theft:
+                    reasonValue(
+                      "theft"
+                    ),
+
+                  damage:
+                    reasonValue(
+                      "damage"
+                    ),
+
+                  gift:
+                    reasonValue(
+                      "gift"
+                    ),
+
+                  sample:
+                    reasonValue(
+                      "sample"
+                    ),
+
+                  stockAdjustment:
+                    reasonValue(
+                      "stockAdjustment"
+                    )
+                };
+              }
+            );
+
+          button.disabled =
+            true;
+
+          button.textContent =
+            "保存中";
+
+          if (
+            message
+          ) {
+            message.textContent =
+              "";
+          }
+
+          try {
+            await saveEventClosingInventory({
+              sessionId:
+                selectedInventoryCountSession
+                  .sessionId,
+
+              items:
+                rows,
+
+              savedByEmail:
+                currentUser?.email ||
+                ""
+            });
+
+            await renderSessions(
+              ++renderSequence
+            );
+
+            setTimeout(
+              () => {
+                document
+                  .querySelector(
+                    "#sessionInventoryCountPanel"
+                  )
+                  ?.scrollIntoView({
+                    behavior:
+                      "smooth",
+                    block:
+                      "start"
+                  });
+              },
+              100
+            );
+
+          } catch (error) {
+            button.disabled =
+              false;
+
+            button.textContent =
+              "終了在庫・理由を保存";
+
+            if (
+              message
+            ) {
+              message.textContent =
+                error.code ||
+                error.message ||
+                String(error);
+            }
+          }
+        }
+      );
+
+
+    document
+      .querySelectorAll(
         ".sessionDetailButton"
       )
       .forEach(
@@ -5115,6 +7146,9 @@ async function renderSessions(
             () => {
               sessionDetailId =
                 button.dataset.sessionId ||
+                "";
+
+              sessionInventoryCountId =
                 "";
 
               renderSessions(
