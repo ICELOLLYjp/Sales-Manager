@@ -21,14 +21,17 @@ async function requireDb() {
   const { db, enabled } = getFirebaseState();
 
   if (!enabled || !db) {
-    throw new Error("Firebase is not connected.");
+    throw new Error(
+      "Firebase is not connected."
+    );
   }
 
   return db;
 }
 
 function cleanDate(value) {
-  const text = String(value || "").trim();
+  const text =
+    String(value || "").trim();
 
   return /^\d{4}-\d{2}-\d{2}$/.test(text)
     ? text
@@ -36,7 +39,8 @@ function cleanDate(value) {
 }
 
 function cleanAmount(value) {
-  const number = Number(value);
+  const number =
+    Number(value);
 
   if (
     !Number.isFinite(number) ||
@@ -48,8 +52,16 @@ function cleanAmount(value) {
   return number;
 }
 
+function safeId(value) {
+  return encodeURIComponent(
+    String(value || "").trim()
+  );
+}
+
 function timestampMs(value) {
-  if (!value) return 0;
+  if (!value) {
+    return 0;
+  }
 
   try {
     if (
@@ -67,7 +79,10 @@ function timestampMs(value) {
     }
 
     if (value.seconds) {
-      return Number(value.seconds) * 1000;
+      return (
+        Number(value.seconds) *
+        1000
+      );
     }
   } catch (error) {
     console.warn(
@@ -80,15 +95,26 @@ function timestampMs(value) {
 }
 
 function normalizeHistoryRow(
-  category,
+  scope,
+  key,
   id,
   data
 ) {
   return {
     id,
+
+    scope,
+
+    key,
+
     category:
-      data?.category ||
-      category,
+      data?.category || "",
+
+    bodyId:
+      data?.bodyId || "",
+
+    variantId:
+      data?.variantId || "",
 
     amountJPY:
       Number(
@@ -115,71 +141,25 @@ function normalizeHistoryRow(
   };
 }
 
-export async function saveCategoryCost({
-  category,
-  amountJPY,
-  effectiveFrom,
-  note = ""
+async function saveHistoryDoc({
+  ref,
+  data
 }) {
-  const db = await requireDb();
-
-  if (
-    !COST_CATEGORY_IDS.includes(
-      category
-    )
-  ) {
-    throw new Error(
-      "商品カテゴリを確認してください。"
-    );
-  }
-
-  const amount =
-    cleanAmount(amountJPY);
-
-  if (amount === null) {
-    throw new Error(
-      "原価を0以上の数値で入力してください。"
-    );
-  }
-
-  const date =
-    cleanDate(effectiveFrom);
-
-  if (!date) {
-    throw new Error(
-      "適用開始日を入力してください。"
-    );
-  }
-
   const {
-    doc,
     getDocFromServer,
     setDoc,
     serverTimestamp
   } = await firestoreModule();
 
-  const ref = doc(
-    db,
-    "products",
-    category,
-    "costHistory",
-    date
-  );
-
   const existing =
-    await getDocFromServer(ref);
+    await getDocFromServer(
+      ref
+    );
 
   await setDoc(
     ref,
     {
-      category,
-      amountJPY: amount,
-      currency: "JPY",
-      effectiveFrom: date,
-      note:
-        String(
-          note || ""
-        ).trim(),
+      ...data,
 
       createdAt:
         existing.exists()
@@ -197,18 +177,100 @@ export async function saveCategoryCost({
       merge: true
     }
   );
+}
+
+export async function saveCategoryCost({
+  category,
+  amountJPY,
+  effectiveFrom,
+  note = ""
+}) {
+  const db =
+    await requireDb();
+
+  if (
+    !COST_CATEGORY_IDS.includes(
+      category
+    )
+  ) {
+    throw new Error(
+      "商品カテゴリを確認してください。"
+    );
+  }
+
+  const amount =
+    cleanAmount(
+      amountJPY
+    );
+
+  if (amount === null) {
+    throw new Error(
+      "原価を0以上の数値で入力してください。"
+    );
+  }
+
+  const date =
+    cleanDate(
+      effectiveFrom
+    );
+
+  if (!date) {
+    throw new Error(
+      "適用開始日を入力してください。"
+    );
+  }
+
+  const {
+    doc
+  } = await firestoreModule();
+
+  const ref =
+    doc(
+      db,
+      "products",
+      category,
+      "costHistory",
+      date
+    );
+
+  await saveHistoryDoc({
+    ref,
+    data: {
+      scope:
+        "category",
+
+      category,
+
+      amountJPY:
+        amount,
+
+      currency:
+        "JPY",
+
+      effectiveFrom:
+        date,
+
+      note:
+        String(
+          note || ""
+        ).trim()
+    }
+  });
 
   return {
     category,
-    amountJPY: amount,
-    effectiveFrom: date
+    amountJPY:
+      amount,
+    effectiveFrom:
+      date
   };
 }
 
 export async function loadCategoryCostHistory(
   category
 ) {
-  const db = await requireDb();
+  const db =
+    await requireDb();
 
   const {
     collection,
@@ -229,6 +291,7 @@ export async function loadCategoryCostHistory(
     snapshot.docs.map(
       item =>
         normalizeHistoryRow(
+          "category",
           category,
           item.id,
           item.data()
@@ -236,7 +299,10 @@ export async function loadCategoryCostHistory(
     );
 
   rows.sort(
-    (a, b) => {
+    (
+      a,
+      b
+    ) => {
       if (
         a.effectiveFrom !==
         b.effectiveFrom
@@ -277,41 +343,588 @@ export async function loadAllCategoryCostHistories() {
   );
 }
 
-export function resolveCategoryUnitCost(
-  histories,
-  category,
-  saleDate
-) {
-  const rows =
-    Array.isArray(
-      histories?.[category]
-    )
-      ? histories[category]
-      : [];
+export async function saveTshirtBodyCost({
+  bodyId,
+  amountJPY,
+  effectiveFrom,
+  note = ""
+}) {
+  const db =
+    await requireDb();
+
+  const cleanBodyId =
+    String(
+      bodyId || ""
+    ).trim();
+
+  if (!cleanBodyId) {
+    throw new Error(
+      "TシャツBodyを選択してください。"
+    );
+  }
+
+  const amount =
+    cleanAmount(
+      amountJPY
+    );
+
+  if (amount === null) {
+    throw new Error(
+      "原価を0以上の数値で入力してください。"
+    );
+  }
 
   const date =
-    cleanDate(saleDate) ||
+    cleanDate(
+      effectiveFrom
+    );
+
+  if (!date) {
+    throw new Error(
+      "適用開始日を入力してください。"
+    );
+  }
+
+  const {
+    doc
+  } = await firestoreModule();
+
+  const id =
+    `${safeId(
+      cleanBodyId
+    )}__${date}`;
+
+  const ref =
+    doc(
+      db,
+      "products",
+      "tshirt",
+      "bodyCostHistory",
+      id
+    );
+
+  await saveHistoryDoc({
+    ref,
+    data: {
+      scope:
+        "body",
+
+      category:
+        "tshirt",
+
+      bodyId:
+        cleanBodyId,
+
+      amountJPY:
+        amount,
+
+      currency:
+        "JPY",
+
+      effectiveFrom:
+        date,
+
+      note:
+        String(
+          note || ""
+        ).trim()
+    }
+  });
+
+  return {
+    bodyId:
+      cleanBodyId,
+    amountJPY:
+      amount,
+    effectiveFrom:
+      date
+  };
+}
+
+export async function loadTshirtBodyCostHistories() {
+  const db =
+    await requireDb();
+
+  const {
+    collection,
+    getDocsFromServer
+  } = await firestoreModule();
+
+  const snapshot =
+    await getDocsFromServer(
+      collection(
+        db,
+        "products",
+        "tshirt",
+        "bodyCostHistory"
+      )
+    );
+
+  const result = {};
+
+  snapshot.docs.forEach(
+    item => {
+      const data =
+        item.data();
+
+      const bodyId =
+        String(
+          data?.bodyId || ""
+        );
+
+      if (!bodyId) {
+        return;
+      }
+
+      if (!result[bodyId]) {
+        result[bodyId] = [];
+      }
+
+      result[bodyId].push(
+        normalizeHistoryRow(
+          "body",
+          bodyId,
+          item.id,
+          data
+        )
+      );
+    }
+  );
+
+  Object.values(
+    result
+  ).forEach(
+    rows => {
+      rows.sort(
+        (
+          a,
+          b
+        ) => {
+          if (
+            a.effectiveFrom !==
+            b.effectiveFrom
+          ) {
+            return (
+              b.effectiveFrom
+                .localeCompare(
+                  a.effectiveFrom
+                )
+            );
+          }
+
+          return (
+            b.updatedAtMs -
+            a.updatedAtMs
+          );
+        }
+      );
+    }
+  );
+
+  return result;
+}
+
+export async function saveVariantCost({
+  variantId,
+  amountJPY,
+  effectiveFrom,
+  note = ""
+}) {
+  const db =
+    await requireDb();
+
+  const cleanVariantId =
+    String(
+      variantId || ""
+    ).trim();
+
+  if (!cleanVariantId) {
+    throw new Error(
+      "SKUを選択してください。"
+    );
+  }
+
+  const amount =
+    cleanAmount(
+      amountJPY
+    );
+
+  if (amount === null) {
+    throw new Error(
+      "原価を0以上の数値で入力してください。"
+    );
+  }
+
+  const date =
+    cleanDate(
+      effectiveFrom
+    );
+
+  if (!date) {
+    throw new Error(
+      "適用開始日を入力してください。"
+    );
+  }
+
+  const {
+    doc,
+    setDoc,
+    serverTimestamp
+  } = await firestoreModule();
+
+  const historyRef =
+    doc(
+      db,
+      "productVariants",
+      cleanVariantId,
+      "costHistory",
+      date
+    );
+
+  await saveHistoryDoc({
+    ref:
+      historyRef,
+
+    data: {
+      scope:
+        "sku",
+
+      variantId:
+        cleanVariantId,
+
+      amountJPY:
+        amount,
+
+      currency:
+        "JPY",
+
+      effectiveFrom:
+        date,
+
+      note:
+        String(
+          note || ""
+        ).trim()
+    }
+  });
+
+  await setDoc(
+    doc(
+      db,
+      "productVariants",
+      cleanVariantId
+    ),
+    {
+      latestCostJPY:
+        amount,
+
+      latestCostEffectiveFrom:
+        date,
+
+      updatedAt:
+        serverTimestamp()
+    },
+    {
+      merge: true
+    }
+  );
+
+  return {
+    variantId:
+      cleanVariantId,
+    amountJPY:
+      amount,
+    effectiveFrom:
+      date
+  };
+}
+
+export async function loadVariantCostHistory(
+  variantId
+) {
+  const db =
+    await requireDb();
+
+  const cleanVariantId =
+    String(
+      variantId || ""
+    ).trim();
+
+  if (!cleanVariantId) {
+    return [];
+  }
+
+  const {
+    collection,
+    getDocsFromServer
+  } = await firestoreModule();
+
+  const snapshot =
+    await getDocsFromServer(
+      collection(
+        db,
+        "productVariants",
+        cleanVariantId,
+        "costHistory"
+      )
+    );
+
+  const rows =
+    snapshot.docs.map(
+      item =>
+        normalizeHistoryRow(
+          "sku",
+          cleanVariantId,
+          item.id,
+          item.data()
+        )
+    );
+
+  rows.sort(
+    (
+      a,
+      b
+    ) => {
+      if (
+        a.effectiveFrom !==
+        b.effectiveFrom
+      ) {
+        return (
+          b.effectiveFrom
+            .localeCompare(
+              a.effectiveFrom
+            )
+        );
+      }
+
+      return (
+        b.updatedAtMs -
+        a.updatedAtMs
+      );
+    }
+  );
+
+  return rows;
+}
+
+export async function loadVariantCostHistories(
+  variantIds
+) {
+  const unique =
+    Array.from(
+      new Set(
+        (
+          Array.isArray(
+            variantIds
+          )
+            ? variantIds
+            : []
+        )
+          .map(
+            value =>
+              String(
+                value || ""
+              ).trim()
+          )
+          .filter(Boolean)
+      )
+    );
+
+  const entries =
+    await Promise.all(
+      unique.map(
+        async variantId => [
+          variantId,
+          await loadVariantCostHistory(
+            variantId
+          )
+        ]
+      )
+    );
+
+  return Object.fromEntries(
+    entries
+  );
+}
+
+function resolveHistoryRows(
+  rows,
+  saleDate
+) {
+  const date =
+    cleanDate(
+      saleDate
+    ) ||
     "9999-12-31";
 
   const match =
-    rows.find(
+    (
+      Array.isArray(
+        rows
+      )
+        ? rows
+        : []
+    ).find(
       row =>
         row.effectiveFrom <=
         date
     );
 
-  if (!match) {
-    return null;
-  }
+  return match
+    ? Number(
+        match.amountJPY || 0
+      )
+    : null;
+}
 
-  return Number(
-    match.amountJPY || 0
+export function resolveCategoryUnitCost(
+  histories,
+  category,
+  saleDate
+) {
+  return resolveHistoryRows(
+    histories?.[category],
+    saleDate
   );
 }
 
-export function calculateCategoryCogs({
-  transactions,
+export function resolveBodyUnitCost(
   histories,
+  bodyId,
+  saleDate
+) {
+  if (!bodyId) {
+    return null;
+  }
+
+  return resolveHistoryRows(
+    histories?.[bodyId],
+    saleDate
+  );
+}
+
+export function resolveVariantUnitCost(
+  histories,
+  variantId,
+  saleDate
+) {
+  if (!variantId) {
+    return null;
+  }
+
+  return resolveHistoryRows(
+    histories?.[variantId],
+    saleDate
+  );
+}
+
+export function resolveSaleItemUnitCost({
+  item,
+  saleDate,
+  categoryHistories,
+  bodyHistories,
+  variantHistories,
+  variantsById
+}) {
+  const variantId =
+    String(
+      item?.variantId || ""
+    ).trim();
+
+  if (variantId) {
+    const variantCost =
+      resolveVariantUnitCost(
+        variantHistories,
+        variantId,
+        saleDate
+      );
+
+    if (
+      variantCost !==
+      null
+    ) {
+      return {
+        unitCostJPY:
+          variantCost,
+        source:
+          "sku"
+      };
+    }
+  }
+
+  const variant =
+    variantId
+      ? variantsById
+          ?.get(
+            variantId
+          )
+      : null;
+
+  const bodyId =
+    String(
+      item?.bodyId ||
+      variant?.bodyId ||
+      ""
+    ).trim();
+
+  if (
+    item?.category ===
+      "tshirt" &&
+    bodyId
+  ) {
+    const bodyCost =
+      resolveBodyUnitCost(
+        bodyHistories,
+        bodyId,
+        saleDate
+      );
+
+    if (
+      bodyCost !==
+      null
+    ) {
+      return {
+        unitCostJPY:
+          bodyCost,
+        source:
+          "body"
+      };
+    }
+  }
+
+  const categoryCost =
+    resolveCategoryUnitCost(
+      categoryHistories,
+      item?.category,
+      saleDate
+    );
+
+  if (
+    categoryCost !==
+    null
+  ) {
+    return {
+      unitCostJPY:
+        categoryCost,
+      source:
+        "category"
+    };
+  }
+
+  return {
+    unitCostJPY:
+      null,
+    source:
+      "missing"
+  };
+}
+
+export function calculateResolvedCogs({
+  transactions,
+  categoryHistories,
+  bodyHistories,
+  variantHistories,
+  variantsById,
   fallbackDate = ""
 }) {
   let totalCostJPY = 0;
@@ -321,19 +934,33 @@ export function calculateCategoryCogs({
   const missingCategories =
     new Set();
 
+  const sourceCounts = {
+    sku:
+      0,
+    body:
+      0,
+    category:
+      0
+  };
+
   (
-    Array.isArray(transactions)
+    Array.isArray(
+      transactions
+    )
       ? transactions
       : []
   ).forEach(
     transaction => {
-      const transactionDate =
+      const saleDate =
         transaction?.createdAtMs
           ? new Date(
               transaction.createdAtMs
             )
               .toISOString()
-              .slice(0, 10)
+              .slice(
+                0,
+                10
+              )
           : (
               cleanDate(
                 fallbackDate
@@ -349,11 +976,6 @@ export function calculateCategoryCogs({
           : []
       ).forEach(
         item => {
-          const category =
-            String(
-              item?.category || ""
-            );
-
           const quantity =
             Math.max(
               0,
@@ -363,38 +985,56 @@ export function calculateCategoryCogs({
             );
 
           if (
-            !category ||
             quantity <= 0
           ) {
             return;
           }
 
-          const unitCost =
-            resolveCategoryUnitCost(
-              histories,
-              category,
-              transactionDate
-            );
+          const resolved =
+            resolveSaleItemUnitCost({
+              item,
+              saleDate,
+              categoryHistories,
+              bodyHistories,
+              variantHistories,
+              variantsById
+            });
 
           if (
-            unitCost === null
+            resolved.unitCostJPY ===
+            null
           ) {
             missingQuantity +=
               quantity;
 
             missingCategories.add(
-              category
+              String(
+                item?.category ||
+                "other"
+              )
             );
 
             return;
           }
 
           totalCostJPY +=
-            unitCost *
+            resolved.unitCostJPY *
             quantity;
 
           coveredQuantity +=
             quantity;
+
+          if (
+            sourceCounts[
+              resolved.source
+            ] !==
+            undefined
+          ) {
+            sourceCounts[
+              resolved.source
+            ] +=
+              quantity;
+          }
         }
       );
     }
@@ -407,6 +1047,7 @@ export function calculateCategoryCogs({
     missingCategories:
       Array.from(
         missingCategories
-      )
+      ),
+    sourceCounts
   };
 }
