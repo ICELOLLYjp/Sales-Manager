@@ -2075,6 +2075,212 @@ async function renderMorePage(sequence) {
         .join(" / ");
     }
 
+    const costToday =
+      new Date()
+        .toISOString()
+        .slice(
+          0,
+          10
+        );
+
+    function currentScheduleEntry(
+      schedule,
+      saleDate =
+        costToday
+    ) {
+      return (
+        Array.isArray(
+          schedule
+        )
+          ? schedule
+          : []
+      )
+        .filter(
+          row =>
+            /^\\d{4}-\\d{2}-\\d{2}$/.test(
+              String(
+                row?.effectiveFrom ||
+                ""
+              )
+            ) &&
+            String(
+              row.effectiveFrom
+            ) <=
+              saleDate &&
+            Number.isFinite(
+              Number(
+                row?.amountJPY
+              )
+            ) &&
+            Number(
+              row.amountJPY
+            ) >=
+              0
+        )
+        .sort(
+          (a, b) =>
+            String(
+              b.effectiveFrom
+            ).localeCompare(
+              String(
+                a.effectiveFrom
+              )
+            )
+        )[0] ||
+        null;
+    }
+
+    function currentBodyEntry(
+      bodyId,
+      saleDate =
+        costToday
+    ) {
+      return (
+        Array.isArray(
+          tshirtBodyCostHistories[
+            bodyId
+          ]
+        )
+          ? tshirtBodyCostHistories[
+              bodyId
+            ]
+          : []
+      )
+        .filter(
+          row =>
+            String(
+              row?.effectiveFrom ||
+              ""
+            ) <=
+              saleDate
+        )
+        .sort(
+          (a, b) =>
+            String(
+              b.effectiveFrom
+            ).localeCompare(
+              String(
+                a.effectiveFrom
+              )
+            )
+        )[0] ||
+        null;
+    }
+
+    function resolveTshirtCostConfirmation(
+      variant
+    ) {
+      const skuOverride =
+        currentScheduleEntry(
+          variant
+            ?.skuOverrideCostSchedule
+        );
+
+      const outsourced =
+        currentScheduleEntry(
+          variant
+            ?.outsourcedCostSchedule
+        );
+
+      const body =
+        currentBodyEntry(
+          variant?.bodyId
+        );
+
+      const applied =
+        skuOverride
+          ? {
+              type:
+                "sku_override",
+              label:
+                "SKU個別",
+              ...skuOverride
+            }
+          : outsourced
+            ? {
+                type:
+                  "outsourced_all_in",
+                label:
+                  "外注仕入れ",
+                ...outsourced
+              }
+            : body
+              ? {
+                  type:
+                    "body",
+                  label:
+                    "Body",
+                  ...body
+                }
+              : {
+                  type:
+                    "missing",
+                  label:
+                    "未設定",
+                  amountJPY:
+                    null,
+                  effectiveFrom:
+                    ""
+                };
+
+      return {
+        skuOverride,
+        outsourced,
+        body,
+        applied
+      };
+    }
+
+    const tshirtCostVariants =
+      activeVariants.filter(
+        item =>
+          item.category ===
+          "tshirt"
+      );
+
+    const tshirtCostSummary =
+      tshirtCostVariants.reduce(
+        (
+          result,
+          variant
+        ) => {
+          const resolved =
+            resolveTshirtCostConfirmation(
+              variant
+            );
+
+          result[
+            resolved.applied.type
+          ] =
+            (
+              result[
+                resolved.applied.type
+              ] ||
+              0
+            ) +
+            1;
+
+          return result;
+        },
+        {
+          sku_override:
+            0,
+          outsourced_all_in:
+            0,
+          body:
+            0,
+          missing:
+            0
+        }
+      );
+
+    const nonTshirtCostCategories =
+      POS_CATEGORY_ORDER.filter(
+        category =>
+          category !==
+          "tshirt"
+      );
+
     view.innerHTML = `
       <h1 class="page-title">More</h1>
       <p class="page-note">商品管理</p>
@@ -2442,7 +2648,7 @@ async function renderMorePage(sequence) {
       <section class="card">
 
         <div class="card-title">
-          原価マスター
+          原価確認
         </div>
 
         <div
@@ -2452,13 +2658,11 @@ async function renderMorePage(sequence) {
             line-height:1.55;
           "
         >
-          Tシャツ原価の正式マスターはTシャツ在庫管理アプリ側です。Sales Managerでは販売時に「SKU個別 → 外注仕入れ → Body」の順で確認し、その時点の原価を売上明細へ固定保存します。あとから原価を変更しても過去の利益は変わりません。
+          Tシャツ原価の編集はTシャツ在庫管理アプリで行います。Sales Managerでは現在の原価とPOSで採用される優先順位を確認するだけです。
         </div>
 
 
-        <details
-          open
-        >
+        <details open>
           <summary
             style="
               cursor:pointer;
@@ -2466,142 +2670,223 @@ async function renderMorePage(sequence) {
               padding:8px 0;
             "
           >
-            カテゴリ標準原価
+            Tシャツ原価（確認専用）
           </summary>
+
+          <div
+            class="muted"
+            style="
+              margin-top:6px;
+              line-height:1.5;
+            "
+          >
+            販売日 ${costToday} の判定です。優先順位は「SKU個別 → 外注仕入れ → Body → 未設定」です。
+          </div>
 
           <div
             style="
               display:grid;
-              gap:10px;
-              margin-top:8px;
+              grid-template-columns:
+                repeat(2,minmax(0,1fr));
+              gap:8px;
+              margin-top:12px;
             "
           >
+            <div
+              style="
+                padding:12px;
+                border:1px solid #ecece7;
+                border-radius:12px;
+              "
+            >
+              <div
+                style="
+                  font-size:22px;
+                  font-weight:800;
+                "
+              >
+                ${tshirtCostSummary.sku_override}
+              </div>
+              <div class="muted">
+                SKU個別適用
+              </div>
+            </div>
 
+            <div
+              style="
+                padding:12px;
+                border:1px solid #ecece7;
+                border-radius:12px;
+              "
+            >
+              <div
+                style="
+                  font-size:22px;
+                  font-weight:800;
+                "
+              >
+                ${tshirtCostSummary.outsourced_all_in}
+              </div>
+              <div class="muted">
+                外注仕入れ適用
+              </div>
+            </div>
+
+            <div
+              style="
+                padding:12px;
+                border:1px solid #ecece7;
+                border-radius:12px;
+              "
+            >
+              <div
+                style="
+                  font-size:22px;
+                  font-weight:800;
+                "
+              >
+                ${tshirtCostSummary.body}
+              </div>
+              <div class="muted">
+                Body適用
+              </div>
+            </div>
+
+            <div
+              style="
+                padding:12px;
+                border:1px solid #ecece7;
+                border-radius:12px;
+              "
+            >
+              <div
+                style="
+                  font-size:22px;
+                  font-weight:800;
+                "
+              >
+                ${tshirtCostSummary.missing}
+              </div>
+              <div class="muted">
+                原価未設定
+              </div>
+            </div>
+          </div>
+
+          <div
+            style="
+              margin-top:14px;
+              padding-top:12px;
+              border-top:1px solid #ecece7;
+            "
+          >
             <select
-              id="costCategory"
+              id="tshirtCostConfirmVariant"
               style="${selectStyle()}"
             >
-              ${POS_CATEGORY_ORDER.map(
-                category => `
+              <option value="">
+                TシャツSKUを選択
+              </option>
+
+              ${tshirtCostVariants.map(
+                item => `
                   <option
-                    value="${category}"
+                    value="${escapeHtml(
+                      item.variantId ||
+                      item.id
+                    )}"
                   >
                     ${escapeHtml(
-                      POS_CATEGORY_LABELS[
-                        category
-                      ]
+                      variantCostLabel(
+                        item
+                      )
                     )}
                   </option>
                 `
               ).join("")}
             </select>
 
-
             <div
+              id="tshirtCostConfirmDisplay"
               style="
-                display:grid;
-                grid-template-columns:
-                  minmax(0,1fr)
-                  minmax(0,1fr);
-                gap:10px;
+                margin-top:10px;
               "
             >
-
-              <input
-                id="costAmountJPY"
-                type="number"
-                min="0"
-                step="1"
-                inputmode="numeric"
-                placeholder="1点あたり原価 JPY"
-                style="${inputStyle()}"
-              >
-
-
-              <input
-                id="costEffectiveFrom"
-                type="date"
-                value="${
-                  new Date()
-                    .toISOString()
-                    .slice(0,10)
-                }"
-                style="${inputStyle()}"
-              >
-
+              <div class="muted">
+                SKUを選択すると、SKU個別・外注仕入れ・Bodyの3つを確認できます。
+              </div>
             </div>
-
-
-            <input
-              id="costNote"
-              type="text"
-              placeholder="メモ 任意"
-              style="${inputStyle()}"
-            >
-
-
-            <button
-              id="saveCategoryCostButton"
-              class="button"
-              type="button"
-              style="
-                width:100%;
-                min-height:50px;
-              "
-            >
-              カテゴリ原価を保存
-            </button>
-
-
-            <div
-              id="saveCategoryCostMessage"
-              class="muted"
-            ></div>
-
           </div>
 
-
-          <div
+          <details
             style="
-              margin-top:14px;
+              margin-top:12px;
             "
           >
-            ${POS_CATEGORY_ORDER.map(
-              category => {
-                const currentCost =
-                  resolveCategoryUnitCost(
-                    categoryCostHistories,
-                    category,
-                    new Date()
-                      .toISOString()
-                      .slice(0,10)
-                  );
+            <summary
+              style="
+                cursor:pointer;
+                font-weight:700;
+                padding:7px 0;
+              "
+            >
+              Body原価の現在値を見る
+            </summary>
 
-                return `
-                  <div class="list-row">
-                    <span>
-                      ${escapeHtml(
-                        POS_CATEGORY_LABELS[
-                          category
-                        ]
-                      )}
-                    </span>
+            <div
+              style="
+                margin-top:6px;
+              "
+            >
+              ${tshirtOptions.bodies.map(
+                body => {
+                  const row =
+                    currentBodyEntry(
+                      body.id
+                    );
 
-                    <strong>
-                      ${
-                        currentCost === null
-                          ? "未設定"
-                          : formatMoney(
-                              currentCost,
-                              "JPY"
-                            )
-                      }
-                    </strong>
-                  </div>
-                `;
-              }
-            ).join("")}
-          </div>
+                  return `
+                    <div class="list-row">
+                      <span>
+                        ${escapeHtml(
+                          body.name
+                        )}
+                      </span>
+
+                      <strong
+                        style="
+                          text-align:right;
+                        "
+                      >
+                        ${
+                          row
+                            ? `
+                              ${formatMoney(
+                                row.amountJPY,
+                                "JPY"
+                              )}
+                              <span
+                                class="muted"
+                                style="
+                                  display:block;
+                                  font-size:10px;
+                                  font-weight:400;
+                                "
+                              >
+                                ${escapeHtml(
+                                  row.effectiveFrom
+                                )}
+                              </span>
+                            `
+                            : "未設定"
+                        }
+                      </strong>
+                    </div>
+                  `;
+                }
+              ).join("")}
+            </div>
+          </details>
         </details>
 
 
@@ -2619,8 +2904,18 @@ async function renderMorePage(sequence) {
               padding:8px 0;
             "
           >
-            Tシャツ Body原価
+            Tシャツ以外の標準原価
           </summary>
+
+          <div
+            class="muted"
+            style="
+              margin:4px 0 10px;
+              line-height:1.5;
+            "
+          >
+            Tシャツはここでは編集しません。ステッカー・ポストカード・アートプリント等の標準原価を設定します。
+          </div>
 
           <div
             style="
@@ -2629,16 +2924,24 @@ async function renderMorePage(sequence) {
               margin-top:8px;
             "
           >
-
             <select
-              id="bodyCostBody"
+              id="costCategory"
               style="${selectStyle()}"
             >
-              ${optionList(
-                tshirtOptions.bodies
-              )}
+              ${nonTshirtCostCategories.map(
+                category => `
+                  <option
+                    value="${category}"
+                  >
+                    ${escapeHtml(
+                      POS_CATEGORY_LABELS[
+                        category
+                      ]
+                    )}
+                  </option>
+                `
+              ).join("")}
             </select>
-
 
             <div
               style="
@@ -2649,9 +2952,8 @@ async function renderMorePage(sequence) {
                 gap:10px;
               "
             >
-
               <input
-                id="bodyCostAmountJPY"
+                id="costAmountJPY"
                 type="number"
                 min="0"
                 step="1"
@@ -2660,31 +2962,23 @@ async function renderMorePage(sequence) {
                 style="${inputStyle()}"
               >
 
-
               <input
-                id="bodyCostEffectiveFrom"
+                id="costEffectiveFrom"
                 type="date"
-                value="${
-                  new Date()
-                    .toISOString()
-                    .slice(0,10)
-                }"
+                value="${costToday}"
                 style="${inputStyle()}"
               >
-
             </div>
 
-
             <input
-              id="bodyCostNote"
+              id="costNote"
               type="text"
               placeholder="メモ 任意"
               style="${inputStyle()}"
             >
 
-
             <button
-              id="saveBodyCostButton"
+              id="saveCategoryCostButton"
               class="button"
               type="button"
               style="
@@ -2692,39 +2986,36 @@ async function renderMorePage(sequence) {
                 min-height:50px;
               "
             >
-              Body原価を保存
+              標準原価を保存
             </button>
 
-
             <div
-              id="saveBodyCostMessage"
+              id="saveCategoryCostMessage"
               class="muted"
             ></div>
-
           </div>
-
 
           <div
             style="
               margin-top:14px;
             "
           >
-            ${tshirtOptions.bodies.map(
-              body => {
+            ${nonTshirtCostCategories.map(
+              category => {
                 const currentCost =
-                  resolveBodyUnitCost(
-                    tshirtBodyCostHistories,
-                    body.id,
-                    new Date()
-                      .toISOString()
-                      .slice(0,10)
+                  resolveCategoryUnitCost(
+                    categoryCostHistories,
+                    category,
+                    costToday
                   );
 
                 return `
                   <div class="list-row">
                     <span>
                       ${escapeHtml(
-                        body.name
+                        POS_CATEGORY_LABELS[
+                          category
+                        ]
                       )}
                     </span>
 
@@ -2758,7 +3049,7 @@ async function renderMorePage(sequence) {
                 padding:6px 0;
               "
             >
-              Body原価履歴を見る
+              標準原価履歴を見る
             </summary>
 
             <div
@@ -2766,11 +3057,11 @@ async function renderMorePage(sequence) {
                 margin-top:8px;
               "
             >
-              ${tshirtOptions.bodies.map(
-                body => {
+              ${nonTshirtCostCategories.map(
+                category => {
                   const rows =
-                    tshirtBodyCostHistories[
-                      body.id
+                    categoryCostHistories[
+                      category
                     ] || [];
 
                   if (!rows.length) {
@@ -2790,13 +3081,15 @@ async function renderMorePage(sequence) {
                         "
                       >
                         ${escapeHtml(
-                          body.name
+                          POS_CATEGORY_LABELS[
+                            category
+                          ]
                         )}
                       </div>
 
                       ${rows.slice(
                         0,
-                        8
+                        5
                       ).map(
                         row => `
                           <div class="list-row">
@@ -2804,24 +3097,6 @@ async function renderMorePage(sequence) {
                               ${escapeHtml(
                                 row.effectiveFrom
                               )}
-                              ${
-                                row.note
-                                  ? `
-                                    <span
-                                      class="muted"
-                                      style="
-                                        display:block;
-                                        font-size:11px;
-                                        margin-top:2px;
-                                      "
-                                    >
-                                      ${escapeHtml(
-                                        row.note
-                                      )}
-                                    </span>
-                                  `
-                                  : ""
-                              }
                             </span>
 
                             <strong>
@@ -2839,215 +3114,6 @@ async function renderMorePage(sequence) {
               ).join("")}
             </div>
           </details>
-        </details>
-
-
-        <details
-          style="
-            margin-top:14px;
-            padding-top:12px;
-            border-top:1px solid #ecece7;
-          "
-        >
-          <summary
-            style="
-              cursor:pointer;
-              font-weight:800;
-              padding:8px 0;
-            "
-          >
-            SKU個別原価
-          </summary>
-
-          <div
-            style="
-              display:grid;
-              gap:10px;
-              margin-top:8px;
-            "
-          >
-
-            <select
-              id="skuCostVariant"
-              style="${selectStyle()}"
-            >
-              <option value="">
-                SKUを選択
-              </option>
-
-              ${activeVariants.map(
-                item => `
-                  <option
-                    value="${escapeHtml(
-                      item.variantId ||
-                      item.id
-                    )}"
-                  >
-                    ${escapeHtml(
-                      variantCostLabel(
-                        item
-                      )
-                    )}
-                  </option>
-                `
-              ).join("")}
-            </select>
-
-
-            <div
-              id="skuCurrentCostDisplay"
-              class="muted"
-              style="
-                min-height:22px;
-              "
-            >
-              SKUを選択すると現在の個別原価を表示します。
-            </div>
-
-
-            <div
-              style="
-                display:grid;
-                grid-template-columns:
-                  minmax(0,1fr)
-                  minmax(0,1fr);
-                gap:10px;
-              "
-            >
-
-              <input
-                id="skuCostAmountJPY"
-                type="number"
-                min="0"
-                step="1"
-                inputmode="numeric"
-                placeholder="1点あたり原価 JPY"
-                style="${inputStyle()}"
-              >
-
-
-              <input
-                id="skuCostEffectiveFrom"
-                type="date"
-                value="${
-                  new Date()
-                    .toISOString()
-                    .slice(0,10)
-                }"
-                style="${inputStyle()}"
-              >
-
-            </div>
-
-
-            <input
-              id="skuCostNote"
-              type="text"
-              placeholder="メモ 任意"
-              style="${inputStyle()}"
-            >
-
-
-            <button
-              id="saveSkuCostButton"
-              class="button"
-              type="button"
-              style="
-                width:100%;
-                min-height:50px;
-              "
-            >
-              SKU原価を保存
-            </button>
-
-
-            <div
-              id="saveSkuCostMessage"
-              class="muted"
-            ></div>
-
-          </div>
-        </details>
-
-
-        <details
-          style="
-            margin-top:14px;
-            padding-top:12px;
-            border-top:1px solid #ecece7;
-          "
-        >
-          <summary
-            style="
-              cursor:pointer;
-              font-weight:800;
-              padding:8px 0;
-            "
-          >
-            カテゴリ原価履歴を見る
-          </summary>
-
-          <div
-            style="
-              margin-top:8px;
-            "
-          >
-            ${POS_CATEGORY_ORDER.map(
-              category => {
-                const rows =
-                  categoryCostHistories[
-                    category
-                  ] || [];
-
-                if (!rows.length) {
-                  return "";
-                }
-
-                return `
-                  <div
-                    style="
-                      margin-bottom:14px;
-                    "
-                  >
-                    <div
-                      style="
-                        font-weight:800;
-                        margin-bottom:4px;
-                      "
-                    >
-                      ${escapeHtml(
-                        POS_CATEGORY_LABELS[
-                          category
-                        ]
-                      )}
-                    </div>
-
-                    ${rows.slice(
-                      0,
-                      5
-                    ).map(
-                      row => `
-                        <div class="list-row">
-                          <span>
-                            ${escapeHtml(
-                              row.effectiveFrom
-                            )}
-                          </span>
-
-                          <strong>
-                            ${formatMoney(
-                              row.amountJPY,
-                              "JPY"
-                            )}
-                          </strong>
-                        </div>
-                      `
-                    ).join("")}
-                  </div>
-                `;
-              }
-            ).join("")}
-          </div>
         </details>
 
       </section>
@@ -3347,6 +3413,225 @@ async function renderMorePage(sequence) {
       );
 
 
+    const tshirtCostConfirmVariant =
+      document.querySelector(
+        "#tshirtCostConfirmVariant"
+      );
+
+    const tshirtCostConfirmDisplay =
+      document.querySelector(
+        "#tshirtCostConfirmDisplay"
+      );
+
+    function renderTshirtCostConfirmation() {
+      if (
+        !tshirtCostConfirmDisplay
+      ) {
+        return;
+      }
+
+      const variantId =
+        tshirtCostConfirmVariant
+          ?.value ||
+        "";
+
+      const variant =
+        tshirtCostVariants.find(
+          item =>
+            (
+              item.variantId ||
+              item.id
+            ) ===
+            variantId
+        );
+
+      if (
+        !variant
+      ) {
+        tshirtCostConfirmDisplay.innerHTML =
+          `
+            <div class="muted">
+              SKUを選択すると、SKU個別・外注仕入れ・Bodyの3つを確認できます。
+            </div>
+          `;
+
+        return;
+      }
+
+      const resolved =
+        resolveTshirtCostConfirmation(
+          variant
+        );
+
+      function costRow(
+        label,
+        row,
+        isApplied
+      ) {
+        return `
+          <div
+            class="list-row"
+            style="
+              ${
+                isApplied
+                  ? "background:#f4f7ef;border-radius:10px;padding-left:10px;padding-right:10px;"
+                  : ""
+              }
+            "
+          >
+            <span>
+              ${escapeHtml(
+                label
+              )}
+              ${
+                isApplied
+                  ? `
+                    <span
+                      style="
+                        display:inline-block;
+                        margin-left:5px;
+                        font-size:10px;
+                        font-weight:800;
+                      "
+                    >
+                      採用
+                    </span>
+                  `
+                  : ""
+              }
+            </span>
+
+            <strong
+              style="
+                text-align:right;
+              "
+            >
+              ${
+                row
+                  ? `
+                    ${formatMoney(
+                      Number(
+                        row.amountJPY ||
+                        0
+                      ),
+                      "JPY"
+                    )}
+                    <span
+                      class="muted"
+                      style="
+                        display:block;
+                        font-size:10px;
+                        font-weight:400;
+                      "
+                    >
+                      ${escapeHtml(
+                        row.effectiveFrom ||
+                        ""
+                      )}
+                    </span>
+                  `
+                  : "未設定"
+              }
+            </strong>
+          </div>
+        `;
+      }
+
+      tshirtCostConfirmDisplay.innerHTML =
+        `
+          <div
+            style="
+              font-weight:800;
+              margin-bottom:6px;
+            "
+          >
+            ${escapeHtml(
+              variantCostLabel(
+                variant
+              )
+            )}
+          </div>
+
+          ${costRow(
+            "SKU個別原価",
+            resolved.skuOverride,
+            resolved.applied.type ===
+              "sku_override"
+          )}
+
+          ${costRow(
+            "外注仕入れ原価",
+            resolved.outsourced,
+            resolved.applied.type ===
+              "outsourced_all_in"
+          )}
+
+          ${costRow(
+            "Body原価",
+            resolved.body,
+            resolved.applied.type ===
+              "body"
+          )}
+
+          <div
+            style="
+              margin-top:10px;
+              padding:11px 12px;
+              border-radius:12px;
+              background:#f7f7f4;
+            "
+          >
+            <div
+              class="muted"
+              style="
+                font-size:11px;
+              "
+            >
+              POSで現在採用される原価
+            </div>
+
+            <div
+              style="
+                margin-top:3px;
+                font-size:18px;
+                font-weight:800;
+              "
+            >
+              ${
+                resolved.applied
+                  .amountJPY ===
+                  null
+                  ? "原価未設定"
+                  : `
+                    ${escapeHtml(
+                      resolved.applied
+                        .label
+                    )}
+                    /
+                    ${formatMoney(
+                      Number(
+                        resolved.applied
+                          .amountJPY ||
+                        0
+                      ),
+                      "JPY"
+                    )}
+                  `
+              }
+            </div>
+          </div>
+        `;
+    }
+
+    renderTshirtCostConfirmation();
+
+    tshirtCostConfirmVariant
+      ?.addEventListener(
+        "change",
+        renderTshirtCostConfirmation
+      );
+
+
     document
       .querySelector(
         "#saveCategoryCostButton"
@@ -3421,7 +3706,7 @@ async function renderMorePage(sequence) {
               false;
 
             button.textContent =
-              "原価を保存";
+              "標準原価を保存";
 
             if (messageBox) {
               messageBox.textContent =
