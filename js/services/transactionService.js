@@ -917,7 +917,12 @@ export async function commitQuickSale({
   sessionId,
   items,
   orderDiscount = 0,
-  createdByEmail = ""
+  createdByEmail = "",
+  paymentMethod = "manual",
+  paymentProvider = "",
+  providerPaymentIntentId = "",
+  providerCheckoutSessionId = "",
+  providerPaymentStatus = ""
 }) {
   const db = await requireDb();
 
@@ -1961,6 +1966,36 @@ export async function commitQuickSale({
 
           reconciliationStatus,
 
+          paymentMethod:
+            String(
+              paymentMethod ||
+              "manual"
+            ),
+
+          paymentProvider:
+            String(
+              paymentProvider ||
+              ""
+            ),
+
+          providerPaymentIntentId:
+            String(
+              providerPaymentIntentId ||
+              ""
+            ),
+
+          providerCheckoutSessionId:
+            String(
+              providerCheckoutSessionId ||
+              ""
+            ),
+
+          providerPaymentStatus:
+            String(
+              providerPaymentStatus ||
+              ""
+            ),
+
           status:
             "completed",
 
@@ -2194,7 +2229,31 @@ export async function commitQuickSale({
           fxRateToJPY,
           netSalesJPY,
           mode,
-          reconciliationStatus
+          reconciliationStatus,
+
+          paymentMethod:
+            String(
+              paymentMethod ||
+              "manual"
+            ),
+
+          paymentProvider:
+            String(
+              paymentProvider ||
+              ""
+            ),
+
+          providerPaymentIntentId:
+            String(
+              providerPaymentIntentId ||
+              ""
+            ),
+
+          providerCheckoutSessionId:
+            String(
+              providerCheckoutSessionId ||
+              ""
+            )
         };
       }
     );
