@@ -8,9 +8,9 @@ import { listAllProductVariants, registerTshirtVariant, registerGeneralProduct, 
 import { CATEGORY_TEMPLATES, getCategoryTemplate } from "./data/categoryTemplates.js";
 import { loadPosPriceConfig, savePosPriceConfig, QUICK_PRICE_CURRENCIES } from "./services/priceBookService.js?v=20260911-mixmatch-2";
 import { listSalesSessions, createEventSession, updateEventSession, updateEventExpenses, SESSION_CURRENCIES } from "./services/sessionService.js";
-import { commitQuickSale, voidSaleTransaction } from "./services/transactionService.js?v=20260911-cost-snapshot-1";
+import { commitQuickSale, voidSaleTransaction } from "./services/transactionService.js?v=20260911-tshirt-cost-priority-v2";
 import { listSessionTransactions } from "./services/salesHistoryService.js?v=20260910-setdiscount-2";
-import { saveCategoryCost, loadAllCategoryCostHistories, resolveCategoryUnitCost, saveTshirtBodyCost, loadTshirtBodyCostHistories, resolveBodyUnitCost, saveVariantCost, loadVariantCostHistories, calculateResolvedCogs } from "./services/costHistoryService.js?v=20260911-cost-snapshot-1";
+import { saveCategoryCost, loadAllCategoryCostHistories, resolveCategoryUnitCost, saveTshirtBodyCost, loadTshirtBodyCostHistories, resolveBodyUnitCost, saveVariantCost, loadVariantCostHistories, calculateResolvedCogs } from "./services/costHistoryService.js?v=20260911-tshirt-cost-priority-v2";
 import { loadPinkoiTshirtCatalog, syncPinkoiTshirtCatalog } from "./services/pinkoiCatalogService.js";
 let sessionLifecycleModulePromise =
   null;
@@ -2452,7 +2452,7 @@ async function renderMorePage(sequence) {
             line-height:1.55;
           "
         >
-          原価の入力は初回と変更時だけです。SKU → TシャツBody → カテゴリ標準原価の順で優先し、適用開始日ごとに履歴を残します。新しい売上は会計時点の原価を明細へ固定保存するため、あとから原価を変更しても過去の利益は変わりません。
+          Tシャツ原価の正式マスターはTシャツ在庫管理アプリ側です。Sales Managerでは販売時に「SKU個別 → 外注仕入れ → Body」の順で確認し、その時点の原価を売上明細へ固定保存します。あとから原価を変更しても過去の利益は変わりません。
         </div>
 
 
@@ -9445,7 +9445,7 @@ async function renderSessions(
                           line-height:1.55;
                         "
                       >
-                        原価は SKU、Body、カテゴリ標準原価の順で優先します。Quick会計でSKU未指定の場合はカテゴリ標準原価を使用します。
+                        Tシャツ原価は「SKU個別 → 外注仕入れ → Body」の順で判定します。どれも販売日に有効な原価がない場合は原価未設定になります。Tシャツ以外は従来の原価判定を維持します。
                       </div>
                     </div>
 
