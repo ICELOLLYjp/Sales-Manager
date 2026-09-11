@@ -27,8 +27,18 @@ async function requireDb() {
 
 export async function listAllProductVariants() {
   const db = await requireDb();
-  const { collection, getDocs } = await firestoreModule();
-  const snapshot = await getDocs(collection(db, "productVariants"));
+  const {
+    collection,
+    getDocsFromServer
+  } = await firestoreModule();
+
+  const snapshot =
+    await getDocsFromServer(
+      collection(
+        db,
+        "productVariants"
+      )
+    );
 
   return snapshot.docs.map(item => ({
     id: item.id,
@@ -166,99 +176,4 @@ export async function registerGeneralProduct({
   );
 
   return { variantId };
-}
-
-
-export async function syncAccessoryCatalogRows(rows) {
-  const db = await requireDb();
-  const {
-    doc,
-    writeBatch,
-    serverTimestamp
-  } = await firestoreModule();
-
-  const sourceRows = Array.isArray(rows)
-    ? rows
-    : [];
-
-  const chunkSize = 350;
-  let processed = 0;
-
-  for (
-    let start = 0;
-    start < sourceRows.length;
-    start += chunkSize
-  ) {
-    const batch = writeBatch(db);
-    const chunk = sourceRows.slice(
-      start,
-      start + chunkSize
-    );
-
-    chunk.forEach(row => {
-      const productRef = doc(
-        db,
-        "products",
-        row.category
-      );
-
-      batch.set(
-        productRef,
-        {
-          name: row.categoryLabel,
-          posLabel: row.categoryLabel,
-          category: row.category,
-          inventoryMode: "variant",
-          inventorySource: "accessory",
-          inventoryStatus: "tracked",
-          saleStatus: "active",
-          defaultTrackingMode: "quick",
-          active: true,
-          updatedAt: serverTimestamp()
-        },
-        {
-          merge: true
-        }
-      );
-
-      const variantRef = doc(
-        db,
-        "productVariants",
-        row.variantId
-      );
-
-      batch.set(
-        variantRef,
-        {
-          variantId: row.variantId,
-          productId: row.category,
-          category: row.category,
-          sku: row.variantId,
-          displayName: row.displayName,
-          design: row.design,
-          sourceId: row.sourceId,
-          sourceCategory: row.sourceCategory,
-          stockField: row.stockField,
-          inventorySource: "accessory",
-          inventoryKey: row.inventoryKey,
-          inventoryStatus: "tracked",
-          saleStatus: "active",
-          active: true,
-          priority: row.priority || 0,
-          source: "accessoryStock/shared",
-          updatedAt: serverTimestamp()
-        },
-        {
-          merge: true
-        }
-      );
-    });
-
-    await batch.commit();
-    processed += chunk.length;
-  }
-
-  return {
-    processed
-  };
 }

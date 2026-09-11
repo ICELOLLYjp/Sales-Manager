@@ -631,6 +631,49 @@ export async function saveTshirtBodyCost({
   };
 }
 
+export async function loadTshirtCostCache() {
+  const db =
+    await requireDb();
+
+  const {
+    doc,
+    getDocFromServer
+  } = await firestoreModule();
+
+  const snapshot =
+    await getDocFromServer(
+      doc(
+        db,
+        "products",
+        "tshirt"
+      )
+    );
+
+  if (!snapshot.exists()) {
+    return {
+      bodyCostSchedules:
+        {}
+    };
+  }
+
+  const data =
+    snapshot.data() || {};
+
+  return {
+    bodyCostSchedules:
+      data.bodyCostSchedules &&
+      typeof data.bodyCostSchedules ===
+        "object"
+        ? data.bodyCostSchedules
+        : {},
+
+    bodyCostSchedulesUpdatedAt:
+      data.bodyCostSchedulesUpdatedAt ||
+      null
+  };
+}
+
+
 export async function loadTshirtBodyCostHistories() {
   const db =
     await requireDb();
