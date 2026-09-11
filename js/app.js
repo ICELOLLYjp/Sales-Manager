@@ -13,7 +13,7 @@ import { listSessionTransactions } from "./services/salesHistoryService.js?v=202
 import { saveCategoryCost, loadAllCategoryCostHistories, resolveCategoryUnitCost, saveTshirtBodyCost, loadTshirtBodyCostHistories, loadTshirtCostCache, resolveBodyUnitCost, saveVariantCost, loadVariantCostHistories, calculateResolvedCogs } from "./services/costHistoryService.js?v=20260911-cost-cache-server-sync-1";
 import { loadPinkoiTshirtCatalog, syncPinkoiTshirtCatalog } from "./services/pinkoiCatalogService.js";
 import { loadOfflineSalesQueue, getOfflineSalesQueueForSession, enqueueOfflineSale, removeOfflineSale, updateOfflineSaleError, pendingVariantQuantities, savePosOfflineSnapshot, loadPosOfflineSnapshot } from "./services/offlineQueueService.js?v=20260911-offline-resilience-1";
-import { createStripeCheckout, getStripeCheckoutStatus, expireStripeCheckout, markStripeSaleCommitted, refundStripePayment, listRecoverableStripePayments, renderStripeQr } from "./services/stripePaymentService.js?v=20260912-stripe-qr-display-fix-1";
+import { createStripeCheckout, getStripeCheckoutStatus, expireStripeCheckout, markStripeSaleCommitted, refundStripePayment, listRecoverableStripePayments, renderStripeQr } from "./services/stripePaymentService.js?v=20260912-stripe-live-short-ui-1";
 let sessionLifecycleModulePromise =
   null;
 
@@ -13391,9 +13391,32 @@ async function openStripePaymentOverlay({
         ></div>
 
         <div
+          style="
+            margin:8px auto 0;
+            max-width:320px;
+            font-size:13px;
+            line-height:1.45;
+            font-weight:700;
+            color:#555;
+          "
+        >
+          <div>
+            Use your phone camera to scan this QR code.
+          </div>
+
+          <div
+            style="
+              margin-top:3px;
+            "
+          >
+            請使用手機相機掃描此 QR Code。
+          </div>
+        </div>
+
+        <div
           id="stripePaymentState"
           style="
-            margin-top:8px;
+            margin-top:10px;
             font-size:17px;
             font-weight:800;
           "
