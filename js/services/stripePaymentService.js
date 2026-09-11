@@ -122,8 +122,8 @@ let qrScriptPromise =
 
 async function loadQrScript() {
   if (
-    globalThis.QRCode
-      ?.toCanvas
+    typeof globalThis.QRCode ===
+    "function"
   ) {
     return globalThis.QRCode;
   }
@@ -142,8 +142,13 @@ async function loadQrScript() {
               "script"
             );
 
+          /*
+           * qrcodejs exposes a browser-ready QRCode constructor.
+           * The previous node-qrcode CDN URL pointed to a build file
+           * that is not published on jsDelivr for qrcode@1.5.4.
+           */
           script.src =
-            "https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js";
+            "https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js";
 
           script.async =
             true;
@@ -151,8 +156,8 @@ async function loadQrScript() {
           script.onload =
             () => {
               if (
-                globalThis.QRCode
-                  ?.toCanvas
+                typeof globalThis.QRCode ===
+                "function"
               ) {
                 resolve(
                   globalThis.QRCode
@@ -186,7 +191,6 @@ async function loadQrScript() {
   return await qrScriptPromise;
 }
 
-
 export async function renderStripeQr(
   container,
   url
@@ -205,37 +209,80 @@ export async function renderStripeQr(
     const QRCode =
       await loadQrScript();
 
-    const canvas =
+    const qrHost =
       document.createElement(
-        "canvas"
+        "div"
       );
 
-    await QRCode.toCanvas(
-      canvas,
-      url,
+    qrHost.style.cssText =
+      [
+        "display:grid",
+        "place-items:center",
+        "width:270px",
+        "max-width:100%",
+        "margin:0 auto"
+      ].join(";");
+
+    container.appendChild(
+      qrHost
+    );
+
+    new QRCode(
+      qrHost,
       {
+        text:
+          url,
+
         width:
           270,
 
-        margin:
-          1,
+        height:
+          270,
 
-        errorCorrectionLevel:
-          "M"
+        colorDark:
+          "#000000",
+
+        colorLight:
+          "#ffffff",
+
+        correctLevel:
+          QRCode.CorrectLevel
+            ?.M ??
+          0
       }
     );
 
-    canvas.style.maxWidth =
+    const rendered =
+      qrHost.querySelector(
+        "canvas, img"
+      );
+
+    if (
+      !rendered
+    ) {
+      throw new Error(
+        "QRコードを生成できませんでした。"
+      );
+    }
+
+    rendered.style.maxWidth =
       "100%";
 
-    canvas.style.height =
+    rendered.style.height =
       "auto";
 
-    container.appendChild(
-      canvas
-    );
+    rendered.style.display =
+      "block";
 
   } catch (error) {
+    console.error(
+      "Stripe QR render failed",
+      error
+    );
+
+    container.innerHTML =
+      "";
+
     const fallback =
       document.createElement(
         "a"
