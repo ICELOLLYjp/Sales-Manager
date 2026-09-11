@@ -1,0 +1,13 @@
+{
+  "name": "icelolly-sales-stripe-functions",
+  "private": true,
+  "engines": {
+    "node": "22"
+  },
+  "main": "index.js",
+  "dependencies": {
+    "firebase-admin": "^14.4.0",
+    "firebase-functions": "^7.3.2",
+    "stripe": "^22.6.2"
+  }
+}
