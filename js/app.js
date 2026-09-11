@@ -4,13 +4,13 @@ import { renderDashboard } from "./views/dashboardView.js";
 import { tshirtAdapter } from "./inventoryAdapters/tshirtAdapter.js";
 import { accessoryAdapter } from "./inventoryAdapters/accessoryAdapter.js";
 import { loadTshirtProductVariants, syncTshirtCurrentStockRows } from "./services/catalogService.js";
-import { listAllProductVariants, registerTshirtVariant, registerGeneralProduct, syncAccessoryCatalogRows } from "./services/productAdminService.js";
+import { listAllProductVariants, registerTshirtVariant, registerGeneralProduct, syncAccessoryCatalogRows } from "./services/productAdminService.js?v=20260911-cost-cache-server-sync-1";
 import { CATEGORY_TEMPLATES, getCategoryTemplate } from "./data/categoryTemplates.js";
 import { loadPosPriceConfig, savePosPriceConfig, QUICK_PRICE_CURRENCIES } from "./services/priceBookService.js?v=20260911-mixmatch-2";
 import { listSalesSessions, createEventSession, updateEventSession, updateEventExpenses, SESSION_CURRENCIES } from "./services/sessionService.js";
 import { commitQuickSale, voidSaleTransaction } from "./services/transactionService.js?v=20260911-tshirt-cost-priority-v2";
 import { listSessionTransactions } from "./services/salesHistoryService.js?v=20260910-setdiscount-2";
-import { saveCategoryCost, loadAllCategoryCostHistories, resolveCategoryUnitCost, saveTshirtBodyCost, loadTshirtBodyCostHistories, resolveBodyUnitCost, saveVariantCost, loadVariantCostHistories, calculateResolvedCogs } from "./services/costHistoryService.js?v=20260911-tshirt-cost-priority-v2";
+import { saveCategoryCost, loadAllCategoryCostHistories, resolveCategoryUnitCost, saveTshirtBodyCost, loadTshirtBodyCostHistories, loadTshirtCostCache, resolveBodyUnitCost, saveVariantCost, loadVariantCostHistories, calculateResolvedCogs } from "./services/costHistoryService.js?v=20260911-cost-cache-server-sync-1";
 import { loadPinkoiTshirtCatalog, syncPinkoiTshirtCatalog } from "./services/pinkoiCatalogService.js";
 let sessionLifecycleModulePromise =
   null;
@@ -1922,6 +1922,7 @@ async function renderMorePage(sequence) {
       allVariants,
       categoryCostHistories,
       tshirtBodyCostHistories,
+      tshirtCostCache,
       pinkoiTshirtCatalog
     ] = await Promise.all([
       tshirtAdapter.getMasterOptions(),
@@ -1929,6 +1930,7 @@ async function renderMorePage(sequence) {
       listAllProductVariants(),
       loadAllCategoryCostHistories(),
       loadTshirtBodyCostHistories(),
+      loadTshirtCostCache(),
       loadPinkoiTshirtCatalog()
         .catch(
           error => ({
@@ -2135,36 +2137,12 @@ async function renderMorePage(sequence) {
       saleDate =
         costToday
     ) {
-      return (
-        Array.isArray(
-          tshirtBodyCostHistories[
-            bodyId
-          ]
-        )
-          ? tshirtBodyCostHistories[
-              bodyId
-            ]
-          : []
-      )
-        .filter(
-          row =>
-            String(
-              row?.effectiveFrom ||
-              ""
-            ) <=
-              saleDate
-        )
-        .sort(
-          (a, b) =>
-            String(
-              b.effectiveFrom
-            ).localeCompare(
-              String(
-                a.effectiveFrom
-              )
-            )
-        )[0] ||
-        null;
+      return currentScheduleEntry(
+        tshirtCostCache
+          ?.bodyCostSchedules
+          ?.[bodyId],
+        saleDate
+      );
     }
 
     function resolveTshirtCostConfirmation(
@@ -2680,8 +2658,21 @@ async function renderMorePage(sequence) {
               line-height:1.5;
             "
           >
-            販売日 ${costToday} の判定です。優先順位は「SKU個別 → 外注仕入れ → Body → 未設定」です。
+            販売日 ${costToday} の判定です。優先順位は「SKU個別 → 外注仕入れ → Body → 未設定」です。productVariants と products/tshirt の最新キャッシュをFirestoreサーバーから直接読み込んでいます。
           </div>
+
+          <button
+            id="reloadCostConfirmationButton"
+            type="button"
+            class="button button-secondary"
+            style="
+              width:100%;
+              min-height:42px;
+              margin-top:10px;
+            "
+          >
+            Firestoreから原価を再読込
+          </button>
 
           <div
             style="
@@ -3409,6 +3400,29 @@ async function renderMorePage(sequence) {
                 String(error);
             }
           }
+        }
+      );
+
+
+    document
+      .querySelector(
+        "#reloadCostConfirmationButton"
+      )
+      ?.addEventListener(
+        "click",
+        async event => {
+          const button =
+            event.currentTarget;
+
+          button.disabled =
+            true;
+
+          button.textContent =
+            "再読込中";
+
+          await renderMorePage(
+            ++renderSequence
+          );
         }
       );
 
