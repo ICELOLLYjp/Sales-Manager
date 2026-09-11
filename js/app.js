@@ -12,6 +12,7 @@ import { commitQuickSale, voidSaleTransaction } from "./services/transactionServ
 import { listSessionTransactions } from "./services/salesHistoryService.js?v=20260910-setdiscount-2";
 import { saveCategoryCost, loadAllCategoryCostHistories, resolveCategoryUnitCost, saveTshirtBodyCost, loadTshirtBodyCostHistories, loadTshirtCostCache, resolveBodyUnitCost, saveVariantCost, loadVariantCostHistories, calculateResolvedCogs } from "./services/costHistoryService.js?v=20260911-cost-cache-server-sync-1";
 import { loadPinkoiTshirtCatalog, syncPinkoiTshirtCatalog } from "./services/pinkoiCatalogService.js";
+import { loadOfflineSalesQueue, getOfflineSalesQueueForSession, enqueueOfflineSale, removeOfflineSale, updateOfflineSaleError, pendingVariantQuantities, savePosOfflineSnapshot, loadPosOfflineSnapshot } from "./services/offlineQueueService.js?v=20260911-offline-resilience-1";
 let sessionLifecycleModulePromise =
   null;
 
@@ -351,6 +352,235 @@ let sessionInventoryCountId =
 
 let sessionOpeningEditId =
   "";
+
+let offlineSyncInProgress =
+  false;
+
+let offlineQueueLastMessage =
+  "";
+
+function offlinePendingCount() {
+  return loadOfflineSalesQueue()
+    .length;
+}
+
+function updateConnectivityStatus() {
+  if (!syncStatus) {
+    return;
+  }
+
+  if (
+    !firebaseState?.enabled
+  ) {
+    syncStatus.textContent =
+      "Local";
+
+    return;
+  }
+
+  const pending =
+    offlinePendingCount();
+
+  if (
+    !navigator.onLine
+  ) {
+    syncStatus.textContent =
+      pending
+        ? `Offline ${pending}`
+        : "Offline";
+
+    return;
+  }
+
+  if (pending) {
+    syncStatus.textContent =
+      `待機 ${pending}`;
+
+    return;
+  }
+
+  syncStatus.textContent =
+    currentUser
+      ? "Firebase"
+      : "Login";
+}
+
+function isNetworkLikeCheckoutError(
+  error
+) {
+  const code =
+    String(
+      error?.code || ""
+    ).toLowerCase();
+
+  const message =
+    String(
+      error?.message ||
+      error ||
+      ""
+    ).toLowerCase();
+
+  return (
+    code.includes(
+      "unavailable"
+    ) ||
+    code.includes(
+      "network"
+    ) ||
+    code.includes(
+      "deadline-exceeded"
+    ) ||
+    code.includes(
+      "failed-precondition"
+    ) &&
+    (
+      message.includes(
+        "offline"
+      ) ||
+      message.includes(
+        "network"
+      )
+    ) ||
+    message.includes(
+      "client is offline"
+    ) ||
+    message.includes(
+      "failed to get document"
+    ) ||
+    message.includes(
+      "network error"
+    ) ||
+    message.includes(
+      "could not reach cloud firestore"
+    )
+  );
+}
+
+async function syncOfflineSalesQueue({
+  rerender =
+    true
+} = {}) {
+  if (
+    offlineSyncInProgress ||
+    !navigator.onLine
+  ) {
+    updateConnectivityStatus();
+    return {
+      synced:
+        0,
+      pending:
+        offlinePendingCount()
+    };
+  }
+
+  const queue =
+    loadOfflineSalesQueue();
+
+  if (!queue.length) {
+    offlineQueueLastMessage =
+      "";
+
+    updateConnectivityStatus();
+
+    return {
+      synced:
+        0,
+      pending:
+        0
+    };
+  }
+
+  offlineSyncInProgress =
+    true;
+
+  updateConnectivityStatus();
+
+  let synced =
+    0;
+
+  let stoppedByError =
+    null;
+
+  try {
+    for (const row of queue) {
+      try {
+        await commitQuickSale(
+          row.sale
+        );
+
+        removeOfflineSale(
+          row.transactionId
+        );
+
+        synced +=
+          1;
+
+      } catch (error) {
+        updateOfflineSaleError(
+          row.transactionId,
+          error
+        );
+
+        stoppedByError =
+          error;
+
+        /*
+         * Network failures should simply wait for the next reconnect.
+         * Business-rule failures need user attention and should not be
+         * silently skipped, because later queued sales may depend on them.
+         */
+        break;
+      }
+    }
+
+  } finally {
+    offlineSyncInProgress =
+      false;
+  }
+
+  const pending =
+    offlinePendingCount();
+
+  if (
+    stoppedByError
+  ) {
+    offlineQueueLastMessage =
+      `未同期会計を同期できませんでした: ${
+        stoppedByError.code ||
+        stoppedByError.message ||
+        stoppedByError
+      }`;
+
+  } else if (
+    synced > 0
+  ) {
+    offlineQueueLastMessage =
+      `${synced} 件のオフライン会計をFirebaseへ同期しました。`;
+
+  } else {
+    offlineQueueLastMessage =
+      "";
+  }
+
+  updateConnectivityStatus();
+
+  if (
+    rerender &&
+    currentRoute ===
+      "pos"
+  ) {
+    await renderPos(
+      ++renderSequence
+    );
+  }
+
+  return {
+    synced,
+    pending,
+    error:
+      stoppedByError
+  };
+}
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -7092,8 +7322,16 @@ async function renderSessions(
               const savedOpeningSkuCount =
                 openingItems.length;
 
+              const offlinePendingSalesCount =
+                getOfflineSalesQueueForSession(
+                  selectedInventoryCountSession
+                    .sessionId
+                ).length;
+
               const eventReadyToClose =
                 !inventorySessionClosed &&
+                offlinePendingSalesCount ===
+                  0 &&
                 Boolean(
                   inventoryCountData
                     ?.closing
@@ -8756,6 +8994,9 @@ async function renderSessions(
                                         未入力 ${
                                           countSummary.incompleteCount
                                         } SKU /
+                                        未同期会計 ${
+                                          offlinePendingSalesCount
+                                        } 件 /
                                         Quick未割当 ${
                                           countSummary.quickSalesTotal
                                         } 点 /
@@ -12147,6 +12388,32 @@ async function renderSessions(
             selectedInventoryCountSession
               .sessionId;
 
+          const pendingOfflineSales =
+            getOfflineSalesQueueForSession(
+              sessionId
+            );
+
+          if (
+            pendingOfflineSales.length >
+            0
+          ) {
+            window.alert(
+              `未同期のオフライン会計が ${pendingOfflineSales.length} 件あります。POSで同期してからイベントを終了してください。`
+            );
+
+            return;
+          }
+
+          if (
+            !navigator.onLine
+          ) {
+            window.alert(
+              "オフライン中はイベント終了確定できません。通信が戻ってから実行してください。"
+            );
+
+            return;
+          }
+
           const button =
             event.currentTarget;
 
@@ -15017,79 +15284,22 @@ async function renderPos(
   `;
 
   try {
-    if (
-      !posPriceBookLoaded
-    ) {
-      const priceConfig =
-        await loadPosPriceConfig();
-
-      posPriceBook =
-        priceConfig.prices;
-
-      posSetOfferBook =
-        priceConfig.setOffers;
-
-      posTshirtBodyPriceBook =
-        priceConfig.bodyPrices ||
-        {};
-
-      posTshirtBodySetOfferBook =
-        priceConfig.bodySetOffers ||
-        {};
-
-      posTshirtMixMatchDiscountBook =
-        priceConfig.tshirtMixMatchDiscounts ||
-        {};
-
-      posPriceBookLoaded =
-        true;
-    }
-
-    const sessions =
-      await listSalesSessions();
-
-    const openSessions =
-      sessions.filter(
-        session =>
-          session.status ===
-          "open"
-      );
+    let openSessions =
+      [];
 
     let activeSession =
-      openSessions.find(
-        session =>
-          session.sessionId ===
-          activeSessionId
-      ) || null;
+      null;
 
-    if (
-      activeSessionId &&
-      !activeSession
-    ) {
-      activeSessionId =
-        "";
-
-      localStorage.removeItem(
-        "icelolly-sales-active-session"
-      );
-    }
-
-    if (activeSession) {
-      posCurrency =
-        activeSession.currency;
-
-      localStorage.setItem(
-        "icelolly-sales-pos-currency",
-        posCurrency
-      );
-    }
-
-    let posSkuRows = [];
+    let posSkuRows =
+      [];
 
     let posEventInventoryCount = {
-      opening: null,
-      closing: null,
-      soldByVariant: {}
+      opening:
+        null,
+      closing:
+        null,
+      soldByVariant:
+        {}
     };
 
     let posUsesEventOpeningInventory =
@@ -15101,255 +15311,529 @@ async function renderPos(
     let posEventOpeningSkuCount =
       0;
 
+    let posOfflineSnapshotUsed =
+      false;
+
+    const offlineSnapshot =
+      loadPosOfflineSnapshot();
+
     if (
-      posMode ===
-      "sku"
+      !navigator.onLine
     ) {
-      const [
-        tshirtInventory,
-        accessoryInventory,
-        registeredVariants,
-        pinkoiTshirtCatalog,
-        eventInventoryCount
-      ] =
-        await Promise.all([
-          tshirtAdapter
-            .getInventorySnapshot(),
-          accessoryAdapter
-            .getCatalogSnapshot(),
-          listAllProductVariants(),
-          loadPinkoiTshirtCatalog(),
-          activeSession
-            ? loadEventInventoryCount(
-                activeSession.sessionId
-              )
-            : Promise.resolve({
-                opening: null,
-                closing: null,
-                soldByVariant: {}
-              })
-        ]);
-
-      posEventInventoryCount =
-        eventInventoryCount || {
-          opening: null,
-          closing: null,
-          soldByVariant: {}
-        };
-
-      const registeredMap =
-        new Map(
-          registeredVariants.map(
-            item => [
-              item.variantId ||
-              item.id,
-              item
-            ]
-          )
+      if (
+        !offlineSnapshot ||
+        !offlineSnapshot
+          .activeSession ||
+        !activeSessionId ||
+        offlineSnapshot
+          .activeSession
+          .sessionId !==
+          activeSessionId
+      ) {
+        throw new Error(
+          "オフラインPOS準備データがありません。オンライン中に対象イベントをPOSで使用し、SKU画面を一度開いてからオフライン利用してください。"
         );
+      }
 
-      const tshirtRows =
-        tshirtInventory.rows
-          .filter(
-            row =>
-              registeredMap.has(
-                row.variantId
-              ) ||
-              pinkoiTshirtCatalog
-                .byVariantId
-                .has(
-                  row.variantId
-                )
-          )
-          .map(
-            row => {
-              const registered =
-                registeredMap.get(
-                  row.variantId
-                ) || {};
+      posOfflineSnapshotUsed =
+        true;
 
-              const pinkoi =
-                pinkoiTshirtCatalog
-                  .byVariantId
-                  .get(
-                    row.variantId
-                  ) || {};
-
-              return {
-                ...registered,
-                ...row,
-                ...pinkoi,
-
-                quantity:
-                  row.quantity,
-
-                inventoryKey:
-                  row.stockTargetId,
-
-                inventorySource:
-                  "tshirt"
-              };
-            }
-          );
-
-      const accessoryRows =
-        accessoryInventory.rows
-          .filter(
-            row =>
-              registeredMap.has(
-                row.variantId
-              )
-          )
-          .map(
-            row => ({
-              ...row,
-              inventoryKey:
-                row.inventoryKey,
-              inventorySource:
-                "accessory"
-            })
-          );
-
-      const allSkuRows = [
-        ...tshirtRows,
-        ...accessoryRows
+      openSessions = [
+        offlineSnapshot
+          .activeSession
       ];
 
-      const eventOpeningItems =
+      activeSession =
+        offlineSnapshot
+          .activeSession;
+
+      posCurrency =
+        activeSession.currency ||
+        offlineSnapshot
+          .posCurrency ||
+        posCurrency;
+
+      posPriceBook =
+        offlineSnapshot
+          .posPriceBook ||
+        {};
+
+      posSetOfferBook =
+        offlineSnapshot
+          .posSetOfferBook ||
+        {};
+
+      posTshirtBodyPriceBook =
+        offlineSnapshot
+          .posTshirtBodyPriceBook ||
+        {};
+
+      posTshirtBodySetOfferBook =
+        offlineSnapshot
+          .posTshirtBodySetOfferBook ||
+        {};
+
+      posTshirtMixMatchDiscountBook =
+        offlineSnapshot
+          .posTshirtMixMatchDiscountBook ||
+        {};
+
+      posPriceBookLoaded =
+        true;
+
+      posSkuRows =
         Array.isArray(
-          posEventInventoryCount
-            ?.opening
-            ?.items
+          offlineSnapshot
+            .posSkuRows
         )
-          ? posEventInventoryCount
-              .opening
-              .items
-          : [];
-
-      const eventOpeningMap =
-        new Map(
-          eventOpeningItems.map(
-            item => [
-              item.variantId,
-              Math.max(
-                0,
-                Math.floor(
-                  Number(
-                    item.openingQty ||
-                    0
-                  )
-                )
+          ? offlineSnapshot
+              .posSkuRows
+              .map(
+                row => ({
+                  ...row
+                })
               )
-            ]
-          )
-        );
-
-      const soldByVariant =
-        posEventInventoryCount
-          ?.soldByVariant &&
-        typeof posEventInventoryCount
-          .soldByVariant ===
-          "object"
-          ? posEventInventoryCount
-              .soldByVariant
-          : {};
+          : [];
 
       posUsesEventOpeningInventory =
         Boolean(
-          activeSession &&
-          eventOpeningMap.size
+          offlineSnapshot
+            .posUsesEventOpeningInventory
         );
 
-      posEventOpeningSkuCount =
-        eventOpeningMap.size;
-
       posEventOpeningTotal =
-        Array.from(
-          eventOpeningMap.values()
-        ).reduce(
-          (sum, quantity) =>
-            sum +
-            quantity,
+        Number(
+          offlineSnapshot
+            .posEventOpeningTotal ||
           0
         );
 
-      posSkuRows =
-        posUsesEventOpeningInventory
-          ? allSkuRows
-              .filter(
-                row =>
-                  eventOpeningMap.has(
+      posEventOpeningSkuCount =
+        Number(
+          offlineSnapshot
+            .posEventOpeningSkuCount ||
+          0
+        );
+
+    } else {
+      if (
+        !posPriceBookLoaded
+      ) {
+        const priceConfig =
+          await loadPosPriceConfig();
+
+        posPriceBook =
+          priceConfig.prices;
+
+        posSetOfferBook =
+          priceConfig.setOffers;
+
+        posTshirtBodyPriceBook =
+          priceConfig.bodyPrices ||
+          {};
+
+        posTshirtBodySetOfferBook =
+          priceConfig.bodySetOffers ||
+          {};
+
+        posTshirtMixMatchDiscountBook =
+          priceConfig.tshirtMixMatchDiscounts ||
+          {};
+
+        posPriceBookLoaded =
+          true;
+      }
+
+      const sessions =
+        await listSalesSessions();
+
+      openSessions =
+        sessions.filter(
+          session =>
+            session.status ===
+            "open"
+        );
+
+      activeSession =
+        openSessions.find(
+          session =>
+            session.sessionId ===
+            activeSessionId
+        ) || null;
+
+      if (
+        activeSessionId &&
+        !activeSession
+      ) {
+        activeSessionId =
+          "";
+
+        localStorage.removeItem(
+          "icelolly-sales-active-session"
+        );
+      }
+
+      if (activeSession) {
+        posCurrency =
+          activeSession.currency;
+
+        localStorage.setItem(
+          "icelolly-sales-pos-currency",
+          posCurrency
+        );
+      }
+
+      if (
+        posMode ===
+        "sku"
+      ) {
+        const [
+          tshirtInventory,
+          accessoryInventory,
+          registeredVariants,
+          pinkoiTshirtCatalog,
+          eventInventoryCount
+        ] =
+          await Promise.all([
+            tshirtAdapter
+              .getInventorySnapshot(),
+            accessoryAdapter
+              .getCatalogSnapshot(),
+            listAllProductVariants(),
+            loadPinkoiTshirtCatalog(),
+            activeSession
+              ? loadEventInventoryCount(
+                  activeSession.sessionId
+                )
+              : Promise.resolve({
+                  opening:
+                    null,
+                  closing:
+                    null,
+                  soldByVariant:
+                    {}
+                })
+          ]);
+
+        posEventInventoryCount =
+          eventInventoryCount || {
+            opening:
+              null,
+            closing:
+              null,
+            soldByVariant:
+              {}
+          };
+
+        const registeredMap =
+          new Map(
+            registeredVariants.map(
+              item => [
+                item.variantId ||
+                item.id,
+                item
+              ]
+            )
+          );
+
+        const tshirtRows =
+          tshirtInventory.rows
+            .filter(
+              row =>
+                registeredMap.has(
+                  row.variantId
+                ) ||
+                pinkoiTshirtCatalog
+                  .byVariantId
+                  .has(
                     row.variantId
                   )
-              )
-              .map(
-                row => {
-                  const openingQty =
-                    eventOpeningMap.get(
+            )
+            .map(
+              row => {
+                const registered =
+                  registeredMap.get(
+                    row.variantId
+                  ) || {};
+
+                const pinkoi =
+                  pinkoiTshirtCatalog
+                    .byVariantId
+                    .get(
                       row.variantId
-                    ) ||
-                    0;
+                    ) || {};
 
-                  const soldQty =
-                    Math.max(
-                      0,
-                      Math.floor(
-                        Number(
-                          soldByVariant[
-                            row.variantId
-                          ] ||
-                          0
-                        )
-                      )
-                    );
+                return {
+                  ...registered,
+                  ...row,
+                  ...pinkoi,
 
-                  return {
-                    ...row,
+                  quantity:
+                    row.quantity,
 
-                    globalQuantity:
-                      Number(
-                        row.quantity ||
-                        0
-                      ),
+                  inventoryKey:
+                    row.stockTargetId,
 
-                    eventOpeningQty:
-                      openingQty,
+                  inventorySource:
+                    "tshirt"
+                };
+              }
+            );
 
-                    eventSoldQty:
-                      soldQty,
-
-                    eventInventoryActive:
-                      true,
-
-                    quantity:
-                      Math.max(
-                        0,
-                        openingQty -
-                        soldQty
-                      )
-                  };
-                }
-              )
-          : allSkuRows.map(
+        const accessoryRows =
+          accessoryInventory.rows
+            .filter(
+              row =>
+                registeredMap.has(
+                  row.variantId
+                )
+            )
+            .map(
               row => ({
                 ...row,
+                inventoryKey:
+                  row.inventoryKey,
+                inventorySource:
+                  "accessory"
+              })
+            );
 
-                globalQuantity:
+        const allSkuRows = [
+          ...tshirtRows,
+          ...accessoryRows
+        ];
+
+        const eventOpeningItems =
+          Array.isArray(
+            posEventInventoryCount
+              ?.opening
+              ?.items
+          )
+            ? posEventInventoryCount
+                .opening
+                .items
+            : [];
+
+        const eventOpeningMap =
+          new Map(
+            eventOpeningItems.map(
+              item => [
+                item.variantId,
+                Math.max(
+                  0,
+                  Math.floor(
+                    Number(
+                      item.openingQty ||
+                      0
+                    )
+                  )
+                )
+              ]
+            )
+          );
+
+        const soldByVariant =
+          posEventInventoryCount
+            ?.soldByVariant &&
+          typeof posEventInventoryCount
+            .soldByVariant ===
+            "object"
+            ? posEventInventoryCount
+                .soldByVariant
+            : {};
+
+        posUsesEventOpeningInventory =
+          Boolean(
+            activeSession &&
+            eventOpeningMap.size
+          );
+
+        posEventOpeningSkuCount =
+          eventOpeningMap.size;
+
+        posEventOpeningTotal =
+          Array.from(
+            eventOpeningMap.values()
+          ).reduce(
+            (sum, quantity) =>
+              sum +
+              quantity,
+            0
+          );
+
+        posSkuRows =
+          posUsesEventOpeningInventory
+            ? allSkuRows
+                .filter(
+                  row =>
+                    eventOpeningMap.has(
+                      row.variantId
+                    )
+                )
+                .map(
+                  row => {
+                    const openingQty =
+                      eventOpeningMap.get(
+                        row.variantId
+                      ) ||
+                      0;
+
+                    const soldQty =
+                      Math.max(
+                        0,
+                        Math.floor(
+                          Number(
+                            soldByVariant[
+                              row.variantId
+                            ] ||
+                            0
+                          )
+                        )
+                      );
+
+                    return {
+                      ...row,
+
+                      globalQuantity:
+                        Number(
+                          row.quantity ||
+                          0
+                        ),
+
+                      eventOpeningQty:
+                        openingQty,
+
+                      eventSoldQty:
+                        soldQty,
+
+                      eventInventoryActive:
+                        true,
+
+                      quantity:
+                        Math.max(
+                          0,
+                          openingQty -
+                          soldQty
+                        )
+                    };
+                  }
+                )
+            : allSkuRows.map(
+                row => ({
+                  ...row,
+
+                  globalQuantity:
+                    Number(
+                      row.quantity ||
+                      0
+                    ),
+
+                  eventOpeningQty:
+                    null,
+
+                  eventSoldQty:
+                    0,
+
+                  eventInventoryActive:
+                    false
+                })
+              );
+
+        /*
+         * Save a server-confirmed POS snapshot before applying local
+         * pending sales. It is the recovery source if connectivity drops
+         * or the page is reloaded while offline.
+         */
+        if (
+          activeSession
+        ) {
+          savePosOfflineSnapshot({
+            activeSession,
+            openSessions,
+
+            posCurrency,
+
+            posPriceBook,
+            posSetOfferBook,
+            posTshirtBodyPriceBook,
+            posTshirtBodySetOfferBook,
+            posTshirtMixMatchDiscountBook,
+
+            posSkuRows,
+
+            posUsesEventOpeningInventory,
+            posEventOpeningTotal,
+            posEventOpeningSkuCount
+          });
+        }
+      }
+    }
+
+    /*
+     * Local queued SKU sales reserve event stock immediately so the seller
+     * cannot keep selling the same carried unit while offline.
+     */
+    if (
+      activeSession &&
+      posSkuRows.length
+    ) {
+      const pendingByVariant =
+        pendingVariantQuantities(
+          activeSession.sessionId
+        );
+
+      posSkuRows =
+        posSkuRows.map(
+          row => {
+            const pendingQty =
+              pendingByVariant.get(
+                row.variantId
+              ) ||
+              0;
+
+            return {
+              ...row,
+
+              pendingOfflineQty:
+                pendingQty,
+
+              eventSoldQty:
+                Number(
+                  row.eventSoldQty ||
+                  0
+                ) +
+                pendingQty,
+
+              quantity:
+                Math.max(
+                  0,
                   Number(
                     row.quantity ||
                     0
-                  ),
+                  ) -
+                  pendingQty
+                )
+            };
+          }
+        );
+    }
 
-                eventOpeningQty:
-                  null,
+    let pendingOfflineSales =
+      activeSession
+        ? getOfflineSalesQueueForSession(
+            activeSession.sessionId
+          )
+        : [];
 
-                eventSoldQty:
-                  0,
+    function refreshPendingOfflineSales() {
+      pendingOfflineSales =
+        activeSession
+          ? getOfflineSalesQueueForSession(
+              activeSession.sessionId
+            )
+          : [];
 
-                eventInventoryActive:
-                  false
-              })
-            );
+      updateConnectivityStatus();
     }
 
     if (
@@ -15511,6 +15995,263 @@ async function renderPos(
         </div>
 
 
+        ${
+          activeSession
+            ? `
+              <section
+                style="
+                  margin-bottom:14px;
+                  padding:11px 12px;
+                  border:1px solid ${
+                    !navigator.onLine ||
+                    pendingOfflineSales.length
+                      ? "#e6c96f"
+                      : "#d9e4d7"
+                  };
+                  border-radius:12px;
+                  background:${
+                    !navigator.onLine ||
+                    pendingOfflineSales.length
+                      ? "#fff8df"
+                      : "#f5faf4"
+                  };
+                  font-size:13px;
+                  line-height:1.5;
+                "
+              >
+                <div
+                  style="
+                    display:flex;
+                    justify-content:space-between;
+                    align-items:center;
+                    gap:10px;
+                  "
+                >
+                  <div>
+                    <strong>
+                      ${
+                        !navigator.onLine
+                          ? "オフラインPOS"
+                          : pendingOfflineSales.length
+                            ? "未同期会計あり"
+                            : posOfflineSnapshotUsed
+                              ? "オフライン復旧モード"
+                              : "オンライン"
+                      }
+                    </strong>
+
+                    <div
+                      class="muted"
+                      style="
+                        margin-top:3px;
+                      "
+                    >
+                      ${
+                        pendingOfflineSales.length
+                          ? `${pendingOfflineSales.length} 件を端末に保存中`
+                          : loadPosOfflineSnapshot()
+                              ?.activeSession
+                              ?.sessionId ===
+                            activeSession.sessionId
+                            ? "このイベントはオフライン販売の準備済みです"
+                            : "SKU画面を一度オンラインで開くとオフライン準備が完了します"
+                      }
+                    </div>
+                  </div>
+
+                  ${
+                    pendingOfflineSales.length
+                      ? `
+                        <button
+                          id="syncOfflineQueueButton"
+                          type="button"
+                          class="button button-secondary"
+                          ${
+                            navigator.onLine
+                              ? ""
+                              : "disabled"
+                          }
+                          style="
+                            flex:0 0 auto;
+                            min-height:38px;
+                            padding:0 12px;
+                            ${
+                              navigator.onLine
+                                ? ""
+                                : "opacity:.45;"
+                            }
+                          "
+                        >
+                          同期
+                        </button>
+                      `
+                      : ""
+                  }
+                </div>
+
+                ${
+                  offlineQueueLastMessage
+                    ? `
+                      <div
+                        style="
+                          margin-top:7px;
+                        "
+                      >
+                        ${escapeHtml(
+                          offlineQueueLastMessage
+                        )}
+                      </div>
+                    `
+                    : ""
+                }
+
+                ${
+                  pendingOfflineSales.length
+                    ? `
+                      <details
+                        style="
+                          margin-top:8px;
+                        "
+                      >
+                        <summary
+                          style="
+                            cursor:pointer;
+                            font-weight:700;
+                          "
+                        >
+                          未同期会計を確認
+                        </summary>
+
+                        <div
+                          style="
+                            margin-top:6px;
+                          "
+                        >
+                          ${pendingOfflineSales.map(
+                            row => `
+                              <div
+                                style="
+                                  padding:8px 0;
+                                  border-top:1px solid rgba(0,0,0,.08);
+                                "
+                              >
+                                <div
+                                  style="
+                                    display:flex;
+                                    justify-content:space-between;
+                                    gap:10px;
+                                  "
+                                >
+                                  <div>
+                                    <strong>
+                                      ${formatMoney(
+                                        row.display
+                                          ?.netSales ||
+                                        0,
+                                        row.display
+                                          ?.currency ||
+                                        posCurrency
+                                      )}
+                                    </strong>
+
+                                    <div
+                                      class="muted"
+                                      style="
+                                        margin-top:2px;
+                                        font-size:11px;
+                                      "
+                                    >
+                                      ${escapeHtml(
+                                        String(
+                                          row.queuedAt ||
+                                          ""
+                                        )
+                                          .replace(
+                                            "T",
+                                            " "
+                                          )
+                                          .slice(
+                                            0,
+                                            16
+                                          )
+                                      )}
+                                      /
+                                      ${Number(
+                                        row.display
+                                          ?.itemCount ||
+                                        0
+                                      )}点
+                                    </div>
+                                  </div>
+
+                                  <button
+                                    type="button"
+                                    class="offlineQueueRemoveButton"
+                                    data-transaction-id="${escapeHtml(
+                                      row.transactionId
+                                    )}"
+                                    style="
+                                      min-height:34px;
+                                      padding:0 10px;
+                                      border:1px solid #d7b8b8;
+                                      border-radius:8px;
+                                      background:white;
+                                      color:#824747;
+                                      font-weight:700;
+                                    "
+                                  >
+                                    取消
+                                  </button>
+                                </div>
+
+                                ${
+                                  row.lastError
+                                    ? `
+                                      <div
+                                        style="
+                                          margin-top:4px;
+                                          font-size:11px;
+                                          color:#824747;
+                                          overflow-wrap:anywhere;
+                                        "
+                                      >
+                                        ${escapeHtml(
+                                          row.lastError
+                                        )}
+                                      </div>
+                                    `
+                                    : ""
+                                }
+                              </div>
+                            `
+                          ).join("")}
+                        </div>
+                      </details>
+                    `
+                    : ""
+                }
+
+                ${
+                  !navigator.onLine
+                    ? `
+                      <div
+                        class="muted"
+                        style="
+                          margin-top:7px;
+                          font-size:11px;
+                        "
+                      >
+                        オフライン中はこの画面を閉じずに販売できます。通信復旧後に自動同期します。
+                      </div>
+                    `
+                    : ""
+                }
+              </section>
+            `
+            : ""
+        }
+
+
         <section
           class="card"
           style="
@@ -15670,7 +16411,12 @@ async function renderPos(
                     font-size:16px;
                   "
                 >
-                  会計を保存しました
+                  ${
+                    lastCheckoutResult
+                      .offlineQueued
+                      ? "オフライン保存しました（未同期）"
+                      : "会計を保存しました"
+                  }
                 </div>
 
                 <div
@@ -18788,6 +19534,80 @@ async function renderPos(
 
       document
         .querySelector(
+          "#syncOfflineQueueButton"
+        )
+        ?.addEventListener(
+          "click",
+          async event => {
+            const button =
+              event.currentTarget;
+
+            button.disabled =
+              true;
+
+            button.textContent =
+              "同期中";
+
+            await syncOfflineSalesQueue({
+              rerender:
+                true
+            });
+          }
+        );
+
+
+      document
+        .querySelectorAll(
+          ".offlineQueueRemoveButton"
+        )
+        .forEach(
+          button => {
+            button.addEventListener(
+              "click",
+              () => {
+                const id =
+                  button.dataset
+                    .transactionId ||
+                  "";
+
+                const row =
+                  pendingOfflineSales.find(
+                    item =>
+                      item.transactionId ===
+                      id
+                  );
+
+                if (!row) {
+                  return;
+                }
+
+                const confirmed =
+                  window.confirm(
+                    `未同期の会計 ${formatMoney(
+                      row.display?.netSales || 0,
+                      row.display?.currency || posCurrency
+                    )} を端末の待機列から取消しますか？`
+                  );
+
+                if (!confirmed) {
+                  return;
+                }
+
+                removeOfflineSale(
+                  id
+                );
+
+                renderPos(
+                  ++renderSequence
+                );
+              }
+            );
+          }
+        );
+
+
+      document
+        .querySelector(
           "#posCheckoutButton"
         )
         ?.addEventListener(
@@ -18838,84 +19658,253 @@ async function renderPos(
                 createPendingCheckoutId();
             }
 
-            try {
-              const result =
-                await commitQuickSale({
-                  transactionId:
-                    pendingCheckoutTransactionId,
+            const salePayload = {
+              transactionId:
+                pendingCheckoutTransactionId,
 
-                  sessionId:
-                    activeSession.sessionId,
+              sessionId:
+                activeSession.sessionId,
 
-                  items:
+              items:
+                Array.from(
+                  posCart.values()
+                ).map(
+                  item => {
+                    const pricing =
+                      totals.lines.get(
+                        item.key
+                      );
+
+                    return {
+                      lineId:
+                        item.key,
+                      category:
+                        item.category,
+                      label:
+                        item.label,
+                      quantity:
+                        item.quantity,
+                      unitPrice:
+                        item.unitPrice,
+                      trackingMode:
+                        item.trackingMode ||
+                        "quick",
+
+                      variantId:
+                        item.variantId ||
+                        null,
+
+                      inventoryKey:
+                        item.inventoryKey ||
+                        null,
+
+                      setDiscount:
+                        pricing
+                          ?.setDiscount ||
+                        0,
+
+                      manualDiscount:
+                        pricing
+                          ?.manualDiscount ||
+                        0,
+
+                      setOffer:
+                        (() => {
+                          const offer =
+                            posSetOffer(
+                              item.category
+                            );
+
+                          return {
+                            quantity:
+                              offer.quantity,
+                            price:
+                              offer.price
+                          };
+                        })()
+                    };
+                  }
+                ),
+
+              orderDiscount:
+                totals.orderDiscount,
+
+              createdByEmail:
+                currentUser
+                  ?.email ||
+                ""
+            };
+
+            const hasSkuItems =
+              salePayload.items.some(
+                item =>
+                  Boolean(
+                    item.variantId
+                  )
+              );
+
+            async function queueCheckoutOffline(
+              reason
+            ) {
+              if (
+                hasSkuItems &&
+                !posUsesEventOpeningInventory
+              ) {
+                throw new Error(
+                  "オフラインでのSKU販売は、開始在庫を保存済みのイベントだけ利用できます。通信復旧後に会計するか、開始在庫を設定してください。"
+                );
+              }
+
+              enqueueOfflineSale({
+                sale:
+                  salePayload,
+
+                display: {
+                  netSales:
+                    totals.total,
+
+                  currency:
+                    posCurrency,
+
+                  itemCount:
                     Array.from(
                       posCart.values()
-                    ).map(
-                      item => {
-                        const pricing =
-                          totals.lines.get(
-                            item.key
-                          );
+                    ).reduce(
+                      (
+                        sum,
+                        item
+                      ) =>
+                        sum +
+                        Number(
+                          item.quantity ||
+                          0
+                        ),
+                      0
+                    )
+                }
+              });
 
-                        return {
-                          lineId:
-                            item.key,
-                          category:
-                            item.category,
-                          label:
-                            item.label,
-                          quantity:
-                            item.quantity,
-                          unitPrice:
-                            item.unitPrice,
-                          trackingMode:
-                            item.trackingMode ||
-                            "quick",
+              /*
+               * Reserve queued exact-SKU quantities in the currently
+               * rendered event matrix immediately.
+               */
+              salePayload.items
+                .filter(
+                  item =>
+                    item.variantId
+                )
+                .forEach(
+                  item => {
+                    const row =
+                      posSkuRows.find(
+                        candidate =>
+                          candidate.variantId ===
+                          item.variantId
+                      );
 
-                          variantId:
-                            item.variantId ||
-                            null,
+                    if (!row) {
+                      return;
+                    }
 
-                          inventoryKey:
-                            item.inventoryKey ||
-                            null,
+                    row.pendingOfflineQty =
+                      Number(
+                        row.pendingOfflineQty ||
+                        0
+                      ) +
+                      item.quantity;
 
-                          setDiscount:
-                            pricing
-                              ?.setDiscount ||
-                            0,
+                    row.eventSoldQty =
+                      Number(
+                        row.eventSoldQty ||
+                        0
+                      ) +
+                      item.quantity;
 
-                          manualDiscount:
-                            pricing
-                              ?.manualDiscount ||
-                            0,
+                    row.quantity =
+                      Math.max(
+                        0,
+                        Number(
+                          row.quantity ||
+                          0
+                        ) -
+                        item.quantity
+                      );
+                  }
+                );
 
-                          setOffer:
-                            (() => {
-                              const offer =
-                                posSetOffer(
-                                  item.category
-                                );
+              lastCheckoutResult = {
+                transactionId:
+                  salePayload
+                    .transactionId,
 
-                              return {
-                                quantity:
-                                  offer.quantity,
-                                price:
-                                  offer.price
-                              };
-                            })()
-                        };
-                      }
-                    ),
+                offlineQueued:
+                  true,
 
-                  orderDiscount:
-                    totals.orderDiscount,
+                currency:
+                  posCurrency,
 
-                  createdByEmail:
-                    currentUser
-                      ?.email ||
-                    ""
-                });
+                netSales:
+                  totals.total
+              };
+
+              pendingCheckoutTransactionId =
+                null;
+
+              posCart =
+                new Map();
+
+              posOrderDiscount =
+                0;
+
+              refreshPendingOfflineSales();
+
+              button.disabled =
+                false;
+
+              button.textContent =
+                "会計確定";
+
+              renderPosBody(
+                `オフライン会計として端末に保存しました。未同期 ${
+                  pendingOfflineSales.length
+                } 件です。${
+                  reason
+                    ? ` (${reason})`
+                    : ""
+                }`
+              );
+            }
+
+            if (
+              !navigator.onLine
+            ) {
+              try {
+                await queueCheckoutOffline(
+                  "通信なし"
+                );
+
+              } catch (error) {
+                button.disabled =
+                  false;
+
+                button.textContent =
+                  "会計確定";
+
+                renderPosBody(
+                  error.code ||
+                  error.message ||
+                  String(error)
+                );
+              }
+
+              return;
+            }
+
+            try {
+              const result =
+                await commitQuickSale(
+                  salePayload
+                );
 
               lastCheckoutResult =
                 result;
@@ -18938,6 +19927,26 @@ async function renderPos(
                 "Checkout failed",
                 error
               );
+
+              if (
+                isNetworkLikeCheckoutError(
+                  error
+                )
+              ) {
+                try {
+                  await queueCheckoutOffline(
+                    "Firebaseへ接続できないため待機"
+                  );
+
+                  return;
+
+                } catch (
+                  queueError
+                ) {
+                  error =
+                    queueError;
+                }
+              }
 
               button.disabled =
                 false;
@@ -19046,8 +20055,79 @@ document.querySelectorAll(".nav-btn").forEach(btn => {
   );
 });
 
+async function enableFirestoreOfflineCache() {
+  if (
+    !firebaseState?.enabled ||
+    !firebaseState?.db
+  ) {
+    return false;
+  }
+
+  try {
+    const {
+      enableIndexedDbPersistence
+    } =
+      await import(
+        "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js"
+      );
+
+    await enableIndexedDbPersistence(
+      firebaseState.db
+    );
+
+    return true;
+
+  } catch (error) {
+    /*
+     * failed-precondition commonly means another tab already owns the
+     * IndexedDB persistence lease. The local POS queue still works.
+     */
+    console.warn(
+      "Firestore persistent cache unavailable",
+      error
+    );
+
+    return false;
+  }
+}
+
+
+async function registerOfflineServiceWorker() {
+  if (
+    !(
+      "serviceWorker" in
+      navigator
+    )
+  ) {
+    return;
+  }
+
+  try {
+    await navigator
+      .serviceWorker
+      .register(
+        "./sw.js?v=20260911-offline-resilience-1"
+      );
+
+  } catch (error) {
+    console.warn(
+      "Service worker registration failed",
+      error
+    );
+  }
+}
+
+
 async function start() {
   firebaseState = await initFirebase();
+
+  if (
+    firebaseState.enabled
+  ) {
+    await enableFirestoreOfflineCache();
+
+    registerOfflineServiceWorker();
+  }
 
   if (!firebaseState.enabled) {
     syncStatus.textContent = "Local";
@@ -19056,11 +20136,87 @@ async function start() {
   }
 
   await initAuth((user, error) => {
-    currentUser = user;
-    authError = error;
-    syncStatus.textContent = user ? "Firebase" : "Login";
-    render(currentRoute);
+    currentUser =
+      user;
+
+    authError =
+      error;
+
+    updateConnectivityStatus();
+
+    render(
+      currentRoute
+    );
+
+    if (
+      user &&
+      navigator.onLine &&
+      offlinePendingCount() >
+      0
+    ) {
+      setTimeout(
+        () => {
+          syncOfflineSalesQueue({
+            rerender:
+              currentRoute ===
+              "pos"
+          });
+        },
+        800
+      );
+    }
   });
 }
+
+window.addEventListener(
+  "offline",
+  () => {
+    updateConnectivityStatus();
+
+    if (
+      currentRoute ===
+      "pos"
+    ) {
+      renderPos(
+        ++renderSequence
+      );
+    }
+  }
+);
+
+
+window.addEventListener(
+  "online",
+  () => {
+    updateConnectivityStatus();
+
+    syncOfflineSalesQueue({
+      rerender:
+        currentRoute ===
+        "pos"
+    });
+  }
+);
+
+
+document.addEventListener(
+  "visibilitychange",
+  () => {
+    if (
+      document.visibilityState ===
+        "visible" &&
+      navigator.onLine &&
+      offlinePendingCount() >
+        0
+    ) {
+      syncOfflineSalesQueue({
+        rerender:
+          currentRoute ===
+          "pos"
+      });
+    }
+  }
+);
+
 
 start();
