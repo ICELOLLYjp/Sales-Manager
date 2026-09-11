@@ -695,6 +695,117 @@ function resolveItemCostSnapshot({
   product,
   saleDate
 }) {
+  const isTshirt =
+    item?.category ===
+    "tshirt";
+
+  if (
+    isTshirt
+  ) {
+    if (
+      item?.variantId
+    ) {
+      const skuOverrideCost =
+        resolveScheduledCost(
+          variant
+            ?.skuOverrideCostSchedule,
+          saleDate
+        );
+
+      if (
+        skuOverrideCost
+      ) {
+        return {
+          captured:
+            true,
+          version:
+            2,
+          saleDate,
+          source:
+            "sku_override",
+          ...skuOverrideCost
+        };
+      }
+
+      const outsourcedCost =
+        resolveScheduledCost(
+          variant
+            ?.outsourcedCostSchedule,
+          saleDate
+        );
+
+      if (
+        outsourcedCost
+      ) {
+        return {
+          captured:
+            true,
+          version:
+            2,
+          saleDate,
+          source:
+            "outsourced_all_in",
+          ...outsourcedCost
+        };
+      }
+    }
+
+    const bodyId =
+      String(
+        item?.bodyId ||
+        variant?.bodyId ||
+        ""
+      ).trim();
+
+    if (
+      bodyId
+    ) {
+      const bodyCost =
+        resolveScheduledCost(
+          product
+            ?.bodyCostSchedules
+            ?.[bodyId],
+          saleDate
+        );
+
+      if (
+        bodyCost
+      ) {
+        return {
+          captured:
+            true,
+          version:
+            2,
+          saleDate,
+          source:
+            "body",
+          ...bodyCost
+        };
+      }
+    }
+
+    return {
+      captured:
+        true,
+      version:
+        2,
+      saleDate,
+      source:
+        "missing",
+      unitCostJPY:
+        null,
+      effectiveFrom:
+        null,
+      note:
+        ""
+    };
+  }
+
+  /*
+   * Non-T-shirt categories keep the existing compatibility path.
+   * This avoids changing current accessory / paper-goods behavior
+   * while the T-shirt cost master is moved to the stock app.
+   */
   if (
     item?.variantId
   ) {
@@ -719,10 +830,6 @@ function resolveItemCostSnapshot({
       };
     }
 
-    /*
-     * Backward compatibility for SKU cost entries saved
-     * before costSchedule was introduced.
-     */
     const legacyDate =
       String(
         variant
@@ -762,37 +869,6 @@ function resolveItemCostSnapshot({
           legacyDate,
         note:
           ""
-      };
-    }
-  }
-
-  if (
-    item?.category ===
-      "tshirt" &&
-    item?.bodyId
-  ) {
-    const bodyCost =
-      resolveScheduledCost(
-        product
-          ?.bodyCostSchedules
-          ?.[
-            item.bodyId
-          ],
-        saleDate
-      );
-
-    if (
-      bodyCost
-    ) {
-      return {
-        captured:
-          true,
-        version:
-          1,
-        saleDate,
-        source:
-          "body",
-        ...bodyCost
       };
     }
   }
@@ -1840,7 +1916,7 @@ export async function commitQuickSale({
           netSalesJPY,
 
           costSnapshotVersion:
-            1,
+            2,
 
           costSnapshotDate:
             saleCostDate,

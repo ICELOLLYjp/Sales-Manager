@@ -288,6 +288,18 @@ function normalizeHistoryRow(
     variantId:
       data?.variantId || "",
 
+    costType:
+      data?.costType || "",
+
+    bulkScope:
+      data?.bulkScope || "",
+
+    bulkBodyId:
+      data?.bulkBodyId || "",
+
+    bulkDesignId:
+      data?.bulkDesignId || "",
+
     amountJPY:
       Number(
         data?.amountJPY || 0
@@ -959,6 +971,40 @@ function resolveHistoryRows(
     : null;
 }
 
+function resolveHistoryRowsByCostType(
+  rows,
+  costType,
+  saleDate
+) {
+  const date =
+    cleanDate(
+      saleDate
+    ) ||
+    "9999-12-31";
+
+  const match =
+    (
+      Array.isArray(
+        rows
+      )
+        ? rows
+        : []
+    ).find(
+      row =>
+        row.costType ===
+          costType &&
+        row.effectiveFrom <=
+          date
+    );
+
+  return match
+    ? Number(
+        match.amountJPY || 0
+      )
+    : null;
+}
+
+
 export function resolveCategoryUnitCost(
   histories,
   category,
@@ -1013,6 +1059,114 @@ export function resolveSaleItemUnitCost({
       item?.variantId || ""
     ).trim();
 
+  const variant =
+    variantId
+      ? variantsById
+          ?.get(
+            variantId
+          )
+      : null;
+
+  const isTshirt =
+    item?.category ===
+    "tshirt";
+
+  if (
+    isTshirt
+  ) {
+    const rows =
+      variantId
+        ? (
+            variantHistories
+              ?.[variantId] ||
+            []
+          )
+        : [];
+
+    const skuOverrideCost =
+      resolveHistoryRowsByCostType(
+        rows,
+        "sku_override",
+        saleDate
+      );
+
+    if (
+      skuOverrideCost !==
+      null
+    ) {
+      return {
+        unitCostJPY:
+          skuOverrideCost,
+        source:
+          "sku_override"
+      };
+    }
+
+    const outsourcedCost =
+      resolveHistoryRowsByCostType(
+        rows,
+        "outsourced_all_in",
+        saleDate
+      );
+
+    if (
+      outsourcedCost !==
+      null
+    ) {
+      return {
+        unitCostJPY:
+          outsourcedCost,
+        source:
+          "outsourced_all_in"
+      };
+    }
+
+    const bodyId =
+      String(
+        item?.bodyId ||
+        variant?.bodyId ||
+        ""
+      ).trim();
+
+    if (
+      bodyId
+    ) {
+      const bodyCost =
+        resolveBodyUnitCost(
+          bodyHistories,
+          bodyId,
+          saleDate
+        );
+
+      if (
+        bodyCost !==
+        null
+      ) {
+        return {
+          unitCostJPY:
+            bodyCost,
+          source:
+            "body"
+        };
+      }
+    }
+
+    /*
+     * For T-shirts, do not fall back to the old generic
+     * costSchedule/latestCost or category standard cost.
+     * If none of the three official sources exists, mark missing.
+     */
+    return {
+      unitCostJPY:
+        null,
+      source:
+        "missing"
+    };
+  }
+
+  /*
+   * Existing non-T-shirt behavior is preserved.
+   */
   if (variantId) {
     const variantCost =
       resolveVariantUnitCost(
@@ -1030,46 +1184,6 @@ export function resolveSaleItemUnitCost({
           variantCost,
         source:
           "sku"
-      };
-    }
-  }
-
-  const variant =
-    variantId
-      ? variantsById
-          ?.get(
-            variantId
-          )
-      : null;
-
-  const bodyId =
-    String(
-      item?.bodyId ||
-      variant?.bodyId ||
-      ""
-    ).trim();
-
-  if (
-    item?.category ===
-      "tshirt" &&
-    bodyId
-  ) {
-    const bodyCost =
-      resolveBodyUnitCost(
-        bodyHistories,
-        bodyId,
-        saleDate
-      );
-
-    if (
-      bodyCost !==
-      null
-    ) {
-      return {
-        unitCostJPY:
-          bodyCost,
-        source:
-          "body"
       };
     }
   }
@@ -1117,6 +1231,10 @@ export function calculateResolvedCogs({
     new Set();
 
   const sourceCounts = {
+    sku_override:
+      0,
+    outsourced_all_in:
+      0,
     sku:
       0,
     body:
