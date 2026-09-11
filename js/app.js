@@ -8,11 +8,12 @@ import { listAllProductVariants, registerTshirtVariant, registerGeneralProduct, 
 import { CATEGORY_TEMPLATES, getCategoryTemplate } from "./data/categoryTemplates.js";
 import { loadPosPriceConfig, savePosPriceConfig, QUICK_PRICE_CURRENCIES } from "./services/priceBookService.js?v=20260911-mixmatch-2";
 import { listSalesSessions, createEventSession, updateEventSession, updateEventExpenses, SESSION_CURRENCIES } from "./services/sessionService.js";
-import { commitQuickSale, voidSaleTransaction } from "./services/transactionService.js?v=20260911-tshirt-cost-priority-v2";
+import { commitQuickSale, voidSaleTransaction } from "./services/transactionService.js?v=20260911-stripe-payment-1";
 import { listSessionTransactions } from "./services/salesHistoryService.js?v=20260910-setdiscount-2";
 import { saveCategoryCost, loadAllCategoryCostHistories, resolveCategoryUnitCost, saveTshirtBodyCost, loadTshirtBodyCostHistories, loadTshirtCostCache, resolveBodyUnitCost, saveVariantCost, loadVariantCostHistories, calculateResolvedCogs } from "./services/costHistoryService.js?v=20260911-cost-cache-server-sync-1";
 import { loadPinkoiTshirtCatalog, syncPinkoiTshirtCatalog } from "./services/pinkoiCatalogService.js";
 import { loadOfflineSalesQueue, getOfflineSalesQueueForSession, enqueueOfflineSale, removeOfflineSale, updateOfflineSaleError, pendingVariantQuantities, savePosOfflineSnapshot, loadPosOfflineSnapshot } from "./services/offlineQueueService.js?v=20260911-offline-resilience-1";
+import { createStripeCheckout, getStripeCheckoutStatus, expireStripeCheckout, markStripeSaleCommitted, refundStripePayment, listRecoverableStripePayments, renderStripeQr } from "./services/stripePaymentService.js?v=20260911-stripe-qr-test-1";
 let sessionLifecycleModulePromise =
   null;
 
@@ -358,6 +359,9 @@ let offlineSyncInProgress =
 
 let offlineQueueLastMessage =
   "";
+
+let stripeOverlayActive =
+  false;
 
 function offlinePendingCount() {
   return loadOfflineSalesQueue()
@@ -10435,6 +10439,27 @@ async function renderSessions(
                                       点
                                       /
                                       ${transaction.mode}
+
+                                      ${
+                                        transaction.paymentMethod ===
+                                        "stripe"
+                                          ? `
+                                            <span
+                                              style="
+                                                display:inline-block;
+                                                margin-left:5px;
+                                                padding:2px 6px;
+                                                border-radius:999px;
+                                                background:#eef0ff;
+                                                font-size:10px;
+                                                font-weight:800;
+                                              "
+                                            >
+                                              Stripe
+                                            </span>
+                                          `
+                                          : ""
+                                      }
                                     </div>
                                   </div>
 
@@ -12820,9 +12845,23 @@ async function renderSessions(
                 return;
               }
 
+              const targetTransaction =
+                sessionTransactions.find(
+                  item =>
+                    item.transactionId ===
+                    transactionId
+                );
+
+              const isStripe =
+                targetTransaction
+                  ?.paymentMethod ===
+                "stripe";
+
               const confirmed =
                 window.confirm(
-                  "この会計を取り消しますか？\n\n売上集計から除外し、SKU販売で減算済みの実在庫は元に戻します。\n元の会計記録は削除せず、取消済みとして残します。"
+                  isStripe
+                    ? "このStripe会計を返金・取消しますか？\n\n先にStripeへ全額返金し、返金成功後にSales Managerの売上を取消して在庫を戻します。"
+                    : "この会計を取り消しますか？\n\n売上集計から除外し、SKU販売で減算済みの実在庫は元に戻します。\n元の会計記録は削除せず、取消済みとして残します。"
                 );
 
               if (!confirmed) {
@@ -12836,6 +12875,20 @@ async function renderSessions(
                 "取消処理中";
 
               try {
+                if (
+                  isStripe
+                ) {
+                  button.textContent =
+                    "Stripe返金中";
+
+                  await refundStripePayment({
+                    transactionId
+                  });
+
+                  button.textContent =
+                    "売上取消中";
+                }
+
                 await voidSaleTransaction({
                   transactionId,
                   voidedByEmail:
@@ -13232,6 +13285,516 @@ function formatMoney(
     return `${currency} ${amount}`;
   }
 }
+
+async function openStripePaymentOverlay({
+  checkout,
+  amount,
+  currency,
+  salePayload,
+  onCommitted,
+  onCanceled
+}) {
+  if (
+    stripeOverlayActive
+  ) {
+    return;
+  }
+
+  stripeOverlayActive =
+    true;
+
+  const overlay =
+    document.createElement(
+      "div"
+    );
+
+  overlay.id =
+    "stripePaymentOverlay";
+
+  overlay.style.cssText =
+    [
+      "position:fixed",
+      "inset:0",
+      "z-index:9999",
+      "background:rgba(0,0,0,.55)",
+      "display:flex",
+      "align-items:flex-start",
+      "justify-content:center",
+      "padding:18px",
+      "overflow:auto"
+    ].join(";");
+
+  overlay.innerHTML =
+    `
+      <div
+        style="
+          width:min(100%,430px);
+          margin:auto;
+          padding:20px;
+          border-radius:20px;
+          background:white;
+          box-shadow:0 18px 60px rgba(0,0,0,.25);
+          text-align:center;
+        "
+      >
+        <div
+          style="
+            font-size:12px;
+            font-weight:800;
+            letter-spacing:.08em;
+          "
+        >
+          STRIPE QR PAYMENT
+        </div>
+
+        <div
+          style="
+            margin-top:8px;
+            font-size:28px;
+            font-weight:900;
+          "
+        >
+          ${formatMoney(
+            amount,
+            currency
+          )}
+        </div>
+
+        <div
+          id="stripeModeNotice"
+          style="
+            margin-top:6px;
+            font-size:12px;
+            font-weight:800;
+            ${
+              checkout.livemode
+                ? "color:#824747;"
+                : "color:#6a6a60;"
+            }
+          "
+        >
+          ${
+            checkout.livemode
+              ? "LIVE PAYMENT"
+              : "TEST MODE"
+          }
+        </div>
+
+        <div
+          id="stripeQrContainer"
+          style="
+            min-height:280px;
+            margin-top:14px;
+            display:grid;
+            place-items:center;
+          "
+        ></div>
+
+        <div
+          id="stripePaymentState"
+          style="
+            margin-top:8px;
+            font-size:17px;
+            font-weight:800;
+          "
+        >
+          支払い待ち...
+        </div>
+
+        <div
+          id="stripePaymentDetail"
+          class="muted"
+          style="
+            margin-top:6px;
+            line-height:1.5;
+            font-size:12px;
+          "
+        >
+          お客様のスマートフォンでQRコードを読み取ってください。
+        </div>
+
+        <a
+          href="${escapeHtml(
+            checkout.url
+          )}"
+          target="_blank"
+          rel="noopener"
+          style="
+            display:inline-block;
+            margin-top:12px;
+            font-weight:800;
+          "
+        >
+          支払いページを開く
+        </a>
+
+        <button
+          id="stripeRetryCommitButton"
+          type="button"
+          class="button"
+          style="
+            display:none;
+            width:100%;
+            min-height:48px;
+            margin-top:14px;
+          "
+        >
+          会計反映を再試行
+        </button>
+
+        <button
+          id="stripeCancelPaymentButton"
+          type="button"
+          class="button button-secondary"
+          style="
+            width:100%;
+            min-height:48px;
+            margin-top:10px;
+          "
+        >
+          Stripe支払いを中止
+        </button>
+      </div>
+    `;
+
+  document.body
+    .appendChild(
+      overlay
+    );
+
+  await renderStripeQr(
+    overlay.querySelector(
+      "#stripeQrContainer"
+    ),
+    checkout.url
+  );
+
+  const stateBox =
+    overlay.querySelector(
+      "#stripePaymentState"
+    );
+
+  const detailBox =
+    overlay.querySelector(
+      "#stripePaymentDetail"
+    );
+
+  const cancelButton =
+    overlay.querySelector(
+      "#stripeCancelPaymentButton"
+    );
+
+  const retryButton =
+    overlay.querySelector(
+      "#stripeRetryCommitButton"
+    );
+
+  let closed =
+    false;
+
+  let paidStatus =
+    null;
+
+  let pollTimer =
+    null;
+
+  let finalizeBusy =
+    false;
+
+
+  function closeOverlay() {
+    if (closed) {
+      return;
+    }
+
+    closed =
+      true;
+
+    if (
+      pollTimer
+    ) {
+      clearInterval(
+        pollTimer
+      );
+    }
+
+    overlay.remove();
+
+    stripeOverlayActive =
+      false;
+  }
+
+
+  async function finalizePaid(
+    status
+  ) {
+    if (
+      finalizeBusy
+    ) {
+      return;
+    }
+
+    finalizeBusy =
+      true;
+
+    paidStatus =
+      status;
+
+    cancelButton.disabled =
+      true;
+
+    retryButton.style.display =
+      "none";
+
+    stateBox.textContent =
+      "✓ Stripe支払い完了";
+
+    detailBox.textContent =
+      "Sales Managerへ会計を反映しています...";
+
+    try {
+      const result =
+        await commitQuickSale({
+          ...salePayload,
+
+          paymentMethod:
+            "stripe",
+
+          paymentProvider:
+            "stripe",
+
+          providerPaymentIntentId:
+            status.paymentIntentId ||
+            "",
+
+          providerCheckoutSessionId:
+            status.checkoutSessionId ||
+            checkout
+              .checkoutSessionId ||
+            "",
+
+          providerPaymentStatus:
+            "paid"
+        });
+
+      try {
+        await markStripeSaleCommitted({
+          transactionId:
+            salePayload
+              .transactionId
+        });
+      } catch (error) {
+        console.warn(
+          "Stripe committed marker failed",
+          error
+        );
+      }
+
+      stateBox.textContent =
+        "✓ 支払い・会計完了";
+
+      detailBox.textContent =
+        "Stripe決済とSales Managerの売上保存が完了しました。";
+
+      setTimeout(
+        () => {
+          closeOverlay();
+
+          onCommitted?.(
+            result,
+            status
+          );
+        },
+        700
+      );
+
+    } catch (error) {
+      console.error(
+        "Stripe paid but sale commit failed",
+        error
+      );
+
+      stateBox.textContent =
+        "⚠ 支払い済み / 会計未反映";
+
+      detailBox.textContent =
+        error.code ||
+        error.message ||
+        String(error);
+
+      retryButton.style.display =
+        "block";
+
+      finalizeBusy =
+        false;
+    }
+  }
+
+
+  retryButton.addEventListener(
+    "click",
+    () => {
+      if (
+        paidStatus
+      ) {
+        finalizePaid(
+          paidStatus
+        );
+      }
+    }
+  );
+
+
+  cancelButton.addEventListener(
+    "click",
+    async () => {
+      const confirmed =
+        window.confirm(
+          "Stripe支払いを中止しますか？\n\nまだ支払い済みでなければCheckout Sessionを失効させます。"
+        );
+
+      if (!confirmed) {
+        return;
+      }
+
+      cancelButton.disabled =
+        true;
+
+      cancelButton.textContent =
+        "中止処理中";
+
+      try {
+        const status =
+          await getStripeCheckoutStatus(
+            salePayload
+              .transactionId
+          );
+
+        if (
+          status.paymentStatus ===
+          "paid"
+        ) {
+          await finalizePaid(
+            status
+          );
+
+          return;
+        }
+
+        await expireStripeCheckout(
+          salePayload
+            .transactionId
+        );
+
+        closeOverlay();
+
+        onCanceled?.();
+
+      } catch (error) {
+        cancelButton.disabled =
+          false;
+
+        cancelButton.textContent =
+          "Stripe支払いを中止";
+
+        detailBox.textContent =
+          error.code ||
+          error.message ||
+          String(error);
+      }
+    }
+  );
+
+
+  async function pollStatus() {
+    if (
+      closed ||
+      finalizeBusy
+    ) {
+      return;
+    }
+
+    try {
+      const status =
+        await getStripeCheckoutStatus(
+          salePayload
+            .transactionId
+        );
+
+      if (
+        status.paymentStatus ===
+        "paid"
+      ) {
+        if (
+          pollTimer
+        ) {
+          clearInterval(
+            pollTimer
+          );
+
+          pollTimer =
+            null;
+        }
+
+        await finalizePaid(
+          status
+        );
+
+        return;
+      }
+
+      if (
+        status.status ===
+        "expired"
+      ) {
+        stateBox.textContent =
+          "支払い期限切れ";
+
+        detailBox.textContent =
+          "このQRコードは使用できません。支払いをやり直してください。";
+
+        cancelButton.textContent =
+          "閉じる";
+
+        if (
+          pollTimer
+        ) {
+          clearInterval(
+            pollTimer
+          );
+
+          pollTimer =
+            null;
+        }
+
+        return;
+      }
+
+      stateBox.textContent =
+        navigator.onLine
+          ? "支払い待ち..."
+          : "通信復旧待ち...";
+
+    } catch (error) {
+      detailBox.textContent =
+        navigator.onLine
+          ? "Stripeの支払い状況を再確認しています..."
+          : "通信が戻ると支払い状況を自動確認します。";
+    }
+  }
+
+
+  await pollStatus();
+
+  if (!closed) {
+    pollTimer =
+      setInterval(
+        pollStatus,
+        2200
+      );
+  }
+}
+
 
 function posPrice(
   category
@@ -15314,6 +15877,9 @@ async function renderPos(
     let posOfflineSnapshotUsed =
       false;
 
+    let stripeRecoverablePayments =
+      [];
+
     const offlineSnapshot =
       loadPosOfflineSnapshot();
 
@@ -15768,6 +16334,28 @@ async function renderPos(
         }
       }
     }
+
+    if (
+      navigator.onLine &&
+      activeSession
+    ) {
+      try {
+        stripeRecoverablePayments =
+          await listRecoverableStripePayments(
+            activeSession.sessionId
+          );
+
+      } catch (error) {
+        console.warn(
+          "Stripe recoverable payment lookup failed",
+          error
+        );
+
+        stripeRecoverablePayments =
+          [];
+      }
+    }
+
 
     /*
      * Local queued SKU sales reserve event stock immediately so the seller
@@ -16246,6 +16834,97 @@ async function renderPos(
                     `
                     : ""
                 }
+              </section>
+            `
+            : ""
+        }
+
+
+        ${
+          stripeRecoverablePayments.length
+            ? `
+              <section
+                style="
+                  margin-bottom:14px;
+                  padding:12px;
+                  border:1px solid #d9b45b;
+                  border-radius:12px;
+                  background:#fff7db;
+                "
+              >
+                <div
+                  style="
+                    font-weight:800;
+                  "
+                >
+                  ⚠ Stripe支払い済み・会計未反映
+                  ${stripeRecoverablePayments.length}件
+                </div>
+
+                <div
+                  class="muted"
+                  style="
+                    margin-top:4px;
+                    line-height:1.45;
+                    font-size:12px;
+                  "
+                >
+                  Stripeでは支払い済みですが、Sales Managerの売上保存が未完了です。必ず会計へ反映してください。
+                </div>
+
+                ${stripeRecoverablePayments.map(
+                  payment => `
+                    <div
+                      style="
+                        margin-top:9px;
+                        padding-top:9px;
+                        border-top:1px solid rgba(0,0,0,.08);
+                        display:flex;
+                        justify-content:space-between;
+                        align-items:center;
+                        gap:10px;
+                      "
+                    >
+                      <div>
+                        <strong>
+                          ${formatMoney(
+                            payment.amount,
+                            payment.currency
+                          )}
+                        </strong>
+
+                        <div
+                          class="muted"
+                          style="
+                            margin-top:2px;
+                            font-size:11px;
+                          "
+                        >
+                          ${payment.itemCount || 0}点
+                          /
+                          ${escapeHtml(
+                            payment.transactionId
+                          )}
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        class="stripeRecoverPaymentButton button"
+                        data-transaction-id="${escapeHtml(
+                          payment.transactionId
+                        )}"
+                        style="
+                          flex:0 0 auto;
+                          min-height:40px;
+                          padding:0 12px;
+                        "
+                      >
+                        会計反映
+                      </button>
+                    </div>
+                  `
+                ).join("")}
               </section>
             `
             : ""
@@ -18130,6 +18809,41 @@ async function renderPos(
           </button>
 
 
+          <button
+            id="posStripeCheckoutButton"
+            type="button"
+            class="button button-secondary"
+            ${
+              activeSession &&
+              posCart.size > 0 &&
+              totals.total > 0 &&
+              navigator.onLine
+                ? ""
+                : "disabled"
+            }
+            style="
+              width:100%;
+              margin-top:10px;
+              min-height:54px;
+              font-size:16px;
+              ${
+                activeSession &&
+                posCart.size > 0 &&
+                totals.total > 0 &&
+                navigator.onLine
+                  ? ""
+                  : "opacity:.48;"
+              }
+            "
+          >
+            ${
+              navigator.onLine
+                ? "Stripe QRでカード支払い"
+                : "Stripeはオンライン時のみ"
+            }
+          </button>
+
+
           ${
             posCart.size
               ? `
@@ -19533,6 +20247,96 @@ async function renderPos(
 
 
       document
+        .querySelectorAll(
+          ".stripeRecoverPaymentButton"
+        )
+        .forEach(
+          button => {
+            button.addEventListener(
+              "click",
+              async () => {
+                const transactionId =
+                  button.dataset
+                    .transactionId ||
+                  "";
+
+                const payment =
+                  stripeRecoverablePayments
+                    .find(
+                      item =>
+                        item.transactionId ===
+                        transactionId
+                    );
+
+                if (
+                  !payment ||
+                  !payment.salePayload
+                ) {
+                  return;
+                }
+
+                button.disabled =
+                  true;
+
+                button.textContent =
+                  "反映中";
+
+                try {
+                  await commitQuickSale({
+                    ...payment.salePayload,
+
+                    paymentMethod:
+                      "stripe",
+
+                    paymentProvider:
+                      "stripe",
+
+                    providerPaymentIntentId:
+                      payment.paymentIntentId ||
+                      "",
+
+                    providerCheckoutSessionId:
+                      payment.checkoutSessionId ||
+                      "",
+
+                    providerPaymentStatus:
+                      "paid"
+                  });
+
+                  try {
+                    await markStripeSaleCommitted({
+                      transactionId
+                    });
+                  } catch (error) {
+                    console.warn(
+                      error
+                    );
+                  }
+
+                  await renderPos(
+                    ++renderSequence
+                  );
+
+                } catch (error) {
+                  button.disabled =
+                    false;
+
+                  button.textContent =
+                    "会計反映";
+
+                  window.alert(
+                    error.code ||
+                    error.message ||
+                    String(error)
+                  );
+                }
+              }
+            );
+          }
+        );
+
+
+      document
         .querySelector(
           "#syncOfflineQueueButton"
         )
@@ -19602,6 +20406,226 @@ async function renderPos(
                 );
               }
             );
+          }
+        );
+
+
+      document
+        .querySelector(
+          "#posStripeCheckoutButton"
+        )
+        ?.addEventListener(
+          "click",
+          async event => {
+            if (
+              !navigator.onLine ||
+              !activeSession ||
+              posCart.size ===
+                0
+            ) {
+              return;
+            }
+
+            syncPosDiscountInputsFromDom();
+
+            const totals =
+              posCartTotals();
+
+            if (
+              totals.total <=
+              0
+            ) {
+              window.alert(
+                "Stripe決済金額は0より大きい必要があります。"
+              );
+
+              return;
+            }
+
+            const confirmed =
+              window.confirm(
+                `${formatMoney(
+                  totals.total
+                )} のStripe支払いQRを作成しますか？`
+              );
+
+            if (!confirmed) {
+              return;
+            }
+
+            const button =
+              event.currentTarget;
+
+            button.disabled =
+              true;
+
+            button.textContent =
+              "QR作成中";
+
+            if (
+              !pendingCheckoutTransactionId
+            ) {
+              pendingCheckoutTransactionId =
+                createPendingCheckoutId();
+            }
+
+            const salePayload = {
+              transactionId:
+                pendingCheckoutTransactionId,
+
+              sessionId:
+                activeSession.sessionId,
+
+              items:
+                Array.from(
+                  posCart.values()
+                ).map(
+                  item => {
+                    const pricing =
+                      totals.lines.get(
+                        item.key
+                      );
+
+                    return {
+                      lineId:
+                        item.key,
+
+                      category:
+                        item.category,
+
+                      label:
+                        item.label,
+
+                      quantity:
+                        item.quantity,
+
+                      unitPrice:
+                        item.unitPrice,
+
+                      trackingMode:
+                        item.trackingMode ||
+                        "quick",
+
+                      variantId:
+                        item.variantId ||
+                        null,
+
+                      inventoryKey:
+                        item.inventoryKey ||
+                        null,
+
+                      setDiscount:
+                        pricing
+                          ?.setDiscount ||
+                        0,
+
+                      manualDiscount:
+                        pricing
+                          ?.manualDiscount ||
+                        0,
+
+                      setOffer:
+                        (() => {
+                          const offer =
+                            posSetOffer(
+                              item.category
+                            );
+
+                          return {
+                            quantity:
+                              offer.quantity,
+
+                            price:
+                              offer.price
+                          };
+                        })()
+                    };
+                  }
+                ),
+
+              orderDiscount:
+                totals.orderDiscount,
+
+              createdByEmail:
+                currentUser
+                  ?.email ||
+                ""
+            };
+
+            try {
+              const checkout =
+                await createStripeCheckout({
+                  salePayload
+                });
+
+              button.disabled =
+                false;
+
+              button.textContent =
+                "Stripe QRでカード支払い";
+
+              await openStripePaymentOverlay({
+                checkout,
+
+                amount:
+                  totals.total,
+
+                currency:
+                  posCurrency,
+
+                salePayload,
+
+                onCommitted:
+                  async (
+                    result
+                  ) => {
+                    lastCheckoutResult = {
+                      ...result,
+                      stripe:
+                        true
+                    };
+
+                    pendingCheckoutTransactionId =
+                      null;
+
+                    posCart =
+                      new Map();
+
+                    posOrderDiscount =
+                      0;
+
+                    await renderPos(
+                      ++renderSequence
+                    );
+                  },
+
+                onCanceled:
+                  () => {
+                    pendingCheckoutTransactionId =
+                      null;
+
+                    renderPosBody();
+                  }
+              });
+
+            } catch (error) {
+              console.error(
+                "Stripe checkout create failed",
+                error
+              );
+
+              button.disabled =
+                false;
+
+              button.textContent =
+                "Stripe QRでカード支払い";
+
+              window.alert(
+                error.code ||
+                error.message ||
+                String(error)
+              );
+            }
           }
         );
 
