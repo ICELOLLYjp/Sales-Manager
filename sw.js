@@ -1,5 +1,5 @@
 const CACHE_NAME =
-  "icelolly-sales-shell-20260911-stripe-1";
+  "icelolly-sales-shell-20260912-stripe-qr-fix-1";
 
 const CORE_ASSETS = [
   "./",
