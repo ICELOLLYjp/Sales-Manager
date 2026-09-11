@@ -13,7 +13,7 @@ import { listSessionTransactions } from "./services/salesHistoryService.js?v=202
 import { saveCategoryCost, loadAllCategoryCostHistories, resolveCategoryUnitCost, saveTshirtBodyCost, loadTshirtBodyCostHistories, loadTshirtCostCache, resolveBodyUnitCost, saveVariantCost, loadVariantCostHistories, calculateResolvedCogs } from "./services/costHistoryService.js?v=20260911-cost-cache-server-sync-1";
 import { loadPinkoiTshirtCatalog, syncPinkoiTshirtCatalog } from "./services/pinkoiCatalogService.js";
 import { loadOfflineSalesQueue, getOfflineSalesQueueForSession, enqueueOfflineSale, removeOfflineSale, updateOfflineSaleError, pendingVariantQuantities, savePosOfflineSnapshot, loadPosOfflineSnapshot } from "./services/offlineQueueService.js?v=20260911-offline-resilience-1";
-import { createStripeCheckout, getStripeCheckoutStatus, expireStripeCheckout, markStripeSaleCommitted, refundStripePayment, listRecoverableStripePayments, renderStripeQr } from "./services/stripePaymentService.js?v=20260911-stripe-qr-test-1";
+import { createStripeCheckout, getStripeCheckoutStatus, expireStripeCheckout, markStripeSaleCommitted, refundStripePayment, listRecoverableStripePayments, renderStripeQr } from "./services/stripePaymentService.js?v=20260912-stripe-qr-display-fix-1";
 let sessionLifecycleModulePromise =
   null;
 
