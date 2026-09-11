@@ -1,5 +1,5 @@
 const CACHE_NAME =
-  "icelolly-sales-shell-20260911-1";
+  "icelolly-sales-shell-20260911-stripe-1";
 
 const CORE_ASSETS = [
   "./",
@@ -28,7 +28,9 @@ const CORE_ASSETS = [
   "./js/services/sessionLifecycleService.js",
   "./js/services/inventoryCountService.js",
   "./js/services/eventCloseService.js",
-  "./js/services/offlineQueueService.js"
+  "./js/services/offlineQueueService.js",
+  "./js/services/stripePaymentService.js",
+  "./stripe-result.html"
 ];
 
 

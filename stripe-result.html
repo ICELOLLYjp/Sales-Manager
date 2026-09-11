@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1"
+  >
+  <title>ICELOLLY Payment</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      font-family:
+        -apple-system,
+        BlinkMacSystemFont,
+        "Helvetica Neue",
+        Arial,
+        sans-serif;
+      background: #fafaf7;
+      color: #1f1f1f;
+    }
+
+    .card {
+      width: min(100%, 420px);
+      padding: 28px 22px;
+      border: 1px solid #e6e6df;
+      border-radius: 20px;
+      background: white;
+      text-align: center;
+    }
+
+    .mark {
+      font-size: 42px;
+      line-height: 1;
+      margin-bottom: 14px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 24px;
+    }
+
+    p {
+      margin: 12px 0 0;
+      line-height: 1.6;
+      color: #666;
+    }
+
+    .brand {
+      margin-top: 22px;
+      font-weight: 800;
+      letter-spacing: .04em;
+    }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <div
+      id="mark"
+      class="mark"
+    >
+      ✓
+    </div>
+
+    <h1 id="title">
+      Payment complete
+    </h1>
+
+    <p id="message">
+      Thank you! Please show this screen to ICELOLLY staff.
+    </p>
+
+    <div class="brand">
+      ICELOLLY
+    </div>
+  </main>
+
+  <script>
+    const params =
+      new URLSearchParams(
+        location.search
+      );
+
+    const result =
+      params.get(
+        "result"
+      );
+
+    if (
+      result ===
+      "cancel"
+    ) {
+      document
+        .querySelector(
+          "#mark"
+        )
+        .textContent =
+          "–";
+
+      document
+        .querySelector(
+          "#title"
+        )
+        .textContent =
+          "Payment not completed";
+
+      document
+        .querySelector(
+          "#message"
+        )
+        .textContent =
+          "Please return to ICELOLLY staff if you would like to try again.";
+    }
+  </script>
+</body>
+</html>
