@@ -2099,7 +2099,7 @@ async function renderMorePage(sequence) {
       )
         .filter(
           row =>
-            /^\\d{4}-\\d{2}-\\d{2}$/.test(
+            /^\d{4}-\d{2}-\d{2}$/.test(
               String(
                 row?.effectiveFrom ||
                 ""
@@ -2658,7 +2658,7 @@ async function renderMorePage(sequence) {
               line-height:1.5;
             "
           >
-            販売日 ${costToday} の判定です。優先順位は「SKU個別 → 外注仕入れ → Body → 未設定」です。productVariants と products/tshirt の最新キャッシュをFirestoreサーバーから直接読み込んでいます。
+            販売日 ${costToday} の判定です。優先順位は「SKU個別 → 外注仕入れ → Body → 未設定」です。productVariants と products/tshirt の最新キャッシュをFirestoreサーバーから直接読み込み、effectiveFrom ≤ 販売日の最新値を判定します。
           </div>
 
           <button
@@ -3634,6 +3634,174 @@ async function renderMorePage(sequence) {
               }
             </div>
           </div>
+
+          <details
+            style="
+              margin-top:10px;
+              border-top:1px solid #ecece7;
+              padding-top:8px;
+            "
+          >
+            <summary
+              style="
+                cursor:pointer;
+                font-weight:700;
+              "
+            >
+              Firestore原価キャッシュ診断
+            </summary>
+
+            <div
+              style="
+                margin-top:8px;
+                font-size:12px;
+                line-height:1.5;
+              "
+            >
+              <div class="list-row">
+                <span>document ID</span>
+                <strong
+                  style="
+                    max-width:62%;
+                    overflow-wrap:anywhere;
+                    text-align:right;
+                  "
+                >
+                  ${escapeHtml(
+                    variant.id ||
+                    ""
+                  )}
+                </strong>
+              </div>
+
+              <div class="list-row">
+                <span>variantId</span>
+                <strong
+                  style="
+                    max-width:62%;
+                    overflow-wrap:anywhere;
+                    text-align:right;
+                  "
+                >
+                  ${escapeHtml(
+                    variant.variantId ||
+                    variant.id ||
+                    ""
+                  )}
+                </strong>
+              </div>
+
+              <div class="list-row">
+                <span>bodyId</span>
+                <strong>
+                  ${escapeHtml(
+                    variant.bodyId ||
+                    ""
+                  )}
+                </strong>
+              </div>
+
+              <div class="list-row">
+                <span>saleDate</span>
+                <strong>
+                  ${escapeHtml(
+                    costToday
+                  )}
+                </strong>
+              </div>
+
+              <div
+                style="
+                  margin-top:10px;
+                  font-weight:700;
+                "
+              >
+                skuOverrideCostSchedule
+              </div>
+
+              <pre
+                style="
+                  white-space:pre-wrap;
+                  overflow-wrap:anywhere;
+                  margin:5px 0 10px;
+                  padding:8px;
+                  border-radius:8px;
+                  background:#f3f3f0;
+                  font-size:11px;
+                "
+              >${escapeHtml(
+                JSON.stringify(
+                  variant
+                    .skuOverrideCostSchedule ||
+                    [],
+                  null,
+                  2
+                )
+              )}</pre>
+
+              <div
+                style="
+                  font-weight:700;
+                "
+              >
+                outsourcedCostSchedule
+              </div>
+
+              <pre
+                style="
+                  white-space:pre-wrap;
+                  overflow-wrap:anywhere;
+                  margin:5px 0 10px;
+                  padding:8px;
+                  border-radius:8px;
+                  background:#f3f3f0;
+                  font-size:11px;
+                "
+              >${escapeHtml(
+                JSON.stringify(
+                  variant
+                    .outsourcedCostSchedule ||
+                    [],
+                  null,
+                  2
+                )
+              )}</pre>
+
+              <div
+                style="
+                  font-weight:700;
+                "
+              >
+                bodyCostSchedules[${escapeHtml(
+                  variant.bodyId ||
+                  ""
+                )}]
+              </div>
+
+              <pre
+                style="
+                  white-space:pre-wrap;
+                  overflow-wrap:anywhere;
+                  margin:5px 0 0;
+                  padding:8px;
+                  border-radius:8px;
+                  background:#f3f3f0;
+                  font-size:11px;
+                "
+              >${escapeHtml(
+                JSON.stringify(
+                  tshirtCostCache
+                    ?.bodyCostSchedules
+                    ?.[
+                      variant.bodyId
+                    ] ||
+                    [],
+                  null,
+                  2
+                )
+              )}</pre>
+            </div>
+          </details>
         `;
     }
 
