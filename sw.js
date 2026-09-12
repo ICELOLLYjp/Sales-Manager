@@ -1,5 +1,5 @@
 const CACHE_NAME =
-  "icelolly-sales-shell-20260912-stripe-live-short-ui-1";
+  "icelolly-sales-shell-20260912-set-price-hotfix-1";
 
 const CORE_ASSETS = [
   "./",
