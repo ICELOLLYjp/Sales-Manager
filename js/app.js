@@ -15054,10 +15054,60 @@ function posCartTotals() {
         lines[0]
           ?.unitPrice || 0;
 
-      const offers =
+      const rawOffers =
         posSetOffersForGroup(
           lines
         );
+
+      const promotionGroup =
+        posPromotionGroup(
+          category
+        );
+
+      /*
+       * Backward compatibility for older Singapore accessory pricing.
+       *
+       * Older saved data may store "4" as "SGD 4 off for 2",
+       * while the current set-offer model stores the final set total
+       * (e.g. 2 for SGD 40).
+       *
+       * For Pierce/Earring groups only, a saved value smaller than one
+       * unit price is safely interpreted as a fixed discount amount.
+       * Example: unit 22, saved 4 => set total 40.
+       */
+      const offers =
+        (
+          promotionGroup ===
+            "earrings" ||
+          promotionGroup ===
+            "drop_earrings"
+        )
+          ? rawOffers.map(
+              offer => {
+                if (
+                  offer.price > 0 &&
+                  offer.price <
+                    unitPrice
+                ) {
+                  return {
+                    ...offer,
+
+                    price:
+                      Math.max(
+                        0,
+                        (
+                          offer.quantity *
+                          unitPrice
+                        ) -
+                        offer.price
+                      )
+                  };
+                }
+
+                return offer;
+              }
+            )
+          : rawOffers;
 
       if (
         !offers.length ||
