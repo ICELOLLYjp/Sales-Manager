@@ -1,5 +1,5 @@
 const CACHE_NAME =
-  "icelolly-sales-shell-20260912-set-price-hotfix-1";
+  "icelolly-sales-shell-20260913-inventory-flow-1";
 
 const CORE_ASSETS = [
   "./",
@@ -11,6 +11,7 @@ const CORE_ASSETS = [
   "./js/firebase.js",
   "./js/auth.js",
   "./js/views/dashboardView.js",
+  "./js/inventoryFlowPanel.js",
 
   "./js/inventoryAdapters/tshirtAdapter.js",
   "./js/inventoryAdapters/accessoryAdapter.js",
@@ -27,38 +28,25 @@ const CORE_ASSETS = [
   "./js/services/pinkoiCatalogService.js",
   "./js/services/sessionLifecycleService.js",
   "./js/services/inventoryCountService.js",
+  "./js/services/inventoryFlowService.js",
   "./js/services/eventCloseService.js",
   "./js/services/offlineQueueService.js",
   "./js/services/stripePaymentService.js",
   "./stripe-result.html"
 ];
 
-
 self.addEventListener(
   "install",
   event => {
     self.skipWaiting();
-
     event.waitUntil(
       (async () => {
-        const cache =
-          await caches.open(
-            CACHE_NAME
-          );
-
-        for (
-          const asset of
-          CORE_ASSETS
-        ) {
+        const cache = await caches.open(CACHE_NAME);
+        for (const asset of CORE_ASSETS) {
           try {
-            await cache.add(
-              asset
-            );
+            await cache.add(asset);
           } catch (error) {
-            /*
-             * Do not abort the whole install if an optional module is
-             * temporarily unavailable. Runtime caching will pick it up later.
-             */
+            /* Optional/runtime assets must not abort the install. */
           }
         }
       })()
@@ -66,129 +54,52 @@ self.addEventListener(
   }
 );
 
-
 self.addEventListener(
   "activate",
   event => {
     event.waitUntil(
       (async () => {
-        const keys =
-          await caches.keys();
-
+        const keys = await caches.keys();
         await Promise.all(
           keys
-            .filter(
-              key =>
-                key.startsWith(
-                  "icelolly-sales-shell-"
-                ) &&
-                key !==
-                  CACHE_NAME
-            )
-            .map(
-              key =>
-                caches.delete(
-                  key
-                )
-            )
+            .filter(key => key.startsWith("icelolly-sales-shell-") && key !== CACHE_NAME)
+            .map(key => caches.delete(key))
         );
-
         await self.clients.claim();
       })()
     );
   }
 );
 
-
 self.addEventListener(
   "fetch",
   event => {
-    const request =
-      event.request;
+    const request = event.request;
+    if (request.method !== "GET") return;
 
-    if (
-      request.method !==
-      "GET"
-    ) {
-      return;
-    }
-
-    const url =
-      new URL(
-        request.url
-      );
-
+    const url = new URL(request.url);
     const shouldCache =
-      url.origin ===
-        self.location.origin ||
-      url.hostname ===
-        "www.gstatic.com";
+      url.origin === self.location.origin ||
+      url.hostname === "www.gstatic.com";
 
-    if (!shouldCache) {
-      return;
-    }
+    if (!shouldCache) return;
 
     event.respondWith(
       (async () => {
-        const cache =
-          await caches.open(
-            CACHE_NAME
-          );
-
+        const cache = await caches.open(CACHE_NAME);
         try {
-          const response =
-            await fetch(
-              request
-            );
-
-          if (
-            response &&
-            (
-              response.ok ||
-              response.type ===
-                "opaque"
-            )
-          ) {
-            cache.put(
-              request,
-              response.clone()
-            );
+          const response = await fetch(request);
+          if (response && (response.ok || response.type === "opaque")) {
+            cache.put(request, response.clone());
           }
-
           return response;
-
         } catch (error) {
-          const cached =
-            await cache.match(
-              request,
-              {
-                ignoreSearch:
-                  true
-              }
-            );
-
-          if (cached) {
-            return cached;
+          const cached = await cache.match(request, { ignoreSearch: true });
+          if (cached) return cached;
+          if (request.mode === "navigate") {
+            const shell = await cache.match("./index.html", { ignoreSearch: true });
+            if (shell) return shell;
           }
-
-          if (
-            request.mode ===
-            "navigate"
-          ) {
-            const shell =
-              await cache.match(
-                "./index.html",
-                {
-                  ignoreSearch:
-                    true
-                }
-              );
-
-            if (shell) {
-              return shell;
-            }
-          }
-
           throw error;
         }
       })()
