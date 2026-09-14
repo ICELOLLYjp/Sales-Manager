@@ -20,14 +20,14 @@ function installStyles() {
   style.id = STYLE_ID;
   style.textContent = `
     .pos-ux-history-button {
-      min-height:36px;
-      padding:0 12px;
+      min-height:42px;
+      padding:0 14px;
       border:1px solid #deded9;
-      border-radius:10px;
+      border-radius:12px;
       background:#f3f3f0;
       color:#222;
-      font-weight:700;
-      font-size:12px;
+      font-weight:800;
+      font-size:13px;
       white-space:nowrap;
     }
 
@@ -168,9 +168,17 @@ function enhancePosHistoryShortcut() {
   if (!posNav?.classList.contains("active")) return;
   if (document.getElementById(HISTORY_BUTTON_ID)) return;
 
-  const title = cardTitle("会計");
-  const header = title?.parentElement;
-  if (!header) return;
+  const view = document.querySelector("#view");
+  if (!view) return;
+
+  const bar = document.createElement("div");
+  bar.id = `${HISTORY_BUTTON_ID}Bar`;
+  bar.style.cssText = [
+    "display:flex",
+    "justify-content:flex-end",
+    "align-items:center",
+    "margin:0 0 10px"
+  ].join(";");
 
   const button = document.createElement("button");
   button.id = HISTORY_BUTTON_ID;
@@ -179,7 +187,8 @@ function enhancePosHistoryShortcut() {
   button.textContent = "会計履歴";
   button.addEventListener("click", openActiveSessionHistory);
 
-  header.appendChild(button);
+  bar.appendChild(button);
+  view.insertBefore(bar, view.firstChild);
 }
 
 function enhanceBackToPos() {
