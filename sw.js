@@ -1,5 +1,5 @@
 const CACHE_NAME =
-  "icelolly-sales-shell-20260914-inventory-close-ui-1";
+  "icelolly-sales-shell-20260914-all-size-cells-1";
 
 const CORE_ASSETS = [
   "./",
