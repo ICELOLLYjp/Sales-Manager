@@ -4,7 +4,7 @@ function normalizeSearchText(value) {
   return String(value || "")
     .normalize("NFKC")
     .toLocaleLowerCase("ja")
-    .replace(/\\s+/g, " ")
+    .replace(/\s+/g, " ")
     .trim();
 }
 
@@ -12,7 +12,7 @@ function parseMoneyText(value) {
   const normalized = String(value || "")
     .normalize("NFKC")
     .replace(/,/g, "")
-    .replace(/[^\\d.\\-]/g, "");
+    .replace(/[^\d.\-]/g, "");
   const number = Number(normalized);
   return Number.isFinite(number) ? number : null;
 }
