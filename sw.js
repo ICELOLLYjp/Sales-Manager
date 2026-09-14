@@ -1,5 +1,5 @@
 const CACHE_NAME =
-  "icelolly-sales-shell-20260914-history-amount-exact-fix-1";
+  "icelolly-sales-shell-20260914-history-product-info-1";
 
 const CORE_ASSETS = [
   "./",
