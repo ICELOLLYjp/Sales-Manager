@@ -397,8 +397,7 @@ function readTshirtQty(
   master,
   target
 ) {
-  return Math.max(
-    0,
+  const value =
     Number(
       master
         ?.inventory_v2
@@ -406,9 +405,12 @@ function readTshirtQty(
         ?.[target.designId]
         ?.[target.colorId]
         ?.[target.sizeId]
-        ?.qty || 0
-    )
-  );
+        ?.qty ?? 0
+    );
+
+  return Number.isFinite(value)
+    ? value
+    : 0;
 }
 
 function saleMode(items) {
@@ -477,6 +479,80 @@ function sessionEventOpeningMap(
 
   return map;
 }
+
+function sessionEventFlowAdjustmentMap(
+  session
+) {
+  const rows =
+    Array.isArray(
+      session
+        ?.inventoryCount
+        ?.flowEntries
+    )
+      ? session
+          .inventoryCount
+          .flowEntries
+      : [];
+
+  const map =
+    new Map();
+
+  rows.forEach(
+    row => {
+      const variantId =
+        String(
+          row?.variantId ||
+          ""
+        ).trim();
+
+      const type =
+        String(
+          row?.type ||
+          ""
+        ).trim();
+
+      if (
+        !variantId ||
+        (
+          type !== "restock" &&
+          type !== "opening_correction"
+        )
+      ) {
+        return;
+      }
+
+      let quantity =
+        Math.trunc(
+          safeNumber(
+            row?.quantity
+          )
+        );
+
+      if (
+        type === "restock"
+      ) {
+        quantity =
+          Math.max(
+            0,
+            quantity
+          );
+      }
+
+      map.set(
+        variantId,
+        (
+          map.get(
+            variantId
+          ) || 0
+        ) +
+        quantity
+      );
+    }
+  );
+
+  return map;
+}
+
 
 function sessionEventSoldMap(
   session
@@ -1084,18 +1160,27 @@ export async function commitQuickSale({
         }
 
         /*
-         * If an event opening inventory exists, SKU sales are constrained
-         * to that event allocation rather than the company's total stock.
-         * Quick sales remain unallocated and do not change a specific SKU.
+         * Event availability follows:
+         * opening + Restock + opening correction - exact SKU sales.
+         *
+         * A shortage no longer blocks checkout. The sale is saved and a
+         * warning is returned so the physical count can be corrected later.
          */
         const eventOpeningMap =
           sessionEventOpeningMap(
             session
           );
 
+        const eventFlowAdjustmentMap =
+          sessionEventFlowAdjustmentMap(
+            session
+          );
+
         const eventInventoryEnabled =
-          eventOpeningMap.size >
-          0;
+          (
+            eventOpeningMap.size > 0 ||
+            eventFlowAdjustmentMap.size > 0
+          );
 
         const eventSaleQtyMap =
           eventSaleQuantityByVariant(
@@ -1111,6 +1196,12 @@ export async function commitQuickSale({
           ...currentEventSoldByVariant
         };
 
+        const inventoryWarnings =
+          [];
+
+        const eventAvailabilityBefore =
+          new Map();
+
         if (
           eventInventoryEnabled
         ) {
@@ -1120,24 +1211,22 @@ export async function commitQuickSale({
               variantId
             ) => {
               const openingQuantity =
-                eventOpeningMap.get(
-                  variantId
+                Math.trunc(
+                  safeNumber(
+                    eventOpeningMap.get(
+                      variantId
+                    )
+                  )
                 );
 
-              if (
-                openingQuantity ===
-                undefined
-              ) {
-                const error =
-                  new Error(
-                    "このSKUはイベント開始在庫に含まれていません。"
-                  );
-
-                error.code =
-                  "event-stock-not-carried";
-
-                throw error;
-              }
+              const flowAdjustment =
+                Math.trunc(
+                  safeNumber(
+                    eventFlowAdjustmentMap.get(
+                      variantId
+                    )
+                  )
+                );
 
               const soldQuantity =
                 Math.max(
@@ -1152,25 +1241,31 @@ export async function commitQuickSale({
                 );
 
               const availableQuantity =
-                Math.max(
-                  0,
-                  openingQuantity -
-                  soldQuantity
-                );
+                openingQuantity +
+                flowAdjustment -
+                soldQuantity;
+
+              eventAvailabilityBefore.set(
+                variantId,
+                availableQuantity
+              );
 
               if (
                 availableQuantity <
                 saleQuantity
               ) {
-                const error =
-                  new Error(
-                    `イベント在庫が不足しています。残り ${availableQuantity} 点です。`
-                  );
-
-                error.code =
-                  "event-stock-insufficient";
-
-                throw error;
+                inventoryWarnings.push({
+                  type:
+                    "event_stock_negative",
+                  variantId,
+                  availableBefore:
+                    availableQuantity,
+                  requestedQuantity:
+                    saleQuantity,
+                  projectedAfter:
+                    availableQuantity -
+                    saleQuantity
+                });
               }
 
               nextEventSoldByVariant[
@@ -1333,6 +1428,38 @@ export async function commitQuickSale({
 
                 eventInventoryApplied:
                   eventInventoryEnabled,
+
+                eventAvailableBefore:
+                  eventInventoryEnabled
+                    ? (
+                        eventAvailabilityBefore.get(
+                          item.variantId
+                        ) ?? null
+                      )
+                    : null,
+
+                eventAvailableAfter:
+                  eventInventoryEnabled
+                    ? (
+                        (
+                          eventAvailabilityBefore.get(
+                            item.variantId
+                          ) ?? 0
+                        ) -
+                        item.quantity
+                      )
+                    : null,
+
+                eventInventoryWarning:
+                  eventInventoryEnabled &&
+                  (
+                    (
+                      eventAvailabilityBefore.get(
+                        item.variantId
+                      ) ?? 0
+                    ) <
+                    item.quantity
+                  ),
 
                 category:
                   variant.category ||
@@ -1566,32 +1693,47 @@ export async function commitQuickSale({
                     target
                   );
 
+                const nextQty =
+                  currentQty -
+                  item.quantity;
+
                 if (
                   currentQty <
                   item.quantity
                 ) {
-                  const error =
-                    new Error(
-                      `${item.label} の在庫が不足しています。現在 ${currentQty} 点です。`
-                    );
-
-                  error.code =
-                    "stock-insufficient";
-
-                  throw error;
+                  inventoryWarnings.push({
+                    type:
+                      "global_stock_negative",
+                    source:
+                      "tshirt",
+                    variantId:
+                      item.variantId,
+                    label:
+                      item.label,
+                    availableBefore:
+                      currentQty,
+                    requestedQuantity:
+                      item.quantity,
+                    projectedAfter:
+                      nextQty
+                  });
                 }
 
                 tshirtTargets.push({
                   target,
-                  nextQty:
-                    currentQty -
-                    item.quantity
+                  nextQty
                 });
 
                 return {
                   ...item,
                   inventoryApplied:
                     true,
+                  inventoryWarning:
+                    nextQty < 0,
+                  inventoryQtyBefore:
+                    currentQty,
+                  inventoryQtyAfter:
+                    nextQty,
                   reconciliationStatus:
                     "reconciled"
                 };
@@ -1627,31 +1769,46 @@ export async function commitQuickSale({
                   );
                 }
 
-                const currentQty =
-                  Math.max(
-                    0,
-                    Number(
-                      accessoryDesigns[
-                        index
-                      ]?.[
-                        target.stockField
-                      ] || 0
-                    )
+                const rawCurrentQty =
+                  Number(
+                    accessoryDesigns[
+                      index
+                    ]?.[
+                      target.stockField
+                    ] ?? 0
                   );
+
+                const currentQty =
+                  Number.isFinite(
+                    rawCurrentQty
+                  )
+                    ? rawCurrentQty
+                    : 0;
+
+                const nextQty =
+                  currentQty -
+                  item.quantity;
 
                 if (
                   currentQty <
                   item.quantity
                 ) {
-                  const error =
-                    new Error(
-                      `${item.label} の在庫が不足しています。現在 ${currentQty} 点です。`
-                    );
-
-                  error.code =
-                    "stock-insufficient";
-
-                  throw error;
+                  inventoryWarnings.push({
+                    type:
+                      "global_stock_negative",
+                    source:
+                      "accessory",
+                    variantId:
+                      item.variantId,
+                    label:
+                      item.label,
+                    availableBefore:
+                      currentQty,
+                    requestedQuantity:
+                      item.quantity,
+                    projectedAfter:
+                      nextQty
+                  });
                 }
 
                 accessoryDesigns[
@@ -1659,13 +1816,18 @@ export async function commitQuickSale({
                 ][
                   target.stockField
                 ] =
-                  currentQty -
-                  item.quantity;
+                  nextQty;
 
                 return {
                   ...item,
                   inventoryApplied:
                     true,
+                  inventoryWarning:
+                    nextQty < 0,
+                  inventoryQtyBefore:
+                    currentQty,
+                  inventoryQtyAfter:
+                    nextQty,
                   reconciliationStatus:
                     "reconciled"
                 };
@@ -1946,8 +2108,16 @@ export async function commitQuickSale({
 
           eventInventoryMode:
             eventInventoryEnabled
-              ? "opening_allocation"
+              ? "flow_allocation"
               : "global_only",
+
+          inventoryWarnings,
+
+          inventoryWarningCount:
+            inventoryWarnings.length,
+
+          hasInventoryWarning:
+            inventoryWarnings.length > 0,
 
           inventoryMode:
             reconciliationStatus ===
@@ -1965,6 +2135,14 @@ export async function commitQuickSale({
             "reconciled",
 
           reconciliationStatus,
+
+          inventoryWarnings,
+
+          inventoryWarningCount:
+            inventoryWarnings.length,
+
+          hasInventoryWarning:
+            inventoryWarnings.length > 0,
 
           paymentMethod:
             String(
