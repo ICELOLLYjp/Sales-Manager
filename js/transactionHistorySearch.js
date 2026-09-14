@@ -16,6 +16,18 @@ const CATEGORY_LABELS = {
 const transactionCache = new Map();
 const variantCache = new Map();
 
+function debounce(fn, wait = 140) {
+  let timer = null;
+
+  return (...args) => {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => {
+      timer = null;
+      fn(...args);
+    }, wait);
+  };
+}
+
 function normalizeSearchText(value) {
   return String(value || "")
     .normalize("NFKC")
@@ -260,7 +272,7 @@ async function renderProductInfo(row, section) {
     );
 
     controls?.dispatchEvent(
-      new Event("input", { bubbles: true })
+      new CustomEvent("productindexready", { bubbles: true })
     );
 
   } catch (error) {
@@ -456,8 +468,29 @@ function enhanceHistorySection({ title, section }) {
     }
   }
 
-  searchInput?.addEventListener("input", applyFilter);
-  amountFilter?.addEventListener("input", applyFilter);
+  let composing = false;
+  const applyFilterDebounced = debounce(applyFilter, 140);
+
+  searchInput?.addEventListener("compositionstart", () => {
+    composing = true;
+  });
+
+  searchInput?.addEventListener("compositionend", () => {
+    composing = false;
+    applyFilter();
+  });
+
+  searchInput?.addEventListener("input", () => {
+    if (composing) return;
+    applyFilterDebounced();
+  });
+
+  searchInput?.addEventListener("productindexready", () => {
+    if (composing) return;
+    applyFilterDebounced();
+  });
+
+  amountFilter?.addEventListener("input", applyFilterDebounced);
   paymentFilter?.addEventListener("change", applyFilter);
   statusFilter?.addEventListener("change", applyFilter);
 
