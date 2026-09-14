@@ -147,7 +147,7 @@ function itemDisplay(item, variant) {
   };
 }
 
-async function renderProductInfo(row) {
+async function renderProductInfo(row, section) {
   if (!row || row.querySelector(`.${PRODUCT_INFO_CLASS}`)) return;
 
   const transactionId = transactionIdFromRow(row);
@@ -245,8 +245,17 @@ async function renderProductInfo(row) {
     }
 
     row.dataset.productInfoReady = "true";
+    row.dataset.productSearch = normalizeSearchText(
+      rendered
+        .map(item => [
+          item.design,
+          item.detail,
+          item.categoryLabel
+        ].filter(Boolean).join(" "))
+        .join(" ")
+    );
 
-    const controls = row.closest("div")?.querySelector(
+    const controls = section?.querySelector(
       `.${CONTROL_CLASS} .transaction-history-search-input`
     );
 
@@ -286,7 +295,7 @@ function enhanceHistorySection({ title, section }) {
 
   if (!transactionRows.length) return;
 
-  transactionRows.forEach(renderProductInfo);
+  transactionRows.forEach(row => renderProductInfo(row, section));
 
   if (section.querySelector(`.${CONTROL_CLASS}`)) {
     return;
@@ -407,11 +416,13 @@ function enhanceHistorySection({ title, section }) {
 
     transactionRows.forEach(row => {
       const rowText = normalizeSearchText(row.textContent);
+      const productText = normalizeSearchText(row.dataset.productSearch || "");
+      const combinedSearchText = `${rowText} ${productText}`.trim();
       const isStripe = rowText.includes("stripe");
       const isVoided = rowText.includes("取消済み");
       const netSales = transactionNetSales(row);
 
-      const searchMatches = !query || rowText.includes(query);
+      const searchMatches = !query || combinedSearchText.includes(query);
       const amountMatches = amount === null || (
         Number.isFinite(amount) &&
         netSales !== null &&
