@@ -8,7 +8,7 @@ import { listAllProductVariants, registerTshirtVariant, registerGeneralProduct, 
 import { CATEGORY_TEMPLATES, getCategoryTemplate } from "./data/categoryTemplates.js";
 import { loadPosPriceConfig, savePosPriceConfig, QUICK_PRICE_CURRENCIES } from "./services/priceBookService.js?v=20260911-mixmatch-2";
 import { listSalesSessions, createEventSession, updateEventSession, updateEventExpenses, SESSION_CURRENCIES } from "./services/sessionService.js";
-import { commitQuickSale, voidSaleTransaction } from "./services/transactionService.js?v=20260911-stripe-payment-1";
+import { commitQuickSale, voidSaleTransaction } from "./services/transactionService.js?v=20260914-event-flow-pos-1";
 import { listSessionTransactions } from "./services/salesHistoryService.js?v=20260910-setdiscount-2";
 import { saveCategoryCost, loadAllCategoryCostHistories, resolveCategoryUnitCost, saveTshirtBodyCost, loadTshirtBodyCostHistories, loadTshirtCostCache, resolveBodyUnitCost, saveVariantCost, loadVariantCostHistories, calculateResolvedCogs } from "./services/costHistoryService.js?v=20260911-cost-cache-server-sync-1";
 import { loadPinkoiTshirtCatalog, syncPinkoiTshirtCatalog } from "./services/pinkoiCatalogService.js";
@@ -17196,6 +17196,24 @@ async function renderPos(
                     lastCheckoutResult.transactionId
                   )}
                 </div>
+
+                ${
+                  lastCheckoutResult
+                    ?.hasInventoryWarning
+                    ? `
+                      <div
+                        class="warning"
+                        style="
+                          margin-top:10px;
+                          line-height:1.5;
+                        "
+                      >
+                        在庫不足またはマイナス在庫になったSKUがあります。
+                        売上は保存済みです。在庫運用で実数・補充・修正を確認してください。
+                      </div>
+                    `
+                    : ""
+                }
               </section>
             `
             : ""
