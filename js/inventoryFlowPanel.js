@@ -1,6 +1,6 @@
 import { getFirebaseState } from "./firebase.js";
 import { listOpenEventSessions, loadEventInventoryFlow, addEventInventoryAdjustment, deleteEventInventoryAdjustment, saveEventInventoryCheckpoint, deleteEventInventoryCheckpoint } from "./services/inventoryFlowService.js?v=20260913-inventory-flow-1";
-import { loadTshirtProductVariants } from "./services/catalogService.js";
+import { tshirtAdapter } from "./inventoryAdapters/tshirtAdapter.js";
 import { finalizeEventFromInventoryFlow } from "./services/inventoryFlowFinalizeService.js?v=20260914-inventory-flow-close-1";
 const PANEL_ID="inventoryFlowOverlay",BUTTON_ID="inventoryFlowOpenButton";let selectedSessionId="",loaded=null;
 const esc=v=>String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
@@ -20,25 +20,67 @@ function installStyles(){if(document.querySelector("#inventoryFlowStyles"))retur
 @media(max-width:600px){#${BUTTON_ID}{font-size:11px;padding:6px 8px;margin-right:5px}.if-card{padding:9px}.if-matrix{min-width:545px}.if-matrix th:first-child,.if-matrix td:first-child{width:135px;min-width:135px}.if-cell{min-width:62px}}`;document.head.appendChild(s)}
 function ensureButton(){const top=document.querySelector(".topbar");if(!top||document.querySelector(`#${BUTTON_ID}`))return;const b=document.createElement("button");b.id=BUTTON_ID;b.type="button";b.textContent="在庫運用";b.addEventListener("click",openPanel);const sync=document.querySelector("#syncStatus");sync?top.insertBefore(b,sync):top.appendChild(b)}
 function parseRow(row){const parts=String(row.detail||"").split("/").map(x=>x.trim()).filter(Boolean),size=parts.at(-1)||"",tshirt=row.category==="tshirt"||["S","M","L","XL","XXL"].includes(size);return{...row,_size:tshirt?size:"",_group:tshirt?`${row.label}|||${parts.slice(0,-1).join(" / ")}`:""}}
+function decodeTshirtInventoryKey(value){
+  const raw=String(value||"");
+  if(!raw.startsWith("tshirt:"))return null;
+  const parts=raw.slice(7).split("|").map(x=>decodeURIComponent(x));
+  if(parts.length!==4)return null;
+  return {bodyId:parts[0],designId:parts[1],colorId:parts[2],sizeId:parts[3]};
+}
 async function addZeroStockRows(state){
   try{
-    const base=(state.rows||[]).map(parseRow);
-    const groups=new Set(base.filter(r=>r._group).map(r=>r._group));
-    if(!groups.size)return;
-    const existing=new Set((state.rows||[]).map(r=>r.variantId));
-    const variants=await loadTshirtProductVariants();
-    for(const v of variants){
-      const size=String(v.size||v.sizeId||"").trim();
-      if(!["S","M","L","XL","XXL"].includes(size))continue;
-      const label=String(v.design||v.designId||"").trim();
-      const detail=`${String(v.body||v.bodyId||"").trim()} / ${String(v.color||v.colorId||"").trim()} / ${size}`;
-      const group=`${label}|||${detail.split("/").slice(0,-1).map(x=>x.trim()).join(" / ")}`;
-      const id=String(v.id||v.variantId||"").trim();
-      if(!id||existing.has(id)||!groups.has(group))continue;
-      state.rows.push({variantId:id,category:"tshirt",inventorySource:v.inventorySource||"tshirt",inventoryKey:v.inventoryKey||"",sku:v.sku||id,label,detail,openingQty:0,restockQty:0,openingCorrection:0,skuSales:Number(state.soldByVariant?.[id]||0),expectedQty:-Number(state.soldByVariant?.[id]||0),physicalQty:null,difference:null});
-      existing.add(id);
+    const sizes=await tshirtAdapter.getMasterOptions();
+    const sizeOptions=(sizes?.sizes||[])
+      .filter(x=>["S","M","L","XL","XXL"].includes(String(x.name||"").trim()))
+      .sort((a,b)=>Number(a.order||999)-Number(b.order||999));
+    if(!sizeOptions.length)return;
+
+    const existingById=new Set((state.rows||[]).map(r=>r.variantId));
+    const groups=new Map();
+
+    (state.rows||[]).forEach(row=>{
+      const target=decodeTshirtInventoryKey(row.inventoryKey);
+      if(!target)return;
+      const key=`${target.bodyId}|${target.designId}|${target.colorId}`;
+      if(!groups.has(key))groups.set(key,{...target,row});
+    });
+
+    for(const group of groups.values()){
+      const baseParts=String(group.row.detail||"").split("/").map(x=>x.trim()).filter(Boolean);
+      const baseBody=baseParts[0]||"";
+      const baseColor=baseParts[1]||"";
+      for(const size of sizeOptions){
+        const draft=await tshirtAdapter.buildVariantDraft({
+          bodyId:group.bodyId,
+          designId:group.designId,
+          colorId:group.colorId,
+          sizeId:size.id
+        });
+        if(existingById.has(draft.variantId))continue;
+        const label=group.row.label||draft.design||draft.variantId;
+        const detail=`${baseBody||draft.body} / ${baseColor||draft.color} / ${draft.size}`;
+        state.rows.push({
+          variantId:draft.variantId,
+          category:"tshirt",
+          inventorySource:"tshirt",
+          inventoryKey:draft.stockTargetId,
+          sku:draft.sku||draft.variantId,
+          label,
+          detail,
+          openingQty:0,
+          restockQty:0,
+          openingCorrection:0,
+          skuSales:Number(state.soldByVariant?.[draft.variantId]||0),
+          expectedQty:-Number(state.soldByVariant?.[draft.variantId]||0),
+          physicalQty:null,
+          difference:null
+        });
+        existingById.add(draft.variantId);
+      }
     }
-  }catch(error){console.warn("zero stock rows skipped",error);}
+  }catch(error){
+    console.warn("zero stock rows skipped",error);
+  }
 }
 function latestItem(row,state){const cp=state?.latestCheckpoint;if(!cp)return null;return(cp.items||[]).find(x=>x.variantId===row.variantId)||null}
 function rowChanged(row,state){const cp=state?.latestCheckpoint;if(!cp)return true;const li=latestItem(row,state);if(!li)return true;if(Number(cp.soldByVariantSnapshot?.[row.variantId]||0)!==Number(state.soldByVariant?.[row.variantId]||0))return true;return(state.flowEntries||[]).some(e=>e.variantId===row.variantId&&String(e.recordedAtIso||"")>String(cp.capturedAtIso||""))}
