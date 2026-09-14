@@ -1,5 +1,5 @@
 const CACHE_NAME =
-  "icelolly-sales-shell-20260914-all-size-cells-1";
+  "icelolly-sales-shell-20260914-pos-ux-1";
 
 const CORE_ASSETS = [
   "./",
@@ -12,6 +12,7 @@ const CORE_ASSETS = [
   "./js/auth.js",
   "./js/views/dashboardView.js",
   "./js/inventoryFlowPanel.js",
+  "./js/posUxEnhancements.js",
 
   "./js/inventoryAdapters/tshirtAdapter.js",
   "./js/inventoryAdapters/accessoryAdapter.js",
