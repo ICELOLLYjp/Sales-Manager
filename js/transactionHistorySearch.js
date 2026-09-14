@@ -16,7 +16,7 @@ const CATEGORY_LABELS = {
 const transactionCache = new Map();
 const variantCache = new Map();
 
-function debounce(fn, wait = 140) {
+function debounce(fn, wait = 80) {
   let timer = null;
 
   return (...args) => {
@@ -160,10 +160,22 @@ function itemDisplay(item, variant) {
 }
 
 async function renderProductInfo(row, section) {
-  if (!row || row.querySelector(`.${PRODUCT_INFO_CLASS}`)) return;
+  if (
+    !row ||
+    row.dataset.productInfoLoading === "true" ||
+    row.dataset.productInfoReady === "true" ||
+    row.querySelector(`.${PRODUCT_INFO_CLASS}`)
+  ) {
+    return;
+  }
+
+  row.dataset.productInfoLoading = "true";
 
   const transactionId = transactionIdFromRow(row);
-  if (!transactionId) return;
+  if (!transactionId) {
+    delete row.dataset.productInfoLoading;
+    return;
+  }
 
   try {
     const transaction = await loadTransaction(transactionId);
@@ -257,6 +269,7 @@ async function renderProductInfo(row, section) {
     }
 
     row.dataset.productInfoReady = "true";
+    delete row.dataset.productInfoLoading;
     row.dataset.productSearch = normalizeSearchText(
       rendered
         .map(item => [
@@ -276,6 +289,7 @@ async function renderProductInfo(row, section) {
     );
 
   } catch (error) {
+    delete row.dataset.productInfoLoading;
     console.warn("Transaction product info load failed", transactionId, error);
   }
 }
@@ -469,7 +483,7 @@ function enhanceHistorySection({ title, section }) {
   }
 
   let composing = false;
-  const applyFilterDebounced = debounce(applyFilter, 140);
+  const applyFilterDebounced = debounce(applyFilter, 80);
 
   searchInput?.addEventListener("compositionstart", () => {
     composing = true;
@@ -502,10 +516,22 @@ function enhanceTransactionHistory() {
 }
 
 const view = document.querySelector("#view");
+let enhanceScheduled = false;
+
+function scheduleEnhanceTransactionHistory() {
+  if (enhanceScheduled) return;
+
+  enhanceScheduled = true;
+
+  requestAnimationFrame(() => {
+    enhanceScheduled = false;
+    enhanceTransactionHistory();
+  });
+}
 
 if (view) {
   const observer = new MutationObserver(() => {
-    enhanceTransactionHistory();
+    scheduleEnhanceTransactionHistory();
   });
 
   observer.observe(view, {
@@ -514,4 +540,4 @@ if (view) {
   });
 }
 
-enhanceTransactionHistory();
+scheduleEnhanceTransactionHistory();
