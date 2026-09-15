@@ -1,7 +1,7 @@
 import { initFirebase } from "./firebase.js";
 import { initAuth, loginWithGoogle, logout } from "./auth.js";
 import { renderDashboard } from "./views/dashboardView.js";
-import { tshirtAdapter } from "./inventoryAdapters/tshirtAdapter.js";
+import { tshirtAdapter } from "./inventoryAdapters/tshirtAdapter.js?v=20260915-empty-size-cells-1";
 import { accessoryAdapter } from "./inventoryAdapters/accessoryAdapter.js";
 import { loadTshirtProductVariants, syncTshirtCurrentStockRows } from "./services/catalogService.js";
 import { listAllProductVariants, registerTshirtVariant, registerGeneralProduct, syncAccessoryCatalogRows } from "./services/productAdminService.js?v=20260911-cost-cache-import-fix-2";
@@ -4960,6 +4960,26 @@ function buildEventInventorySnapshotRows({
         category:
           "tshirt",
 
+        bodyId:
+          row.bodyId ||
+          variant.bodyId ||
+          "",
+
+        designId:
+          row.designId ||
+          variant.designId ||
+          "",
+
+        colorId:
+          row.colorId ||
+          variant.colorId ||
+          "",
+
+        sizeId:
+          row.sizeId ||
+          variant.sizeId ||
+          "",
+
         inventorySource:
           "tshirt",
 
@@ -5128,6 +5148,18 @@ function buildEventInventorySnapshotRows({
           variantId,
           category:
             "tshirt",
+          bodyId:
+            variant.bodyId ||
+            "",
+          designId:
+            variant.designId ||
+            "",
+          colorId:
+            variant.colorId ||
+            "",
+          sizeId:
+            variant.sizeId ||
+            "",
           inventorySource:
             "tshirt",
           inventoryKey:
@@ -5185,6 +5217,164 @@ function buildEventInventorySnapshotRows({
         openingQty:
           0
       });
+    }
+  );
+
+  const tshirtGroups =
+    new Map();
+
+  rows
+    .filter(
+      row =>
+        row.category ===
+          "tshirt" &&
+        row.bodyId &&
+        row.designId &&
+        row.colorId
+    )
+    .forEach(
+      row => {
+        const key =
+          [
+            row.bodyId,
+            row.designId,
+            row.colorId
+          ].join("|");
+
+        if (
+          !tshirtGroups.has(key)
+        ) {
+          tshirtGroups.set(
+            key,
+            {
+              sample: row,
+              sizes:
+                new Set()
+            }
+          );
+        }
+
+        tshirtGroups
+          .get(key)
+          .sizes
+          .add(
+            String(
+              row.size ||
+              ""
+            ).trim()
+          );
+      }
+    );
+
+  const masterSizes =
+    (
+      tshirtSnapshot
+        ?.masterOptions
+        ?.sizes ||
+      []
+    )
+      .filter(
+        size =>
+          [
+            "S",
+            "M",
+            "L",
+            "XL",
+            "XXL"
+          ].includes(
+            String(
+              size.name ||
+              ""
+            ).trim()
+          )
+      );
+
+  tshirtGroups.forEach(
+    group => {
+      masterSizes.forEach(
+        size => {
+          const sizeName =
+            String(
+              size.name ||
+              ""
+            ).trim();
+
+          if (
+            group.sizes.has(
+              sizeName
+            )
+          ) {
+            return;
+          }
+
+          const sample =
+            group.sample;
+
+          const encodedParts =
+            [
+              sample.bodyId,
+              sample.designId,
+              sample.colorId,
+              size.id
+            ].map(
+              value =>
+                encodeURIComponent(
+                  String(
+                    value ||
+                    ""
+                  )
+                )
+            );
+
+          const variantId =
+            [
+              "tshirt",
+              ...encodedParts
+            ].join("__");
+
+          addRow({
+            variantId,
+            category:
+              "tshirt",
+            bodyId:
+              sample.bodyId,
+            designId:
+              sample.designId,
+            colorId:
+              sample.colorId,
+            sizeId:
+              size.id,
+            inventorySource:
+              "tshirt",
+            inventoryKey:
+              `tshirt:${encodedParts.join("|")}`,
+            sku:
+              variantId,
+            label:
+              sample.label,
+            body:
+              sample.body,
+            color:
+              sample.color,
+            size:
+              sizeName,
+            detail:
+              [
+                sample.body,
+                sample.color,
+                sizeName
+              ]
+                .filter(Boolean)
+                .join(" / "),
+            openingQty:
+              0
+          });
+
+          group.sizes.add(
+            sizeName
+          );
+        }
+      );
     }
   );
 
@@ -7888,7 +8078,7 @@ async function renderSessions(
                             line-height:1.5;
                           "
                         >
-                          Tシャツはデザインを縦、サイズを横に並べています。Body・Colorが違う場合は別行です。登録済みの在庫0 SKUも表示し、0から入力できます。「この色を全在庫追加」は各色ごとに表示し、「デザイン全体を追加」は同じDesignにつき1つだけ表示します。
+                          Tシャツはデザインを縦、サイズを横に並べています。Body・Colorが違う場合は別行です。在庫0の登録済みSKUと、これまで「—」だったサイズも0として表示し、数量を調整できます。「この色を全在庫追加」は各色ごとに表示し、「デザイン全体を追加」は同じDesignにつき1つだけ表示します。
                         </div>
 
                         <div
@@ -22715,7 +22905,7 @@ async function registerOfflineServiceWorker() {
     await navigator
       .serviceWorker
       .register(
-        "./sw.js?v=20260915-zero-sku-2"
+        "./sw.js?v=20260915-empty-size-cells-1"
       );
 
   } catch (error) {

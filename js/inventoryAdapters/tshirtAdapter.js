@@ -197,6 +197,8 @@ export const tshirtAdapter = {
         totalStock,
         activeSkuCount: rows.length
       },
+      masterOptions:
+        buildMasterOptions(master),
       rows
     };
   },
