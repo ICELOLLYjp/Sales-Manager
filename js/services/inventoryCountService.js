@@ -514,6 +514,7 @@ export async function saveEventOpeningInventory({
 export async function saveEventClosingInventory({
   sessionId,
   items,
+  openingItems = [],
   savedByEmail = ""
 }) {
   const cleanSessionId =
@@ -604,12 +605,50 @@ export async function saveEventClosingInventory({
     );
   }
 
+  const completedOpeningItems =
+    current.opening.items.map(
+      item => ({
+        ...item
+      })
+    );
+
   const openingIds =
     new Set(
-      current.opening.items.map(
+      completedOpeningItems.map(
         item =>
           item.variantId
       )
+    );
+
+  (
+    Array.isArray(openingItems)
+      ? openingItems
+      : []
+  )
+    .map(
+      normalizeOpeningItem
+    )
+    .forEach(
+      item => {
+        if (
+          !item.variantId ||
+          openingIds.has(
+            item.variantId
+          )
+        ) {
+          return;
+        }
+
+        completedOpeningItems.push({
+          ...item,
+          openingQty:
+            0
+        });
+
+        openingIds.add(
+          item.variantId
+        );
+      }
     );
 
   const safeItems =
@@ -633,6 +672,9 @@ export async function saveEventClosingInventory({
         items:
           safeItems
       },
+
+      "inventoryCount.opening.items":
+        completedOpeningItems,
 
       "inventoryCount.updatedAt":
         serverTimestamp(),

@@ -91,7 +91,7 @@ async function inventoryCountService() {
   ) {
     inventoryCountServicePromise =
       import(
-        "./services/inventoryCountService.js?v=20260915-zero-sku-2"
+        "./services/inventoryCountService.js?v=20260915-closing-empty-cells-1"
       )
         .catch(
           error => {
@@ -5415,6 +5415,79 @@ function buildEventInventorySnapshotRows({
     );
 }
 
+function completeEventOpeningItems(
+  openingItems,
+  inventoryRows
+) {
+  const completed =
+    (
+      Array.isArray(openingItems)
+        ? openingItems
+        : []
+    ).map(
+      item => ({
+        ...item
+      })
+    );
+
+  const existingIds =
+    new Set(
+      completed.map(
+        item =>
+          item.variantId
+      )
+    );
+
+  (
+    Array.isArray(inventoryRows)
+      ? inventoryRows
+      : []
+  ).forEach(
+    row => {
+      if (
+        !row?.variantId ||
+        existingIds.has(
+          row.variantId
+        )
+      ) {
+        return;
+      }
+
+      completed.push({
+        variantId:
+          row.variantId,
+        category:
+          row.category ||
+          "",
+        inventorySource:
+          row.inventorySource ||
+          "",
+        inventoryKey:
+          row.inventoryKey ||
+          "",
+        sku:
+          row.sku ||
+          row.variantId,
+        label:
+          row.label ||
+          row.design ||
+          row.variantId,
+        detail:
+          row.detail ||
+          "",
+        openingQty:
+          0
+      });
+
+      existingIds.add(
+        row.variantId
+      );
+    }
+  );
+
+  return completed;
+}
+
 const EVENT_TSHIRT_SIZE_ORDER = [
   "S",
   "M",
@@ -7527,8 +7600,13 @@ async function renderSessions(
               const openingItems =
                 inventoryCountData
                   ?.opening
-                  ?.items ||
-                [];
+                  ? completeEventOpeningItems(
+                      inventoryCountData
+                        .opening
+                        .items,
+                      eventCurrentInventoryRows
+                    )
+                  : [];
 
               const currentMap =
                 currentInventoryMap(
@@ -14235,8 +14313,13 @@ async function renderSessions(
           const openingItems =
             inventoryCountData
               ?.opening
-              ?.items ||
-            [];
+              ? completeEventOpeningItems(
+                  inventoryCountData
+                    .opening
+                    .items,
+                  eventCurrentInventoryRows
+                )
+              : [];
 
           const rows =
             openingItems.map(
@@ -14330,6 +14413,8 @@ async function renderSessions(
 
               items:
                 rows,
+
+              openingItems,
 
               savedByEmail:
                 currentUser?.email ||
@@ -22905,7 +22990,7 @@ async function registerOfflineServiceWorker() {
     await navigator
       .serviceWorker
       .register(
-        "./sw.js?v=20260915-empty-size-cells-1"
+        "./sw.js?v=20260915-closing-empty-cells-1"
       );
 
   } catch (error) {
