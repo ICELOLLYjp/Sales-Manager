@@ -1,5 +1,5 @@
 const CACHE_NAME =
-  "icelolly-sales-shell-20260916-skip-count-provisional-1";
+  "icelolly-sales-shell-20260916-stage-labels-1";
 
 const CORE_ASSETS = [
   "./",
@@ -12,6 +12,7 @@ const CORE_ASSETS = [
   "./js/quickAllocationUi.js",
   "./js/unidentifiedFinalizeUi.js",
   "./js/eventCloseHubUi.js",
+  "./js/eventCloseStageUi.js",
   "./js/firebase.js",
   "./js/auth.js",
   "./js/views/dashboardView.js",
