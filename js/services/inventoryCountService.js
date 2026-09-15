@@ -192,6 +192,19 @@ function normalizeCount(
     value || {};
 
   return {
+    quickAllocations:
+      (Array.isArray(source?.quickAllocations)
+        ? source.quickAllocations
+        : [])
+        .map(item => ({
+          allocationKey: text(item?.allocationKey),
+          transactionId: text(item?.transactionId),
+          itemIndex: nonNegativeInt(item?.itemIndex),
+          unitIndex: nonNegativeInt(item?.unitIndex),
+          variantId: text(item?.variantId)
+        }))
+        .filter(item => item.allocationKey && item.variantId),
+
     soldByVariant:
       normalizeSoldByVariant(
         source?.soldByVariant
@@ -313,6 +326,7 @@ export async function loadEventInventoryCount(
     return {
       opening: null,
       closing: null,
+      quickAllocations: [],
       soldByVariant: {}
     };
   }

@@ -91,7 +91,7 @@ async function inventoryCountService() {
   ) {
     inventoryCountServicePromise =
       import(
-        "./services/inventoryCountService.js?v=20260915-quick-allocation-1"
+        "./services/inventoryCountService.js?v=20260915-quick-allocation-list-1"
       )
         .catch(
           error => {
@@ -167,7 +167,7 @@ async function eventCloseService() {
   ) {
     eventCloseServicePromise =
       import(
-        "./services/eventCloseService.js?v=20260915-quick-allocation-1"
+        "./services/eventCloseService.js?v=20260915-quick-allocation-list-1"
       )
         .catch(
           error => {
@@ -199,6 +199,11 @@ async function finalizeEventSession(
 async function provisionallyCloseEventSession(...args) {
   const service = await eventCloseService();
   return await service.provisionallyCloseEventSession(...args);
+}
+
+async function saveEventQuickAllocations(...args) {
+  const service = await eventCloseService();
+  return await service.saveEventQuickAllocations(...args);
 }
 
 
@@ -5694,6 +5699,7 @@ function sessionInventorySalesBreakdown(
     new Map();
 
   const quickPricesByCategory = new Map();
+  const quickUnits = [];
 
   let exactTotal = 0;
   let quickTotal = 0;
@@ -5715,7 +5721,7 @@ function sessionInventorySalesBreakdown(
           transaction.items ||
           []
         ).forEach(
-          item => {
+          (item, itemIndex) => {
             const quantity =
               Math.max(
                 0,
@@ -5794,6 +5800,19 @@ function sessionInventorySalesBreakdown(
               }
               quickPricesByCategory.get(category).add(Number(item?.unitPrice || 0));
 
+              for (let unitIndex = 0; unitIndex < quantity; unitIndex += 1) {
+                quickUnits.push({
+                  allocationKey: `${transaction.transactionId}:${itemIndex}:${unitIndex}`,
+                  transactionId: transaction.transactionId,
+                  itemIndex,
+                  unitIndex,
+                  category,
+                  unitPrice: Number(item?.unitPrice || 0),
+                  tshirtBodyKey: String(item?.tshirtBodyKey || "").trim(),
+                  label: String(item?.label || "Quick販売")
+                });
+              }
+
               return;
             }
 
@@ -5816,6 +5835,7 @@ function sessionInventorySalesBreakdown(
     exactByVariant,
     quickByCategory,
     quickPricesByCategory,
+    quickUnits,
     exactTotal,
     quickTotal,
     otherUnallocated
@@ -6388,12 +6408,27 @@ function eventPerSkuDifferenceCount({
   );
 }
 
-function eventQuickAllocationPreview({ openingItems, closingMap, sales }) {
+function eventQuickAllocationPreview({ openingItems, closingMap, sales, quickAllocations = [] }) {
   const candidates = [];
   let allocatedTotal = 0;
   let residualDifferenceCount = 0;
 
+  const openingById = new Map(openingItems.map(item => [item.variantId, item]));
+  const unitsByKey = new Map(sales.quickUnits.map(item => [item.allocationKey, item]));
+  const savedByVariant = new Map();
+  const savedByCategory = new Map();
+  const usedKeys = new Set();
+  quickAllocations.forEach(item => {
+    const unit = unitsByKey.get(item.allocationKey);
+    const opening = openingById.get(item.variantId);
+    if (!unit || !opening || usedKeys.has(item.allocationKey) || opening.category !== unit.category) return;
+    usedKeys.add(item.allocationKey);
+    savedByVariant.set(item.variantId, (savedByVariant.get(item.variantId) || 0) + 1);
+    savedByCategory.set(unit.category, (savedByCategory.get(unit.category) || 0) + 1);
+  });
+
   sales.quickByCategory.forEach((quickQty, category) => {
+    const remainingQuickQty = Math.max(0, Number(quickQty || 0) - (savedByCategory.get(category) || 0));
     const rows = openingItems.map(opening => {
       const closing = closingMap.get(opening.variantId);
       if (!closing || closing.closingQty === null || closing.closingQty === undefined || closing.closingQty === "") {
@@ -6404,12 +6439,13 @@ function eventQuickAllocationPreview({ openingItems, closingMap, sales }) {
       const difference = Math.max(0, Number(opening.openingQty || 0)) -
         Math.max(0, Number(sales.exactByVariant.get(opening.variantId) || 0)) -
         reductions + Number(closing.stockAdjustment || 0) -
-        Math.max(0, Number(closing.closingQty || 0));
+        Math.max(0, Number(closing.closingQty || 0)) -
+        (savedByVariant.get(opening.variantId) || 0);
       return { opening, difference };
     }).filter(row => row && row.opening.category === category && row.difference > 0);
 
     const gapTotal = rows.reduce((sum, row) => sum + row.difference, 0);
-    const confirmed = gapTotal === Number(quickQty || 0);
+    const confirmed = gapTotal === remainingQuickQty;
     rows.forEach(row => candidates.push({
       ...row.opening,
       quantity: row.difference,
@@ -6427,7 +6463,8 @@ function eventQuickAllocationPreview({ openingItems, closingMap, sales }) {
     let difference = Math.max(0, Number(opening.openingQty || 0)) -
       Math.max(0, Number(sales.exactByVariant.get(opening.variantId) || 0)) -
       reductions + Number(closing.stockAdjustment || 0) -
-      Math.max(0, Number(closing.closingQty || 0));
+      Math.max(0, Number(closing.closingQty || 0)) -
+      (savedByVariant.get(opening.variantId) || 0);
     const candidate = candidates.find(item => item.variantId === opening.variantId && item.confirmed);
     difference -= Number(candidate?.quantity || 0);
     if (difference !== 0) residualDifferenceCount += 1;
@@ -6435,8 +6472,9 @@ function eventQuickAllocationPreview({ openingItems, closingMap, sales }) {
 
   return {
     candidates,
-    allocatedTotal,
-    unresolvedTotal: Math.max(0, Number(sales.quickTotal || 0) - allocatedTotal),
+    savedAllocatedTotal: usedKeys.size,
+    allocatedTotal: usedKeys.size + allocatedTotal,
+    unresolvedTotal: Math.max(0, Number(sales.quickTotal || 0) - usedKeys.size - allocatedTotal),
     residualDifferenceCount
   };
 }
@@ -7705,7 +7743,9 @@ async function renderSessions(
                 eventInventoryCountSummary({
                   openingItems,
                   closingMap,
-                  sales
+                  sales,
+                  quickAllocations:
+                    inventoryCountData?.quickAllocations || []
                 });
 
               const remainingRows =
@@ -7751,6 +7791,35 @@ async function renderSessions(
                   closingMap,
                   sales
                 });
+
+              const savedQuickAllocationByKey = new Map(
+                (inventoryCountData?.quickAllocations || []).map(item => [
+                  item.allocationKey,
+                  item.variantId
+                ])
+              );
+
+              const quickAllocationOptionsByCategory = new Map();
+              sales.quickByCategory.forEach((quantity, category) => {
+                const candidateIds = new Set(
+                  quickAllocationPreview.candidates
+                    .filter(item => item.category === category)
+                    .map(item => item.variantId)
+                );
+                quickAllocationOptionsByCategory.set(
+                  category,
+                  openingItems
+                    .filter(item => item.category === category)
+                    .sort((a, b) =>
+                      Number(candidateIds.has(b.variantId)) - Number(candidateIds.has(a.variantId)) ||
+                      String(a.label || a.sku || "").localeCompare(String(b.label || b.sku || ""), "ja")
+                    )
+                    .map(item => ({
+                      ...item,
+                      quickCandidate: candidateIds.has(item.variantId)
+                    }))
+                );
+              });
 
               const inventorySessionClosed =
                 selectedInventoryCountSession
@@ -9495,6 +9564,48 @@ async function renderSessions(
                                     : ""
                                 }
                               </div>
+                            `
+                            : ""
+                        }
+
+                        ${
+                          countSummary.quickSalesTotal > 0 && !inventorySessionClosed
+                            ? `
+                              <details open style="margin-top:12px;border:1px solid #deded9;border-radius:14px;padding:12px;background:#fff;">
+                                <summary style="cursor:pointer;font-weight:800;font-size:16px;">
+                                  Quick未解決を処理
+                                  ${quickAllocationPreview.savedAllocatedTotal} / ${sales.quickUnits.length} 点
+                                </summary>
+                                <div class="muted" style="margin-top:8px;font-size:12px;line-height:1.5;">
+                                  販売1点ごとにSKUを選択します。途中まででも保存できます。
+                                </div>
+                                <div style="display:grid;gap:9px;margin-top:10px;">
+                                  ${sales.quickUnits.map((unit, index) => {
+                                    const selectedVariantId = savedQuickAllocationByKey.get(unit.allocationKey) || "";
+                                    const options = quickAllocationOptionsByCategory.get(unit.category) || [];
+                                    return `
+                                      <label style="display:grid;gap:5px;padding:10px;border:1px solid #ecece7;border-radius:12px;">
+                                        <span style="font-size:12px;font-weight:700;">
+                                          ${index + 1}. ${escapeHtml(POS_CATEGORY_LABELS[unit.category] || unit.category)}
+                                          ${unit.unitPrice > 0 ? ` / ${escapeHtml(unit.unitPrice)} ${escapeHtml(selectedInventoryCountSession.currency)}` : ""}
+                                        </span>
+                                        <select class="quickAllocationSelect" data-allocation-key="${escapeHtml(unit.allocationKey)}" style="${selectStyle()}">
+                                          <option value="">未選択</option>
+                                          ${options.map(item => `
+                                            <option value="${escapeHtml(item.variantId)}" ${item.variantId === selectedVariantId ? "selected" : ""}>
+                                              ${item.quickCandidate ? "候補：" : ""}${escapeHtml([item.label || item.sku || item.variantId, item.detail].filter(Boolean).join(" / "))}
+                                            </option>
+                                          `).join("")}
+                                        </select>
+                                      </label>
+                                    `;
+                                  }).join("")}
+                                </div>
+                                <button id="saveQuickAllocationsButton" type="button" class="button" style="width:100%;min-height:50px;margin-top:12px;">
+                                  Quick配分を保存
+                                </button>
+                                <div id="quickAllocationMessage" class="muted" style="margin-top:8px;font-size:12px;"></div>
+                              </details>
                             `
                             : ""
                         }
@@ -14394,6 +14505,38 @@ async function renderSessions(
           }
         }
       );
+
+    document
+      .querySelector("#saveQuickAllocationsButton")
+      ?.addEventListener("click", async event => {
+        if (!selectedInventoryCountSession) return;
+        const button = event.currentTarget;
+        const message = document.querySelector("#quickAllocationMessage");
+        const allocations = Array.from(document.querySelectorAll(".quickAllocationSelect"))
+          .map(select => ({
+            allocationKey: select.dataset.allocationKey || "",
+            variantId: select.value || ""
+          }))
+          .filter(item => item.allocationKey && item.variantId);
+
+        button.disabled = true;
+        button.textContent = "保存中";
+        if (message) message.textContent = "";
+
+        try {
+          const result = await saveEventQuickAllocations({
+            sessionId: selectedInventoryCountSession.sessionId,
+            allocations,
+            savedByEmail: currentUser?.email || ""
+          });
+          await renderSessions(++renderSequence);
+          window.alert(`Quick配分を ${result.savedCount} / ${result.totalCount} 点保存しました。`);
+        } catch (error) {
+          button.disabled = false;
+          button.textContent = "Quick配分を保存";
+          if (message) message.textContent = error.message || String(error);
+        }
+      });
 
     document
       .querySelector("#provisionallyCloseEventSessionButton")
@@ -23139,7 +23282,7 @@ async function registerOfflineServiceWorker() {
     await navigator
       .serviceWorker
       .register(
-        "./sw.js?v=20260915-quick-allocation-1"
+        "./sw.js?v=20260915-quick-allocation-list-1"
       );
 
   } catch (error) {

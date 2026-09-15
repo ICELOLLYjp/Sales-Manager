@@ -315,7 +315,7 @@ function saleBreakdown(
             ? sale.items
             : []
         ).forEach(
-          item => {
+          (item, itemIndex) => {
             const quantity =
               nonNegativeInt(
                 item?.quantity
@@ -379,7 +379,8 @@ function saleBreakdown(
                 quantity,
                 unitPrice: Number(item?.unitPrice || 0),
                 tshirtBodyKey: text(item?.tshirtBodyKey),
-                transactionId: text(sale?.transactionId)
+                transactionId: text(sale?.transactionId),
+                itemIndex
               });
 
               return;
@@ -456,6 +457,38 @@ function quickAllocationPlan(rows, sales) {
     allocatedTotal,
     unresolvedTotal: Math.max(0, sales.quickTrackedTotal - allocatedTotal)
   };
+}
+
+function savedQuickAllocationPlan(session, rows, sales) {
+  const openingById = new Map(rows.map(row => [row.variantId, row]));
+  const validUnits = new Map();
+  sales.quickLines.forEach(line => {
+    for (let unitIndex = 0; unitIndex < line.quantity; unitIndex += 1) {
+      const allocationKey = `${line.transactionId}:${line.itemIndex}:${unitIndex}`;
+      validUnits.set(allocationKey, { ...line, unitIndex, allocationKey });
+    }
+  });
+
+  const allocations = [];
+  const byVariant = new Map();
+  const byCategory = new Map();
+  const usedKeys = new Set();
+
+  (Array.isArray(session?.inventoryCount?.quickAllocations)
+    ? session.inventoryCount.quickAllocations
+    : []).forEach(item => {
+      const key = text(item?.allocationKey);
+      const variantId = text(item?.variantId);
+      const unit = validUnits.get(key);
+      const row = openingById.get(variantId);
+      if (!unit || !row || usedKeys.has(key) || text(row.opening?.category) !== unit.category) return;
+      usedKeys.add(key);
+      allocations.push({ ...unit, variantId });
+      byVariant.set(variantId, (byVariant.get(variantId) || 0) + 1);
+      byCategory.set(unit.category, (byCategory.get(unit.category) || 0) + 1);
+    });
+
+  return { allocations, byVariant, byCategory, validUnits };
 }
 
 function rowReasonReduction(
@@ -827,14 +860,49 @@ async function loadPreflight(
     throw error;
   }
 
-  const quickPlan = quickAllocationPlan(rows, sales);
+  const savedPlan = savedQuickAllocationPlan(session, rows, sales);
 
   rows.forEach(row => {
-    const quickQty = quickPlan.byVariant.get(row.variantId) || 0;
-    row.quickSoldQty = quickQty;
-    row.soldQty += quickQty;
-    row.expectedQty -= quickQty;
-    row.difference -= quickQty;
+    const savedQty = savedPlan.byVariant.get(row.variantId) || 0;
+    row.quickSoldQty = savedQty;
+    row.soldQty += savedQty;
+    row.expectedQty -= savedQty;
+    row.difference -= savedQty;
+  });
+
+  const remainingSales = {
+    ...sales,
+    quickByCategory: new Map(
+      Array.from(sales.quickByCategory.entries()).map(([category, quantity]) => [
+        category,
+        Math.max(0, quantity - (savedPlan.byCategory.get(category) || 0))
+      ])
+    ),
+    quickTrackedTotal: Math.max(0, sales.quickTrackedTotal - savedPlan.allocations.length)
+  };
+
+  const automaticPlan = quickAllocationPlan(rows, remainingSales);
+  const combinedByVariant = new Map(savedPlan.byVariant);
+  automaticPlan.byVariant.forEach((quantity, variantId) => {
+    combinedByVariant.set(variantId, (combinedByVariant.get(variantId) || 0) + quantity);
+  });
+
+  const quickPlan = {
+    byVariant: combinedByVariant,
+    candidates: automaticPlan.candidates,
+    savedAllocations: savedPlan.allocations,
+    savedAllocatedTotal: savedPlan.allocations.length,
+    automaticAllocatedTotal: automaticPlan.allocatedTotal,
+    allocatedTotal: savedPlan.allocations.length + automaticPlan.allocatedTotal,
+    unresolvedTotal: automaticPlan.unresolvedTotal
+  };
+
+  rows.forEach(row => {
+    const automaticQty = automaticPlan.byVariant.get(row.variantId) || 0;
+    row.quickSoldQty += automaticQty;
+    row.soldQty += automaticQty;
+    row.expectedQty -= automaticQty;
+    row.difference -= automaticQty;
   });
 
   if (quickPlan.unresolvedTotal > 0 && !allowUnresolved) {
@@ -1112,6 +1180,79 @@ async function loadPreflight(
         movementRows.length
     }
   };
+}
+
+export async function saveEventQuickAllocations({
+  sessionId,
+  allocations = [],
+  savedByEmail = ""
+}) {
+  const cleanSessionId = text(sessionId);
+  const db = await requireDb();
+  const {
+    doc,
+    collection,
+    query,
+    where,
+    getDocFromServer,
+    getDocsFromServer,
+    updateDoc,
+    serverTimestamp
+  } = await firestoreModule();
+  const sessionRef = doc(db, "salesSessions", cleanSessionId);
+  const [sessionSnapshot, salesSnapshot] = await Promise.all([
+    getDocFromServer(sessionRef),
+    getDocsFromServer(query(collection(db, "salesTransactions"), where("sessionId", "==", cleanSessionId)))
+  ]);
+
+  if (!sessionSnapshot.exists()) throw new Error("販売セッションが見つかりません。");
+  const session = sessionSnapshot.data();
+  if (session?.status !== "open" && session?.status !== "pending_allocation") {
+    throw new Error("正式終了済みのイベントではQuick配分を変更できません。");
+  }
+
+  const openingItems = eventOpeningItems(session);
+  const openingById = new Map(openingItems.map(item => [text(item?.variantId), item]));
+  const openingIds = new Set(openingById.keys());
+  const transactions = salesSnapshot.docs.map(snapshot => ({ transactionId: snapshot.id, ...snapshot.data() }));
+  const sales = saleBreakdown(transactions, openingIds);
+  const units = new Map();
+  sales.quickLines.forEach(line => {
+    for (let unitIndex = 0; unitIndex < line.quantity; unitIndex += 1) {
+      const allocationKey = `${line.transactionId}:${line.itemIndex}:${unitIndex}`;
+      units.set(allocationKey, { ...line, unitIndex, allocationKey });
+    }
+  });
+
+  const normalized = [];
+  const usedKeys = new Set();
+  (Array.isArray(allocations) ? allocations : []).forEach(item => {
+    const allocationKey = text(item?.allocationKey);
+    const variantId = text(item?.variantId);
+    const unit = units.get(allocationKey);
+    const opening = openingById.get(variantId);
+    if (!unit || !opening || usedKeys.has(allocationKey)) return;
+    if (text(opening?.category) !== unit.category) return;
+    usedKeys.add(allocationKey);
+    normalized.push({
+      allocationKey,
+      transactionId: unit.transactionId,
+      itemIndex: unit.itemIndex,
+      unitIndex: unit.unitIndex,
+      category: unit.category,
+      unitPrice: unit.unitPrice,
+      variantId
+    });
+  });
+
+  await updateDoc(sessionRef, {
+    "inventoryCount.quickAllocations": normalized,
+    "inventoryCount.quickAllocationsSavedAt": serverTimestamp(),
+    "inventoryCount.quickAllocationsSavedByEmail": text(savedByEmail),
+    updatedAt: serverTimestamp()
+  });
+
+  return { sessionId: cleanSessionId, savedCount: normalized.length, totalCount: units.size };
 }
 
 export async function provisionallyCloseEventSession({
