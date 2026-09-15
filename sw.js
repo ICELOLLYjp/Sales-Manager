@@ -1,5 +1,5 @@
 const CACHE_NAME =
-  "icelolly-sales-shell-20260916-stage-labels-1";
+  "icelolly-sales-shell-20260916-session-status-1";
 
 const CORE_ASSETS = [
   "./",
@@ -13,6 +13,7 @@ const CORE_ASSETS = [
   "./js/unidentifiedFinalizeUi.js",
   "./js/eventCloseHubUi.js",
   "./js/eventCloseStageUi.js",
+  "./js/sessionStatusUi.js",
   "./js/firebase.js",
   "./js/auth.js",
   "./js/views/dashboardView.js",
