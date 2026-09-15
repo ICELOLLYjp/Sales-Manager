@@ -1,5 +1,11 @@
+import {
+  saveEventQuickAllocations,
+  finalizeEventSession
+} from "./services/eventCloseServiceCompat.js?v=20260915-outside-opening-1";
+
 const QUICK_UNRESOLVED_LABEL = "Quickのまま仮終了";
 const SEARCH_RESULT_LIMIT = 10;
+const INVENTORY_SESSION_KEY = "icelolly-sales-inventory-session";
 
 function normalizeSearchText(value) {
   return String(value || "").normalize("NFKC").toLocaleLowerCase("ja").trim();
@@ -19,6 +25,44 @@ function optionSnapshot(option) {
     candidate: String(option.textContent || "").includes("候補："),
     selected: Boolean(option.selected)
   };
+}
+
+function currentInventorySessionId() {
+  return String(localStorage.getItem(INVENTORY_SESSION_KEY) || "").trim();
+}
+
+function reopenInventorySession(sessionId) {
+  const escaped = window.CSS?.escape
+    ? CSS.escape(sessionId)
+    : sessionId.replace(/"/g, "\\\"");
+  const button = document.querySelector(
+    `.sessionInventoryCountButton[data-session-id="${escaped}"]`
+  );
+  if (button) button.click();
+}
+
+function updateFinalizeAvailability() {
+  const selects = Array.from(document.querySelectorAll(".quickAllocationSelect"));
+  if (!selects.length) return;
+
+  const allAssigned = selects.every(select => Boolean(String(select.value || "").trim()));
+  const button = document.querySelector("#finalizeEventSessionButton");
+  if (!button || !allAssigned || !button.disabled) return;
+
+  button.disabled = false;
+  button.style.opacity = "";
+  button.dataset.quickCompatEnabled = "1";
+
+  if (!document.querySelector("#quickCompatFinalizeNote")) {
+    const note = document.createElement("div");
+    note.id = "quickCompatFinalizeNote";
+    note.className = "muted";
+    note.style.marginTop = "8px";
+    note.style.fontSize = "12px";
+    note.style.lineHeight = "1.5";
+    note.textContent = "QuickをすべてSKUへ割り当てた場合、開始在庫外の商品はイベント途中追加として記録して正式確定できます。ほかの差異が残っている場合は確定時に止まります。";
+    button.insertAdjacentElement("afterend", note);
+  }
 }
 
 function createSearchPanel(select, allOptions) {
@@ -61,7 +105,7 @@ function createSearchPanel(select, allOptions) {
   note.className = "muted";
   note.style.fontSize = "11px";
   note.style.lineHeight = "1.45";
-  note.textContent = "検索した時だけ登録済みSKUを表示します。";
+  note.textContent = "検索した時だけ登録済みSKUを表示します。開始在庫に入っていなかったSKUも選べます。";
 
   const results = document.createElement("div");
   results.style.display = "grid";
@@ -81,6 +125,7 @@ function createSearchPanel(select, allOptions) {
     input.value = "";
     results.innerHTML = "";
     searchButton.textContent = "別のSKUを検索";
+    updateFinalizeAvailability();
   }
 
   function renderResults() {
@@ -165,6 +210,7 @@ function enhanceQuickAllocationSelect(select) {
   select.insertAdjacentElement("afterend", meta);
 
   createSearchPanel(select, allOptions);
+  select.addEventListener("change", updateFinalizeAvailability);
   select.dataset.quickAllocationUiReady = "1";
 }
 
@@ -181,12 +227,105 @@ function updateSectionHelp() {
   });
 }
 
+async function handleCustomSave(button) {
+  const sessionId = currentInventorySessionId();
+  if (!sessionId) return false;
+
+  const allocations = Array.from(document.querySelectorAll(".quickAllocationSelect"))
+    .map(select => ({
+      allocationKey: String(select.dataset.allocationKey || ""),
+      variantId: String(select.value || "")
+    }))
+    .filter(item => item.allocationKey && item.variantId);
+
+  const originalText = button.textContent;
+  button.disabled = true;
+  button.textContent = "保存中";
+
+  try {
+    const result = await saveEventQuickAllocations({
+      sessionId,
+      allocations,
+      savedByEmail: ""
+    });
+    const extra = result.outsideOpeningCount > 0
+      ? ` 開始在庫外 ${result.outsideOpeningCount} 点を追加候補として記録しました。`
+      : "";
+    window.alert(`Quick配分を ${result.savedCount} / ${result.totalCount} 点保存しました。${extra}`);
+    reopenInventorySession(sessionId);
+  } catch (error) {
+    window.alert(error?.message || String(error));
+    button.disabled = false;
+    button.textContent = originalText;
+  }
+
+  return true;
+}
+
+async function handleCustomFinalize(button) {
+  const sessionId = currentInventorySessionId();
+  if (!sessionId) return false;
+
+  const originalText = button.textContent;
+  button.disabled = true;
+  button.textContent = "在庫を確定中";
+
+  try {
+    const result = await finalizeEventSession({
+      sessionId,
+      closedByEmail: ""
+    });
+    const extra = Number(result?.eventAddedTotal || 0) > 0
+      ? ` 開始在庫外からの追加 ${result.eventAddedTotal} 点もイベント追加履歴として保存しました。`
+      : "";
+    window.alert(`イベントを終了し、正式在庫を確定しました。${extra}`);
+    reopenInventorySession(sessionId);
+  } catch (error) {
+    window.alert(error?.message || String(error));
+    button.disabled = false;
+    button.textContent = originalText;
+  }
+
+  return true;
+}
+
+function captureApplicationActions(event) {
+  const sessionButton = event.target.closest?.(".sessionInventoryCountButton");
+  if (sessionButton?.dataset?.sessionId) {
+    localStorage.setItem(INVENTORY_SESSION_KEY, sessionButton.dataset.sessionId);
+    return;
+  }
+
+  if (event.target.closest?.("#closeInventoryCountButton")) {
+    localStorage.removeItem(INVENTORY_SESSION_KEY);
+    return;
+  }
+
+  const saveButton = event.target.closest?.("#saveQuickAllocationsButton");
+  if (saveButton && currentInventorySessionId()) {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    void handleCustomSave(saveButton);
+    return;
+  }
+
+  const finalizeButton = event.target.closest?.("#finalizeEventSessionButton");
+  if (finalizeButton && currentInventorySessionId()) {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    void handleCustomFinalize(finalizeButton);
+  }
+}
+
+document.addEventListener("click", captureApplicationActions, true);
+
 let scheduled = false;
 
 function enhanceQuickAllocationUi() {
   scheduled = false;
   updateSectionHelp();
   document.querySelectorAll(".quickAllocationSelect").forEach(enhanceQuickAllocationSelect);
+  updateFinalizeAvailability();
 }
 
 function scheduleEnhance() {
