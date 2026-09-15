@@ -2,13 +2,34 @@ import {
   saveEventQuickAllocations,
   finalizeEventSession
 } from "./services/eventCloseServiceCompat.js?v=20260915-outside-opening-1";
+import {
+  loadUnidentifiedQuickSummary,
+  syncUnidentifiedQuickState,
+  provisionallyCloseWithUnidentified
+} from "./services/unidentifiedQuickService.js?v=20260915-unidentified-quick-1";
 
 const QUICK_UNRESOLVED_LABEL = "Quickのまま仮終了";
 const SEARCH_RESULT_LIMIT = 10;
 const INVENTORY_SESSION_KEY = "icelolly-sales-inventory-session";
+const CATEGORY_LABELS = {
+  tshirt: "Tシャツ",
+  pierce: "ピアス",
+  earring: "イヤリング",
+  drop_pierce: "ドロップピアス",
+  drop_earring: "ドロップイヤリング"
+};
 
 function normalizeSearchText(value) {
   return String(value || "").normalize("NFKC").toLocaleLowerCase("ja").trim();
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
 
 function optionText(option) {
@@ -214,17 +235,114 @@ function enhanceQuickAllocationSelect(select) {
   select.dataset.quickAllocationUiReady = "1";
 }
 
-function updateSectionHelp() {
-  document.querySelectorAll("details").forEach(details => {
-    const summary = details.querySelector(":scope > summary");
-    if (!summary || !summary.textContent.includes("Quick未解決を処理")) return;
+function quickDetailsElement() {
+  return Array.from(document.querySelectorAll("details"))
+    .find(details => details.querySelector(".quickAllocationSelect")) || null;
+}
 
-    const note = Array.from(details.children).find(element => element.classList?.contains("muted"));
-    if (note && note.dataset.quickAllocationHelpReady !== "1") {
-      note.textContent = "終了在庫から絞った候補だけを表示します。候補にない商品だけ検索してください。割り当てない販売はQuickのまま残して仮終了できます。";
-      note.dataset.quickAllocationHelpReady = "1";
+function updateSectionHelp() {
+  const details = quickDetailsElement();
+  if (!details) return;
+
+  const summary = details.querySelector(":scope > summary");
+  if (summary && details.dataset.quickAllocationSectionReady !== "1") {
+    summary.textContent = "SKUを個別に指定（必要な場合のみ）";
+    details.open = false;
+    details.dataset.quickAllocationSectionReady = "1";
+  }
+
+  const note = Array.from(details.children).find(element => element.classList?.contains("muted"));
+  if (note && note.dataset.quickAllocationHelpReady !== "1") {
+    note.textContent = "分かる販売だけSKUへ割り当てます。分からない販売は未特定のまま残して仮終了できます。";
+    note.dataset.quickAllocationHelpReady = "1";
+  }
+}
+
+function countStatusLabel(value) {
+  if (value === "confirmed") return "確定";
+  if (value === "draft") return "途中保存";
+  return "未使用";
+}
+
+async function renderUnidentifiedSummaryPanel() {
+  const details = quickDetailsElement();
+  const sessionId = currentInventorySessionId();
+  if (!details || !sessionId) return;
+  if (details.dataset.unidentifiedQuickLoaded === sessionId) return;
+
+  details.dataset.unidentifiedQuickLoaded = sessionId;
+
+  try {
+    const summary = await loadUnidentifiedQuickSummary({ sessionId });
+    if (currentInventorySessionId() !== sessionId || !details.isConnected) return;
+
+    document.querySelector("#unidentifiedQuickSummaryPanel")?.remove();
+
+    const panel = document.createElement("section");
+    panel.id = "unidentifiedQuickSummaryPanel";
+    panel.style.marginTop = "12px";
+    panel.style.padding = "12px";
+    panel.style.border = summary.unresolvedTotal > 0
+      ? "1px solid #e3c976"
+      : "1px solid #b9d8c3";
+    panel.style.borderRadius = "14px";
+    panel.style.background = summary.unresolvedTotal > 0
+      ? "#fffaf0"
+      : "#f4fbf6";
+
+    const groupsHtml = summary.groups.length
+      ? summary.groups.map(group => {
+          const category = CATEGORY_LABELS[group.category] || group.category;
+          const price = Number(group.unitPrice || 0) > 0
+            ? ` / ${escapeHtml(group.unitPrice)} ${escapeHtml(summary.currency)}`
+            : "";
+          const body = group.tshirtBodyKey
+            ? ` / ${escapeHtml(group.tshirtBodyKey)}`
+            : "";
+          return `
+            <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;padding:9px 0;border-top:1px solid rgba(0,0,0,.07);">
+              <div style="font-size:13px;font-weight:700;line-height:1.35;">${escapeHtml(category)}${body}${price}</div>
+              <div style="font-size:18px;font-weight:900;white-space:nowrap;">${escapeHtml(group.quantity)} 点</div>
+            </div>
+          `;
+        }).join("")
+      : `<div style="margin-top:8px;font-size:13px;font-weight:700;">未特定販売はありません。</div>`;
+
+    panel.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
+        <div>
+          <div style="font-size:12px;font-weight:800;color:#75601a;">未特定販売</div>
+          <div style="font-size:12px;line-height:1.5;margin-top:3px;color:#666;">SKUを無理に決めず、カテゴリ・販売単価ごとに残します。</div>
+        </div>
+        <div style="font-size:24px;font-weight:900;white-space:nowrap;">${escapeHtml(summary.unresolvedTotal)} 点</div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:10px;">
+        <div style="padding:8px;border-radius:9px;background:rgba(255,255,255,.72);"><strong style="display:block;font-size:17px;">${escapeHtml(summary.quickTotal)}</strong><span style="font-size:10px;color:#777;">Quick合計</span></div>
+        <div style="padding:8px;border-radius:9px;background:rgba(255,255,255,.72);"><strong style="display:block;font-size:17px;">${escapeHtml(summary.manualAllocatedTotal)}</strong><span style="font-size:10px;color:#777;">手動特定</span></div>
+        <div style="padding:8px;border-radius:9px;background:rgba(255,255,255,.72);"><strong style="display:block;font-size:17px;">${escapeHtml(summary.autoResolvedTotal)}</strong><span style="font-size:10px;color:#777;">棚卸で自動特定</span></div>
+      </div>
+      <div style="margin-top:9px;font-size:11px;line-height:1.5;color:#777;">
+        Tシャツ棚卸: ${escapeHtml(countStatusLabel(summary.tshirtCountStatus))} / アクセサリー棚卸: ${escapeHtml(countStatusLabel(summary.accessoryCountStatus))}
+        ${summary.closingComplete ? " / 終了在庫入力済み" : " / 終了在庫に未入力あり"}
+      </div>
+      <div style="margin-top:8px;font-size:12px;line-height:1.5;font-weight:700;">
+        ${summary.unresolvedTotal > 0
+          ? "このまま未特定として仮終了できます。分かるものだけ下の個別指定を使ってください。"
+          : "Quick販売は棚卸差または手動指定で説明できます。"}
+      </div>
+      <div style="margin-top:9px;">${groupsHtml}</div>
+    `;
+
+    details.insertAdjacentElement("beforebegin", panel);
+
+    const summaryElement = details.querySelector(":scope > summary");
+    if (summaryElement) {
+      summaryElement.textContent = `SKUを個別に指定（必要な場合のみ） ${summary.manualAllocatedTotal} / ${summary.quickTotal} 点`;
     }
-  });
+  } catch (error) {
+    details.dataset.unidentifiedQuickLoaded = "";
+    console.warn("未特定販売の集計を読み込めませんでした。", error);
+  }
 }
 
 async function handleCustomSave(button) {
@@ -248,10 +366,43 @@ async function handleCustomSave(button) {
       allocations,
       savedByEmail: ""
     });
+    const unidentified = await syncUnidentifiedQuickState({
+      sessionId,
+      savedByEmail: ""
+    });
     const extra = result.outsideOpeningCount > 0
       ? ` 開始在庫外 ${result.outsideOpeningCount} 点を追加候補として記録しました。`
       : "";
-    window.alert(`Quick配分を ${result.savedCount} / ${result.totalCount} 点保存しました。${extra}`);
+    window.alert(`Quick配分を ${result.savedCount} / ${result.totalCount} 点保存しました。未特定 ${unidentified.unresolvedTotal} 点です。${extra}`);
+    reopenInventorySession(sessionId);
+  } catch (error) {
+    window.alert(error?.message || String(error));
+    button.disabled = false;
+    button.textContent = originalText;
+  }
+
+  return true;
+}
+
+async function handleCustomProvisionalClose(button) {
+  const sessionId = currentInventorySessionId();
+  if (!sessionId) return false;
+
+  const originalText = button.textContent;
+  button.disabled = true;
+  button.textContent = "仮終了中";
+
+  try {
+    const result = await provisionallyCloseWithUnidentified({
+      sessionId,
+      closedByEmail: ""
+    });
+    const groupCount = Array.isArray(result?.unidentifiedGroups)
+      ? result.unidentifiedGroups.length
+      : 0;
+    window.alert(
+      `イベントを仮終了しました。未特定販売 ${result.quickUnresolvedTotal ?? 0} 点を ${groupCount} グループで保存しました。POS販売は停止済みです。`
+    );
     reopenInventorySession(sessionId);
   } catch (error) {
     window.alert(error?.message || String(error));
@@ -309,6 +460,14 @@ function captureApplicationActions(event) {
     return;
   }
 
+  const provisionalButton = event.target.closest?.("#provisionallyCloseEventSessionButton");
+  if (provisionalButton && currentInventorySessionId()) {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    void handleCustomProvisionalClose(provisionalButton);
+    return;
+  }
+
   const finalizeButton = event.target.closest?.("#finalizeEventSessionButton");
   if (finalizeButton && currentInventorySessionId()) {
     event.preventDefault();
@@ -326,6 +485,7 @@ function enhanceQuickAllocationUi() {
   updateSectionHelp();
   document.querySelectorAll(".quickAllocationSelect").forEach(enhanceQuickAllocationSelect);
   updateFinalizeAvailability();
+  void renderUnidentifiedSummaryPanel();
 }
 
 function scheduleEnhance() {
