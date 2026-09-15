@@ -10,6 +10,11 @@ function text(value) {
   return String(value ?? "").trim();
 }
 
+function setText(element, value) {
+  if (!element) return;
+  if (text(element.textContent) !== text(value)) element.textContent = value;
+}
+
 function currentSessionId() {
   return text(localStorage.getItem(INVENTORY_SESSION_KEY));
 }
@@ -51,12 +56,17 @@ let patchedSessionId = "";
 let flowPresent = false;
 let currentSummary = null;
 let actionMode = "";
+let lastRefreshAt = 0;
 
-async function refreshFlowCloseState() {
+async function refreshFlowCloseState(force = false) {
   if (patching) return;
   const sessionId = currentSessionId();
   const hubAction = document.querySelector("#eventCloseHubAction");
   if (!sessionId || !hubAction) return;
+
+  const now = Date.now();
+  if (!force && patchedSessionId === sessionId && now - lastRefreshAt < 1200) return;
+  lastRefreshAt = now;
 
   patching = true;
   try {
@@ -83,9 +93,9 @@ async function refreshFlowCloseState() {
       actionMode = "unidentified";
       hubAction.dataset.eventFlowCloseMode = actionMode;
       hubAction.disabled = false;
-      hubAction.textContent = `未特定 ${summary.unresolvedTotal} 点を残して正式終了`;
+      setText(hubAction, `未特定 ${summary.unresolvedTotal} 点を残して正式終了`);
       const next = document.querySelector("#eventCloseHubNext");
-      if (next) next.textContent = "Restock / 開始在庫修正を含めて照合し、未特定分はSKUを推測せずに終了します。";
+      setText(next, "Restock / 開始在庫修正を含めて照合し、未特定分はSKUを推測せずに終了します。");
       return;
     }
 
@@ -93,9 +103,9 @@ async function refreshFlowCloseState() {
       actionMode = "finalize";
       hubAction.dataset.eventFlowCloseMode = actionMode;
       hubAction.disabled = false;
-      hubAction.textContent = "イベントを終了して在庫を確定";
+      setText(hubAction, "イベントを終了して在庫を確定");
       const next = document.querySelector("#eventCloseHubNext");
-      if (next) next.textContent = "Restock / 開始在庫修正をイベント内数量として含めて最終照合します。";
+      setText(next, "Restock / 開始在庫修正をイベント内数量として含めて最終照合します。");
     }
   } catch (error) {
     console.warn("Event flow close UI could not be prepared.", error);
@@ -120,7 +130,7 @@ async function runFlowClose(button, mode) {
 
   const original = button.textContent;
   button.disabled = true;
-  button.textContent = "正式終了中…";
+  setText(button, "正式終了中…");
 
   try {
     const result = isUnidentified
@@ -151,8 +161,8 @@ async function runFlowClose(button, mode) {
   } catch (error) {
     window.alert(error?.message || String(error));
     button.disabled = false;
-    button.textContent = original;
-    void refreshFlowCloseState();
+    setText(button, original);
+    void refreshFlowCloseState(true);
   }
 
   return true;
@@ -170,17 +180,17 @@ document.addEventListener("click", event => {
 }, true);
 
 let scheduled = false;
-function schedule() {
+function schedule(force = false) {
   if (scheduled) return;
   scheduled = true;
   requestAnimationFrame(() => {
     scheduled = false;
-    void refreshFlowCloseState();
+    void refreshFlowCloseState(force);
   });
 }
 
-schedule();
-new MutationObserver(schedule).observe(document.body, { childList: true, subtree: true });
+schedule(true);
+new MutationObserver(() => schedule(false)).observe(document.body, { childList: true, subtree: true });
 document.addEventListener("visibilitychange", () => {
-  if (!document.hidden) schedule();
+  if (!document.hidden) schedule(true);
 });
