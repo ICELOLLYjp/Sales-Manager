@@ -1,5 +1,5 @@
 const CACHE_NAME =
-  "icelolly-sales-shell-20260915-closing-empty-cells-1";
+  "icelolly-sales-shell-20260915-quick-allocation-1";
 
 const CORE_ASSETS = [
   "./",

@@ -287,6 +287,9 @@ function saleBreakdown(
   const exactByVariant =
     new Map();
 
+  const quickByCategory = new Map();
+  const quickLines = [];
+
   let exactTotal = 0;
   let quickTrackedTotal = 0;
   let otherUnallocatedTotal = 0;
@@ -366,6 +369,19 @@ function saleBreakdown(
               quickTrackedTotal +=
                 quantity;
 
+              quickByCategory.set(
+                category,
+                (quickByCategory.get(category) || 0) + quantity
+              );
+
+              quickLines.push({
+                category,
+                quantity,
+                unitPrice: Number(item?.unitPrice || 0),
+                tshirtBodyKey: text(item?.tshirtBodyKey),
+                transactionId: text(sale?.transactionId)
+              });
+
               return;
             }
 
@@ -385,9 +401,60 @@ function saleBreakdown(
 
   return {
     exactByVariant,
+    quickByCategory,
+    quickLines,
     exactTotal,
     quickTrackedTotal,
     otherUnallocatedTotal
+  };
+}
+
+function quickAllocationPlan(rows, sales) {
+  const byVariant = new Map();
+  const candidates = [];
+  let allocatedTotal = 0;
+
+  sales.quickByCategory.forEach((quickQty, category) => {
+    const categoryRows = rows.filter(row =>
+      !row.incomplete &&
+      text(row.opening?.category) === category &&
+      row.difference > 0
+    );
+    const gapTotal = categoryRows.reduce(
+      (sum, row) => sum + nonNegativeInt(row.difference),
+      0
+    );
+    const canAllocate = gapTotal === nonNegativeInt(quickQty);
+    const salePrices = Array.from(new Set(
+      sales.quickLines
+        .filter(line => line.category === category)
+        .map(line => Number(line.unitPrice || 0))
+        .filter(price => price > 0)
+    ));
+
+    categoryRows.forEach(row => {
+      const quantity = nonNegativeInt(row.difference);
+      candidates.push({
+        variantId: row.variantId,
+        category,
+        label: text(row.opening?.label),
+        sku: text(row.opening?.sku),
+        quantity,
+        salePrices,
+        confidence: canAllocate ? "confirmed" : "candidate"
+      });
+      if (canAllocate && quantity > 0) {
+        byVariant.set(row.variantId, quantity);
+        allocatedTotal += quantity;
+      }
+    });
+  });
+
+  return {
+    byVariant,
+    candidates,
+    allocatedTotal,
+    unresolvedTotal: Math.max(0, sales.quickTrackedTotal - allocatedTotal)
   };
 }
 
@@ -490,7 +557,8 @@ function sanitizeDocPart(
 }
 
 async function loadPreflight(
-  sessionId
+  sessionId,
+  { allowUnresolved = false } = {}
 ) {
   const db =
     await requireDb();
@@ -564,8 +632,8 @@ async function loadPreflight(
   }
 
   if (
-    session?.status !==
-    "open"
+    session?.status !== "open" &&
+    session?.status !== "pending_allocation"
   ) {
     const error =
       new Error(
@@ -652,21 +720,6 @@ async function loadPreflight(
       transactions,
       openingIds
     );
-
-  if (
-    sales.quickTrackedTotal >
-    0
-  ) {
-    const error =
-      new Error(
-        `Tシャツ・アクセサリーのQuick未割当販売が ${sales.quickTrackedTotal} 点あります。SKUを特定できないため、該当会計を取消してSKUで登録し直してからイベントを終了してください。`
-      );
-
-    error.code =
-      "quick-sales-unallocated";
-
-    throw error;
-  }
 
   if (
     sales.otherUnallocatedTotal >
@@ -774,6 +827,25 @@ async function loadPreflight(
     throw error;
   }
 
+  const quickPlan = quickAllocationPlan(rows, sales);
+
+  rows.forEach(row => {
+    const quickQty = quickPlan.byVariant.get(row.variantId) || 0;
+    row.quickSoldQty = quickQty;
+    row.soldQty += quickQty;
+    row.expectedQty -= quickQty;
+    row.difference -= quickQty;
+  });
+
+  if (quickPlan.unresolvedTotal > 0 && !allowUnresolved) {
+    const error = new Error(
+      `Quick販売 ${sales.quickTrackedTotal} 点のうち ${quickPlan.unresolvedTotal} 点はSKU候補を確定できません。仮終了するとPOSを停止したまま後で配分できます。`
+    );
+    error.code = "quick-sales-unallocated";
+    error.quickPlan = quickPlan;
+    throw error;
+  }
+
   const mismatches =
     rows.filter(
       row =>
@@ -782,7 +854,8 @@ async function loadPreflight(
     );
 
   if (
-    mismatches.length
+    mismatches.length &&
+    !allowUnresolved
   ) {
     const examples =
       mismatches
@@ -837,6 +910,23 @@ async function loadPreflight(
 
   rows.forEach(
     row => {
+      const quickQuantity = nonNegativeInt(row.quickSoldQty);
+      if (quickQuantity > 0) {
+        movementRows.push({
+          rowIndex: row.index,
+          variantId: row.variantId,
+          category: text(row.opening?.category),
+          label: text(row.opening?.label),
+          sku: text(row.opening?.sku),
+          inventorySource: text(row.opening?.inventorySource),
+          inventoryKey: text(row.opening?.inventoryKey),
+          reason: "quick_sale_allocation",
+          reasonLabel: "Quick販売配分",
+          quantity: quickQuantity,
+          delta: -quickQuantity
+        });
+      }
+
       REASON_DEFINITIONS
         .forEach(
           reason => {
@@ -1002,17 +1092,90 @@ async function loadPreflight(
     closingItems,
     rows,
     sales,
+    quickPlan,
+    mismatches,
     movementRows,
     summary: {
       openingTotal,
       exactSalesTotal:
         sales.exactTotal,
+      quickSalesTotal:
+        sales.quickTrackedTotal,
+      quickAllocatedTotal:
+        quickPlan.allocatedTotal,
+      quickUnresolvedTotal:
+        quickPlan.unresolvedTotal,
       closingTotal,
       reductionTotal,
       stockAdjustmentTotal,
       movementCount:
         movementRows.length
     }
+  };
+}
+
+export async function provisionallyCloseEventSession({
+  sessionId,
+  closedByEmail = ""
+}) {
+  const cleanSessionId = text(sessionId);
+  if (!cleanSessionId) {
+    throw new Error("販売セッションが見つかりません。");
+  }
+
+  const preflight = await loadPreflight(
+    cleanSessionId,
+    { allowUnresolved: true }
+  );
+
+  if (preflight.alreadyClosed) {
+    return { sessionId: cleanSessionId, duplicate: true, status: "closed" };
+  }
+
+  const db = await requireDb();
+  const { doc, runTransaction, serverTimestamp } = await firestoreModule();
+  const sessionRef = doc(db, "salesSessions", cleanSessionId);
+
+  await runTransaction(db, async transaction => {
+    const snapshot = await transaction.get(sessionRef);
+    if (!snapshot.exists()) {
+      throw new Error("販売セッションが見つかりません。");
+    }
+    const current = snapshot.data();
+    if (current?.status !== "open") {
+      const error = new Error("このイベントは仮終了できる状態ではありません。");
+      error.code = "session-not-open";
+      throw error;
+    }
+    if (eventSnapshotSignature(current) !== preflight.signature) {
+      const error = new Error("仮終了の直前に売上または在庫データが変更されました。画面を更新してもう一度確認してください。");
+      error.code = "event-data-changed";
+      throw error;
+    }
+
+    transaction.update(sessionRef, {
+      status: "pending_allocation",
+      provisionalClosedAt: serverTimestamp(),
+      provisionalClosedByEmail: text(closedByEmail),
+      provisionalCloseSummary: {
+        quickSalesTotal: preflight.summary.quickSalesTotal,
+        quickAllocatedCandidateTotal: preflight.summary.quickAllocatedTotal,
+        quickUnresolvedTotal: preflight.summary.quickUnresolvedTotal,
+        differenceCount: preflight.mismatches.length,
+        candidates: preflight.quickPlan.candidates
+      },
+      updatedAt: serverTimestamp()
+    });
+  });
+
+  return {
+    sessionId: cleanSessionId,
+    status: "pending_allocation",
+    quickSalesTotal: preflight.summary.quickSalesTotal,
+    quickAllocatedTotal: preflight.summary.quickAllocatedTotal,
+    quickUnresolvedTotal: preflight.summary.quickUnresolvedTotal,
+    differenceCount: preflight.mismatches.length,
+    candidates: preflight.quickPlan.candidates
   };
 }
 
@@ -1156,9 +1319,8 @@ export async function finalizeEventSession({
       }
 
       if (
-        currentSession
-          ?.status !==
-        "open"
+        currentSession?.status !== "open" &&
+        currentSession?.status !== "pending_allocation"
       ) {
         const error =
           new Error(
@@ -1675,9 +1837,14 @@ export async function finalizeEventSession({
                 .openingTotal,
 
             skuSalesTotal:
-              preflight
-                .summary
-                .exactSalesTotal,
+              preflight.summary.exactSalesTotal +
+              preflight.summary.quickAllocatedTotal,
+
+            quickSalesTotal:
+              preflight.summary.quickSalesTotal,
+
+            quickAllocatedTotal:
+              preflight.summary.quickAllocatedTotal,
 
             closingTotal:
               preflight

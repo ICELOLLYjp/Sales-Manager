@@ -579,12 +579,12 @@ export async function saveEventClosingInventory({
     snapshot.data() || {};
 
   if (
-    sessionData?.status !==
-    "open"
+    sessionData?.status !== "open" &&
+    sessionData?.status !== "pending_allocation"
   ) {
     const error =
       new Error(
-        "終了済みのイベントでは終了在庫を変更できません。"
+        "正式終了済みのイベントでは終了在庫を変更できません。"
       );
 
     error.code =

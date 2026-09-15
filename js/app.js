@@ -91,7 +91,7 @@ async function inventoryCountService() {
   ) {
     inventoryCountServicePromise =
       import(
-        "./services/inventoryCountService.js?v=20260915-closing-empty-cells-1"
+        "./services/inventoryCountService.js?v=20260915-quick-allocation-1"
       )
         .catch(
           error => {
@@ -167,7 +167,7 @@ async function eventCloseService() {
   ) {
     eventCloseServicePromise =
       import(
-        "./services/eventCloseService.js?v=20260911-event-finalize-1"
+        "./services/eventCloseService.js?v=20260915-quick-allocation-1"
       )
         .catch(
           error => {
@@ -194,6 +194,11 @@ async function finalizeEventSession(
     .finalizeEventSession(
       ...args
     );
+}
+
+async function provisionallyCloseEventSession(...args) {
+  const service = await eventCloseService();
+  return await service.provisionallyCloseEventSession(...args);
 }
 
 
@@ -5688,6 +5693,8 @@ function sessionInventorySalesBreakdown(
   const quickByCategory =
     new Map();
 
+  const quickPricesByCategory = new Map();
+
   let exactTotal = 0;
   let quickTotal = 0;
   let otherUnallocated = 0;
@@ -5782,6 +5789,11 @@ function sessionInventorySalesBreakdown(
               quickTotal +=
                 quantity;
 
+              if (!quickPricesByCategory.has(category)) {
+                quickPricesByCategory.set(category, new Set());
+              }
+              quickPricesByCategory.get(category).add(Number(item?.unitPrice || 0));
+
               return;
             }
 
@@ -5803,6 +5815,7 @@ function sessionInventorySalesBreakdown(
   return {
     exactByVariant,
     quickByCategory,
+    quickPricesByCategory,
     exactTotal,
     quickTotal,
     otherUnallocated
@@ -6375,6 +6388,59 @@ function eventPerSkuDifferenceCount({
   );
 }
 
+function eventQuickAllocationPreview({ openingItems, closingMap, sales }) {
+  const candidates = [];
+  let allocatedTotal = 0;
+  let residualDifferenceCount = 0;
+
+  sales.quickByCategory.forEach((quickQty, category) => {
+    const rows = openingItems.map(opening => {
+      const closing = closingMap.get(opening.variantId);
+      if (!closing || closing.closingQty === null || closing.closingQty === undefined || closing.closingQty === "") {
+        return null;
+      }
+      const reductions = ["loss", "theft", "damage", "gift", "sample"]
+        .reduce((sum, key) => sum + Math.max(0, Number(closing?.[key] || 0)), 0);
+      const difference = Math.max(0, Number(opening.openingQty || 0)) -
+        Math.max(0, Number(sales.exactByVariant.get(opening.variantId) || 0)) -
+        reductions + Number(closing.stockAdjustment || 0) -
+        Math.max(0, Number(closing.closingQty || 0));
+      return { opening, difference };
+    }).filter(row => row && row.opening.category === category && row.difference > 0);
+
+    const gapTotal = rows.reduce((sum, row) => sum + row.difference, 0);
+    const confirmed = gapTotal === Number(quickQty || 0);
+    rows.forEach(row => candidates.push({
+      ...row.opening,
+      quantity: row.difference,
+      confirmed,
+      salePrices: Array.from(sales.quickPricesByCategory.get(category) || []).filter(value => value > 0)
+    }));
+    if (confirmed) allocatedTotal += gapTotal;
+  });
+
+  openingItems.forEach(opening => {
+    const closing = closingMap.get(opening.variantId);
+    if (!closing || closing.closingQty === null || closing.closingQty === undefined || closing.closingQty === "") return;
+    const reductions = ["loss", "theft", "damage", "gift", "sample"]
+      .reduce((sum, key) => sum + Math.max(0, Number(closing?.[key] || 0)), 0);
+    let difference = Math.max(0, Number(opening.openingQty || 0)) -
+      Math.max(0, Number(sales.exactByVariant.get(opening.variantId) || 0)) -
+      reductions + Number(closing.stockAdjustment || 0) -
+      Math.max(0, Number(closing.closingQty || 0));
+    const candidate = candidates.find(item => item.variantId === opening.variantId && item.confirmed);
+    difference -= Number(candidate?.quantity || 0);
+    if (difference !== 0) residualDifferenceCount += 1;
+  });
+
+  return {
+    candidates,
+    allocatedTotal,
+    unresolvedTotal: Math.max(0, Number(sales.quickTotal || 0) - allocatedTotal),
+    residualDifferenceCount
+  };
+}
+
 
 function countDifferenceLabel(
   value
@@ -6574,8 +6640,8 @@ async function renderSessions(
     const openSessions =
       sessions.filter(
         session =>
-          session.status ===
-          "open"
+          session.status === "open" ||
+          session.status === "pending_allocation"
       );
 
     const archivedSessions =
@@ -7188,13 +7254,16 @@ async function renderSessions(
                           data-session-id="${escapeHtml(
                             session.sessionId
                           )}"
+                          ${session.status === "pending_allocation" ? "disabled" : ""}
                           style="
                             min-height:44px;
                             padding:0 12px;
                           "
                         >
                           ${
-                            session.sessionId ===
+                            session.status === "pending_allocation"
+                              ? "仮終了中"
+                              : session.sessionId ===
                             activeSessionId
                               ? "使用中"
                               : "POSで使用"
@@ -7676,10 +7745,21 @@ async function renderSessions(
                   sales
                 });
 
+              const quickAllocationPreview =
+                eventQuickAllocationPreview({
+                  openingItems,
+                  closingMap,
+                  sales
+                });
+
               const inventorySessionClosed =
                 selectedInventoryCountSession
                   ?.status ===
                 "closed";
+
+              const inventorySessionPending =
+                selectedInventoryCountSession?.status ===
+                "pending_allocation";
 
               const activeInventoryTransactions =
                 eventInventoryTransactions
@@ -7752,12 +7832,21 @@ async function renderSessions(
                     ?.closing
                 ) &&
                 countSummary.complete &&
-                countSummary.quickSalesTotal ===
-                  0 &&
+                quickAllocationPreview.unresolvedTotal === 0 &&
                 sales.otherUnallocated ===
                   0 &&
-                perSkuDifferenceCount ===
+                quickAllocationPreview.residualDifferenceCount ===
                   0;
+
+              const eventReadyForProvisionalClose =
+                !inventorySessionClosed &&
+                !inventorySessionPending &&
+                offlinePendingSalesCount === 0 &&
+                Boolean(inventoryCountData?.closing) &&
+                countSummary.complete &&
+                countSummary.quickSalesTotal > 0 &&
+                sales.otherUnallocated === 0 &&
+                !eventReadyToClose;
 
               const currentTotal =
                 eventCurrentInventoryRows
@@ -9393,7 +9482,18 @@ async function renderSessions(
                               >
                                 Quick販売
                                 ${countSummary.quickSalesTotal}
-                                点はSKUが特定されていないため、合計残数には反映しますがSKU別には自動配分しません。
+                                点を終了実数と照合しました。自動配分候補
+                                ${quickAllocationPreview.candidates.length}
+                                SKU、確定可能
+                                ${quickAllocationPreview.allocatedTotal}
+                                点、未解決
+                                ${quickAllocationPreview.unresolvedTotal}
+                                点です。
+                                ${
+                                  quickAllocationPreview.candidates.length
+                                    ? `<div style="margin-top:8px;font-size:12px;line-height:1.5;">${quickAllocationPreview.candidates.slice(0, 8).map(item => `${escapeHtml(item.label || item.sku || item.variantId)} ${item.quantity}点 ${item.confirmed ? "確定候補" : "参考候補"}${item.salePrices.length ? ` / 販売単価 ${item.salePrices.map(price => escapeHtml(price)).join("、")}` : ""}`).join("<br>")}</div>`
+                                    : ""
+                                }
                               </div>
                             `
                             : ""
@@ -9426,6 +9526,7 @@ async function renderSessions(
                                   "
                                 >
                                   イベント終了確定
+                                  ${inventorySessionPending ? "（仮終了中）" : ""}
                                 </div>
 
                                 <div
@@ -9438,10 +9539,10 @@ async function renderSessions(
                                   ${
                                     eventReadyToClose
                                       ? `
-                                        終了在庫はすべて入力済みで、SKU別の未分類差異は0です。終了確定するとPOS販売を停止し、紛失・盗難・破損・プレゼント・サンプル・在庫調整を正式実在庫へ一度だけ反映します。
+                                        終了在庫はすべて入力済みです。Quick販売の確定候補を含めて差異は0です。終了確定すると正式実在庫へ一度だけ反映します。
                                       `
                                       : `
-                                        終了するには、全SKUの終了実数を入力し、SKU別の差異を0にしてください。
+                                        全SKUの終了実数を入力してください。Quick未解決が残る場合は仮終了でPOSを停止し、後から終了在庫や理由を修正して正式確定できます。
                                       `
                                   }
                                 </div>
@@ -9469,7 +9570,7 @@ async function renderSessions(
                                           sales.otherUnallocated
                                         } 点 /
                                         SKU別差異 ${
-                                          perSkuDifferenceCount
+                                          quickAllocationPreview.residualDifferenceCount
                                         } 件
                                       </div>
                                     `
@@ -9498,6 +9599,12 @@ async function renderSessions(
                                 >
                                   イベントを終了して在庫を確定
                                 </button>
+
+                                ${
+                                  eventReadyForProvisionalClose
+                                    ? `<button id="provisionallyCloseEventSessionButton" type="button" class="button button-secondary" style="width:100%;min-height:48px;margin-top:9px;">未解決を残して仮終了</button>`
+                                    : ""
+                                }
 
                                 <div
                                   id="eventFinalizeMessage"
@@ -14287,6 +14394,48 @@ async function renderSessions(
           }
         }
       );
+
+    document
+      .querySelector("#provisionallyCloseEventSessionButton")
+      ?.addEventListener("click", async event => {
+        if (!selectedInventoryCountSession) return;
+        const sessionId = selectedInventoryCountSession.sessionId;
+
+        if (!navigator.onLine) {
+          window.alert("オフライン中は仮終了できません。通信が戻ってから実行してください。");
+          return;
+        }
+
+        const confirmed = window.confirm(
+          `「${selectedInventoryCountSession.eventName}」を仮終了しますか？\n\nPOS販売を停止します。正式実在庫はまだ変更せず、Quick未解決の配分後に一度だけ反映します。`
+        );
+        if (!confirmed) return;
+
+        const button = event.currentTarget;
+        button.disabled = true;
+        button.textContent = "仮終了処理中";
+
+        try {
+          const result = await provisionallyCloseEventSession({
+            sessionId,
+            closedByEmail: currentUser?.email || ""
+          });
+
+          if (activeSessionId === sessionId) {
+            activeSessionId = "";
+            localStorage.removeItem("icelolly-sales-active-session");
+          }
+
+          await renderSessions(++renderSequence);
+          window.alert(
+            `イベントを仮終了しました。POS販売は停止済みです。Quick未解決 ${result.quickUnresolvedTotal ?? 0} 点、SKU別差異 ${result.differenceCount ?? 0} 件です。`
+          );
+        } catch (error) {
+          button.disabled = false;
+          button.textContent = "未解決を残して仮終了";
+          window.alert(error.message || String(error));
+        }
+      });
 
 
     document
@@ -22990,7 +23139,7 @@ async function registerOfflineServiceWorker() {
     await navigator
       .serviceWorker
       .register(
-        "./sw.js?v=20260915-closing-empty-cells-1"
+        "./sw.js?v=20260915-quick-allocation-1"
       );
 
   } catch (error) {

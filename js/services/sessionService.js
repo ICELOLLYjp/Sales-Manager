@@ -1375,10 +1375,11 @@ export async function restoreArchivedEventSession(
     current?.previousStatus;
 
   const nextStatus =
-    previousStatus ===
-      "closed"
+    previousStatus === "closed"
       ? "closed"
-      : "open";
+      : previousStatus === "pending_allocation"
+        ? "pending_allocation"
+        : "open";
 
   await updateDoc(
     ref,
