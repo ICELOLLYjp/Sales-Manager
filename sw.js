@@ -1,5 +1,5 @@
 const CACHE_NAME =
-  "icelolly-sales-shell-20260915-unidentified-quick-1";
+  "icelolly-sales-shell-20260915-close-unidentified-1";
 
 const CORE_ASSETS = [
   "./",
@@ -10,6 +10,7 @@ const CORE_ASSETS = [
 
   "./js/app.js",
   "./js/quickAllocationUi.js",
+  "./js/unidentifiedFinalizeUi.js",
   "./js/firebase.js",
   "./js/auth.js",
   "./js/views/dashboardView.js",
@@ -37,6 +38,7 @@ const CORE_ASSETS = [
   "./js/services/eventCloseService.js",
   "./js/services/eventCloseServiceCompat.js",
   "./js/services/unidentifiedQuickService.js",
+  "./js/services/closeWithUnidentifiedService.js",
   "./js/services/offlineQueueService.js",
   "./js/services/stripePaymentService.js",
   "./stripe-result.html"
