@@ -1,11 +1,12 @@
 const CACHE_NAME =
-  "icelolly-sales-shell-20260914-event-flow-pos-1";
+  "icelolly-sales-shell-20260915-iphone-count-2";
 
 const CORE_ASSETS = [
   "./",
   "./index.html",
   "./css/app.css",
   "./css/responsive.css",
+  "./css/iphoneInventoryControls.css",
 
   "./js/app.js",
   "./js/firebase.js",
