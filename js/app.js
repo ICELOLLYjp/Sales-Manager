@@ -9305,6 +9305,38 @@ async function renderSessions(
                                       data-search="${escapeHtml(
                                         searchText
                                       )}"
+                                      data-category="${escapeHtml(
+                                        opening.category ||
+                                        ""
+                                      )}"
+                                      data-design="${escapeHtml(
+                                        eventOpeningDisplayParts(
+                                          opening
+                                        ).design
+                                      )}"
+                                      data-body="${escapeHtml(
+                                        eventOpeningDisplayParts(
+                                          opening
+                                        ).body
+                                      )}"
+                                      data-color="${escapeHtml(
+                                        eventOpeningDisplayParts(
+                                          opening
+                                        ).color
+                                      )}"
+                                      data-size="${escapeHtml(
+                                        eventOpeningDisplayParts(
+                                          opening
+                                        ).size
+                                      )}"
+                                      data-opening-qty="${Number(
+                                        opening.openingQty ||
+                                        0
+                                      )}"
+                                      data-sold-qty="${Number(
+                                        skuSales ||
+                                        0
+                                      )}"
                                       data-variant-id="${escapeHtml(
                                         opening.variantId
                                       )}"
@@ -12733,6 +12765,333 @@ async function renderSessions(
       );
 
 
+    function buildClosingInventoryMatrix() {
+      const rowsRoot =
+        document.querySelector(
+          "#inventoryCountRows"
+        );
+
+      if (
+        !rowsRoot ||
+        rowsRoot.querySelector(
+          ".inventoryClosingMatrixSection"
+        )
+      ) {
+        return;
+      }
+
+      const tshirtRows =
+        Array.from(
+          rowsRoot.querySelectorAll(
+            '.inventoryCountRow[data-category="tshirt"]'
+          )
+        );
+
+      if (!tshirtRows.length) {
+        return;
+      }
+
+      const groups =
+        new Map();
+
+      tshirtRows.forEach(
+        row => {
+          const key =
+            [
+              row.dataset.design ||
+                "Tシャツ",
+              row.dataset.body ||
+                "",
+              row.dataset.color ||
+                ""
+            ].join("||");
+
+          if (!groups.has(key)) {
+            groups.set(
+              key,
+              {
+                design:
+                  row.dataset.design ||
+                  "Tシャツ",
+                body:
+                  row.dataset.body ||
+                  "",
+                color:
+                  row.dataset.color ||
+                  "",
+                rows: []
+              }
+            );
+          }
+
+          groups.get(key).rows.push(row);
+        }
+      );
+
+      const section =
+        document.createElement(
+          "div"
+        );
+
+      section.className =
+        "inventoryClosingMatrixSection";
+
+      const title =
+        document.createElement(
+          "div"
+        );
+
+      title.className =
+        "inventoryClosingMatrixTitle";
+      title.textContent =
+        "Tシャツ";
+      section.appendChild(title);
+
+      const scroller =
+        document.createElement(
+          "div"
+        );
+
+      scroller.className =
+        "inventoryClosingMatrixScroller";
+      section.appendChild(scroller);
+
+      const table =
+        document.createElement(
+          "div"
+        );
+
+      table.className =
+        "inventoryClosingMatrixTable";
+      scroller.appendChild(table);
+
+      const header =
+        document.createElement(
+          "div"
+        );
+
+      header.className =
+        "inventoryClosingMatrixHeader";
+
+      const heading =
+        document.createElement(
+          "div"
+        );
+
+      heading.className =
+        "inventoryClosingMatrixLabel inventoryClosingMatrixHeading";
+      heading.textContent =
+        "Design / Body / Color";
+      header.appendChild(heading);
+
+      EVENT_TSHIRT_SIZE_ORDER.forEach(
+        size => {
+          const cell =
+            document.createElement(
+              "div"
+            );
+
+          cell.className =
+            "inventoryClosingMatrixSizeHeading";
+          cell.textContent =
+            size;
+          header.appendChild(cell);
+        }
+      );
+
+      table.appendChild(header);
+
+      Array.from(groups.values())
+        .sort(
+          (a, b) =>
+            a.design.localeCompare(
+              b.design,
+              "ja"
+            ) ||
+            a.body.localeCompare(
+              b.body,
+              "ja"
+            ) ||
+            a.color.localeCompare(
+              b.color,
+              "ja"
+            )
+        )
+        .forEach(
+          group => {
+            const matrixRow =
+              document.createElement(
+                "div"
+              );
+
+            matrixRow.className =
+              "inventoryClosingMatrixRow";
+            matrixRow.dataset.search =
+              [
+                group.design,
+                group.body,
+                group.color
+              ]
+                .filter(Boolean)
+                .join(" ")
+                .toLocaleLowerCase();
+
+            const label =
+              document.createElement(
+                "div"
+              );
+
+            label.className =
+              "inventoryClosingMatrixLabel";
+
+            const design =
+              document.createElement(
+                "div"
+              );
+
+            design.className =
+              "inventoryClosingMatrixDesign";
+            design.textContent =
+              group.design;
+            label.appendChild(design);
+
+            const detail =
+              document.createElement(
+                "div"
+              );
+
+            detail.className =
+              "inventoryClosingMatrixDetail";
+            detail.textContent =
+              [
+                group.body,
+                group.color
+              ]
+                .filter(Boolean)
+                .join(" / ");
+            label.appendChild(detail);
+            matrixRow.appendChild(label);
+
+            EVENT_TSHIRT_SIZE_ORDER.forEach(
+              size => {
+                const item =
+                  group.rows.find(
+                    row =>
+                      row.dataset.size ===
+                      size
+                  );
+
+                if (!item) {
+                  const empty =
+                    document.createElement(
+                      "div"
+                    );
+
+                  empty.className =
+                    "inventoryClosingMatrixEmpty";
+                  empty.textContent =
+                    "—";
+                  matrixRow.appendChild(empty);
+                  return;
+                }
+
+                const originalSummary =
+                  item.firstElementChild;
+
+                if (originalSummary) {
+                  originalSummary.classList.add(
+                    "inventoryClosingOriginalSummary"
+                  );
+                }
+
+                const expected =
+                  document.createElement(
+                    "div"
+                  );
+
+                expected.className =
+                  "inventoryClosingMatrixExpected";
+                expected.innerHTML =
+                  `<strong>残 ${Math.max(
+                    0,
+                    Number(
+                      item.dataset.calculatedQty ||
+                      0
+                    )
+                  )}</strong><span>開${Math.max(
+                    0,
+                    Number(
+                      item.dataset.openingQty ||
+                      0
+                    )
+                  )} / 売${Math.max(
+                    0,
+                    Number(
+                      item.dataset.soldQty ||
+                      0
+                    )
+                  )}</span>`;
+
+                item.insertBefore(
+                  expected,
+                  item.firstChild
+                );
+
+                item.classList.add(
+                  "inventoryClosingMatrixCell"
+                );
+
+                const summary =
+                  item.querySelector(
+                    "details > summary"
+                  );
+
+                if (summary) {
+                  summary.textContent =
+                    "理由を入力";
+                }
+
+                matrixRow.appendChild(item);
+              }
+            );
+
+            table.appendChild(matrixRow);
+          }
+        );
+
+      rowsRoot.insertBefore(
+        section,
+        rowsRoot.firstChild
+      );
+
+      const accessoryRows =
+        Array.from(
+          rowsRoot.querySelectorAll(
+            '.inventoryCountRow:not([data-category="tshirt"])'
+          )
+        );
+
+      if (accessoryRows.length) {
+        const accessoryTitle =
+          document.createElement(
+            "div"
+          );
+
+        accessoryTitle.className =
+          "inventoryClosingAccessoryTitle";
+        accessoryTitle.textContent =
+          "アクセサリー・その他";
+        rowsRoot.insertBefore(
+          accessoryTitle,
+          accessoryRows[0]
+        );
+      }
+    }
+
+
+    buildClosingInventoryMatrix();
+
+
     function updateClosingDifference(
       row
     ) {
@@ -13415,6 +13774,47 @@ async function renderSessions(
                   !query ||
                   haystack.includes(
                     query
+                  )
+                    ? ""
+                    : "none";
+              }
+            );
+
+          document
+            .querySelectorAll(
+              ".inventoryClosingMatrixRow"
+            )
+            .forEach(
+              matrixRow => {
+                const groupMatch =
+                  !query ||
+                  String(
+                    matrixRow.dataset.search ||
+                    ""
+                  ).includes(query);
+
+                const cells =
+                  Array.from(
+                    matrixRow.querySelectorAll(
+                      ".inventoryCountRow"
+                    )
+                  );
+
+                if (groupMatch) {
+                  cells.forEach(
+                    cell => {
+                      cell.style.display =
+                        "";
+                    }
+                  );
+                }
+
+                matrixRow.style.display =
+                  groupMatch ||
+                  cells.some(
+                    cell =>
+                      cell.style.display !==
+                      "none"
                   )
                     ? ""
                     : "none";
@@ -22253,7 +22653,7 @@ async function registerOfflineServiceWorker() {
     await navigator
       .serviceWorker
       .register(
-        "./sw.js?v=20260911-offline-resilience-1"
+        "./sw.js?v=20260915-closing-matrix-1"
       );
 
   } catch (error) {
