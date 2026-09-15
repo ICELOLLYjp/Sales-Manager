@@ -1,5 +1,5 @@
 const CACHE_NAME =
-  "icelolly-sales-shell-20260916-session-status-1";
+  "icelolly-sales-shell-20260916-flow-close-1";
 
 const CORE_ASSETS = [
   "./",
@@ -12,6 +12,7 @@ const CORE_ASSETS = [
   "./js/quickAllocationUi.js",
   "./js/unidentifiedFinalizeUi.js",
   "./js/eventCloseHubUi.js",
+  "./js/eventFlowCloseUiCompat.js",
   "./js/eventCloseStageUi.js",
   "./js/sessionStatusUi.js",
   "./js/firebase.js",
@@ -38,10 +39,13 @@ const CORE_ASSETS = [
   "./js/services/inventoryCountService.js",
   "./js/services/inventoryFlowService.js",
   "./js/services/inventoryFlowFinalizeService.js",
+  "./js/services/eventFlowAccountingService.js",
   "./js/services/eventCloseService.js",
   "./js/services/eventCloseServiceCompat.js",
+  "./js/services/eventCloseFlowCompatService.js",
   "./js/services/unidentifiedQuickService.js",
   "./js/services/closeWithUnidentifiedService.js",
+  "./js/services/closeWithUnidentifiedFlowCompatService.js",
   "./js/services/provisionalWithoutCountService.js",
   "./js/services/offlineQueueService.js",
   "./js/services/stripePaymentService.js",
