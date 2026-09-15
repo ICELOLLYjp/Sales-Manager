@@ -148,6 +148,180 @@
   font-weight: 800;
 }
 
+.inventoryClosingMatrixTitle,
+.inventoryClosingAccessoryTitle {
+  margin: 14px 0 8px;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.inventoryClosingMatrixScroller {
+  overflow-x: auto;
+  border: 1px solid #ecece7;
+  border-radius: 14px;
+  overscroll-behavior-inline: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.inventoryClosingMatrixTable {
+  min-width: 750px;
+}
+
+.inventoryClosingMatrixHeader,
+.inventoryClosingMatrixRow {
+  display: grid;
+  grid-template-columns: 140px repeat(5, 122px);
+}
+
+.inventoryClosingMatrixHeader {
+  position: sticky;
+  top: 0;
+  z-index: 6;
+  background: #f7f7f4;
+  border-bottom: 1px solid #e7e7e2;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.inventoryClosingMatrixRow {
+  align-items: stretch;
+  border-bottom: 1px solid #ecece7;
+}
+
+.inventoryClosingMatrixRow:last-child {
+  border-bottom: 0;
+}
+
+.inventoryClosingMatrixLabel {
+  position: sticky;
+  left: 0;
+  z-index: 4;
+  min-width: 0;
+  padding: 9px 8px;
+  border-right: 1px solid #e7e7e2;
+  background: #fff;
+  box-shadow: 3px 0 6px rgba(0, 0, 0, 0.04);
+}
+
+.inventoryClosingMatrixHeading {
+  z-index: 7;
+  background: #f7f7f4;
+}
+
+.inventoryClosingMatrixSizeHeading {
+  padding: 9px 4px;
+  border-left: 1px solid #ecece7;
+  text-align: center;
+}
+
+.inventoryClosingMatrixDesign {
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.inventoryClosingMatrixDetail {
+  margin-top: 4px;
+  color: #777;
+  font-size: 10px;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.inventoryClosingMatrixEmpty {
+  display: grid;
+  place-items: center;
+  min-height: 146px;
+  border-left: 1px solid #ecece7;
+  background: #f3f3f0;
+  color: #b7b7b2;
+}
+
+.inventoryClosingMatrixCell {
+  min-width: 0;
+  padding: 7px 4px !important;
+  border-bottom: 0 !important;
+  border-left: 1px solid #ecece7;
+  text-align: center;
+}
+
+.inventoryClosingOriginalSummary {
+  display: none !important;
+}
+
+.inventoryClosingMatrixExpected {
+  display: grid;
+  gap: 1px;
+  margin-bottom: 5px;
+  line-height: 1.2;
+}
+
+.inventoryClosingMatrixExpected strong {
+  font-size: 13px;
+}
+
+.inventoryClosingMatrixExpected span {
+  color: #888;
+  font-size: 9px;
+}
+
+.inventoryClosingMatrixCell .inventoryClosingControl {
+  display: block !important;
+  margin-top: 0 !important;
+}
+
+.inventoryClosingMatrixCell .inventoryClosingControl > span {
+  display: none;
+}
+
+.inventoryClosingMatrixCell .inventoryClosingStepper {
+  grid-template-columns: 34px minmax(42px, 1fr) 34px;
+  gap: 2px;
+}
+
+.inventoryClosingMatrixCell .inventoryClosingStepButton {
+  min-width: 34px;
+  min-height: 44px;
+  border-radius: 9px;
+  font-size: 23px;
+}
+
+.inventoryClosingMatrixCell .inventoryClosingQty {
+  min-height: 44px !important;
+  font-size: 16px !important;
+}
+
+.inventoryClosingMatrixCell .inventoryClosingDifference {
+  margin-top: 4px !important;
+  min-height: 30px !important;
+  font-size: 9px !important;
+  line-height: 1.25;
+}
+
+.inventoryClosingMatrixCell details {
+  margin-top: 3px !important;
+  text-align: left;
+}
+
+.inventoryClosingMatrixCell details > summary {
+  min-height: 34px;
+  padding: 7px 2px;
+  font-size: 10px !important;
+  text-align: center;
+}
+
+.inventoryClosingMatrixCell details > div {
+  grid-template-columns: 1fr !important;
+  gap: 6px !important;
+}
+
+.inventoryClosingMatrixCell .inventoryReasonInput {
+  min-height: 40px !important;
+  padding: 6px !important;
+  text-align: center;
+}
+
 .eventCarryAccessoryRow > div {
   grid-template-columns: minmax(0, 1fr) minmax(148px, 168px) !important;
 }
@@ -177,5 +351,14 @@
 
   .inventoryClosingControl {
     grid-template-columns: minmax(0, 1fr) 158px !important;
+  }
+
+  .inventoryClosingMatrixTable {
+    min-width: 720px;
+  }
+
+  .inventoryClosingMatrixHeader,
+  .inventoryClosingMatrixRow {
+    grid-template-columns: 130px repeat(5, 118px);
   }
 }
