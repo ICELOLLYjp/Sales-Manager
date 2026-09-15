@@ -12018,7 +12018,8 @@ async function renderSessions(
                 );
 
               if (
-                next === current
+                next === current &&
+                input.value !== ""
               ) {
                 return;
               }
@@ -12026,9 +12027,7 @@ async function renderSessions(
               rememberEventCarryUndo();
 
               input.value =
-                next > 0
-                  ? String(next)
-                  : "";
+                String(next);
 
               input.dataset.lastValue =
                 input.value;
@@ -13621,7 +13620,8 @@ async function renderSessions(
                 );
 
               if (
-                next === current
+                next === current &&
+                input.value !== ""
               ) {
                 return;
               }
@@ -13629,9 +13629,7 @@ async function renderSessions(
               rememberClosingInventoryUndo();
 
               input.value =
-                next > 0
-                  ? String(next)
-                  : "";
+                String(next);
 
               const row =
                 input.closest(
@@ -22653,7 +22651,7 @@ async function registerOfflineServiceWorker() {
     await navigator
       .serviceWorker
       .register(
-        "./sw.js?v=20260915-closing-matrix-1"
+        "./sw.js?v=20260915-zero-display-1"
       );
 
   } catch (error) {
