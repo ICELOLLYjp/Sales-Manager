@@ -1,4 +1,6 @@
 import { loadUnidentifiedQuickSummary } from "./services/unidentifiedQuickService.js?v=20260915-unidentified-quick-1";
+import { provisionallyCloseWithoutCount } from "./services/provisionalWithoutCountService.js?v=20260916-skip-count-1";
+import { getOfflineSalesQueueForSession } from "./services/offlineQueueService.js?v=20260911-offline-resilience-1";
 
 const INVENTORY_SESSION_KEY = "icelolly-sales-inventory-session";
 const TSHIRT_COUNT_URL = "https://icelollyjp.github.io/T-shirts-Stock/event-count.html";
@@ -10,15 +12,6 @@ function text(value) {
 
 function currentSessionId() {
   return text(localStorage.getItem(INVENTORY_SESSION_KEY));
-}
-
-function escapeHtml(value) {
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
 }
 
 function statusInfo(value) {
@@ -151,16 +144,59 @@ function nativeActions() {
   };
 }
 
-function actionState(summary, actions) {
+function actionState(summary, actions, sessionId) {
   if (summary.sessionStatus === "closed") {
-    return { label: "イベント終了済み", disabled: true, target: null, note: "このイベントは終了済みです。" };
+    return { label: "イベント終了済み", disabled: true, target: null, mode: "none", note: "このイベントは終了済みです。" };
   }
 
   if (!summary.closingComplete) {
+    if (summary.sessionStatus === "open") {
+      const pendingOffline = getOfflineSalesQueueForSession(sessionId).length;
+
+      if (!navigator.onLine) {
+        return {
+          label: "オンラインで仮終了してください",
+          disabled: true,
+          target: null,
+          mode: "none",
+          note: "棚卸せずに仮終了する時は、POS停止をFirebaseへ保存するためオンライン接続が必要です。"
+        };
+      }
+
+      if (pendingOffline > 0) {
+        return {
+          label: `未同期会計 ${pendingOffline} 件を先に同期`,
+          disabled: true,
+          target: null,
+          mode: "none",
+          note: "未同期の会計を残したままPOSを停止すると売上が欠けるため、先に同期してください。"
+        };
+      }
+
+      return {
+        label: "棚卸せずに仮終了",
+        disabled: false,
+        target: null,
+        mode: "skip_count",
+        note: "POSだけ停止します。在庫・終了実数・Quick配分は変更せず、あとで棚卸から再開できます。"
+      };
+    }
+
+    if (summary.sessionStatus === "pending_allocation") {
+      return {
+        label: "仮終了済み・棚卸待ち",
+        disabled: true,
+        target: null,
+        mode: "none",
+        note: "POSは停止済みです。Tシャツ／アクセサリー棚卸を行うと、その後の終了処理へ進めます。"
+      };
+    }
+
     return {
       label: "先に棚卸を完了してください",
       disabled: true,
       target: null,
+      mode: "none",
       note: "Tシャツ・アクセサリーの終了実数を確認してから終了できます。"
     };
   }
@@ -170,6 +206,7 @@ function actionState(summary, actions) {
       label: `未特定 ${summary.unresolvedTotal} 点を残して仮終了`,
       disabled: !actions.provisional || actions.provisional.disabled,
       target: actions.provisional,
+      mode: "native",
       note: "まずPOSを停止して仮終了します。あとでそのまま正式終了できます。"
     };
   }
@@ -179,6 +216,7 @@ function actionState(summary, actions) {
       label: `未特定 ${summary.unresolvedTotal} 点を残して正式終了`,
       disabled: !actions.unidentifiedFinalize || actions.unidentifiedFinalize.disabled,
       target: actions.unidentifiedFinalize,
+      mode: "native",
       note: "未特定分はSKUを推測せず、そのまま記録してイベントを終了します。"
     };
   }
@@ -187,6 +225,7 @@ function actionState(summary, actions) {
     label: "イベントを終了して在庫を確定",
     disabled: !actions.finalize || actions.finalize.disabled,
     target: actions.finalize,
+    mode: "native",
     note: actions.finalize?.disabled
       ? "在庫差異など、まだ確認が必要な項目があります。詳細を確認してください。"
       : "SKUまで確定した販売と調整を正式在庫へ反映して終了します。"
@@ -195,7 +234,56 @@ function actionState(summary, actions) {
 
 let lastSummary = null;
 let actionTarget = null;
+let actionMode = "none";
 let loadingSessionId = "";
+
+async function handleSkipCountClose(button) {
+  const sessionId = currentSessionId();
+  if (!sessionId || !lastSummary || lastSummary.sessionStatus !== "open" || lastSummary.closingComplete) return;
+
+  const pendingOffline = getOfflineSalesQueueForSession(sessionId).length;
+  if (pendingOffline > 0) {
+    window.alert(`未同期会計が ${pendingOffline} 件あります。先に同期してから仮終了してください。`);
+    return;
+  }
+
+  if (!navigator.onLine) {
+    window.alert("棚卸せずに仮終了する時はオンライン接続が必要です。");
+    return;
+  }
+
+  const ok = window.confirm(
+    "棚卸をせずにイベントを仮終了します。\n\n" +
+    "・POS販売を停止します\n" +
+    "・正式在庫は変更しません\n" +
+    "・終了在庫やQuick配分も変更しません\n" +
+    "・あとでTシャツ／アクセサリー棚卸から再開できます\n\n" +
+    "この内容で仮終了しますか？"
+  );
+  if (!ok) return;
+
+  const originalText = button.textContent;
+  button.disabled = true;
+  button.textContent = "仮終了中…";
+
+  try {
+    await provisionallyCloseWithoutCount({
+      sessionId,
+      closedByEmail: ""
+    });
+
+    window.alert("棚卸せずに仮終了しました。POS販売は停止済みです。在庫は変更していません。あとで棚卸から再開できます。");
+    lastSummary = null;
+    actionTarget = null;
+    actionMode = "none";
+    loadingSessionId = "";
+    await updateHub();
+  } catch (error) {
+    window.alert(error?.message || String(error));
+    button.disabled = false;
+    button.textContent = originalText;
+  }
+}
 
 async function updateHub() {
   injectStyles();
@@ -256,8 +344,9 @@ async function updateHub() {
 
     moveDetailsIntoHub();
     const actions = nativeActions();
-    const state = actionState(summary, actions);
+    const state = actionState(summary, actions, sessionId);
     actionTarget = state.target;
+    actionMode = state.mode;
 
     const action = document.querySelector("#eventCloseHubAction");
     const next = document.querySelector("#eventCloseHubNext");
@@ -269,6 +358,8 @@ async function updateHub() {
   } catch (error) {
     const next = document.querySelector("#eventCloseHubNext");
     const action = document.querySelector("#eventCloseHubAction");
+    actionTarget = null;
+    actionMode = "none";
     if (next) next.textContent = error?.message || String(error);
     if (action) {
       action.textContent = "状態を再確認してください";
@@ -283,6 +374,12 @@ document.addEventListener("click", event => {
   const button = event.target.closest?.("#eventCloseHubAction");
   if (!button) return;
   event.preventDefault();
+
+  if (actionMode === "skip_count") {
+    void handleSkipCountClose(button);
+    return;
+  }
+
   if (!actionTarget || actionTarget.disabled) return;
   actionTarget.click();
 });
