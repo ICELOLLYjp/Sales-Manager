@@ -1,5 +1,5 @@
 const CACHE_NAME =
-  "icelolly-sales-shell-20260915-quick-allocation-list-1";
+  "icelolly-sales-shell-20260915-quick-allocation-ui-1";
 
 const CORE_ASSETS = [
   "./",
@@ -9,6 +9,7 @@ const CORE_ASSETS = [
   "./css/iphoneInventoryControls.css",
 
   "./js/app.js",
+  "./js/quickAllocationUi.js",
   "./js/firebase.js",
   "./js/auth.js",
   "./js/views/dashboardView.js",
