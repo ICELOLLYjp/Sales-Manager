@@ -7578,6 +7578,25 @@ async function renderSessions(
                           </div>
                         </div>
 
+                        <div class="eventCarryDraftBar">
+                          <div
+                            id="eventCarryDraftStatus"
+                            class="eventCarryDraftStatus"
+                            aria-live="polite"
+                          >
+                            入力はこの端末に自動保存されます
+                          </div>
+
+                          <button
+                            id="undoEventCarryButton"
+                            type="button"
+                            class="eventCarryUndoButton"
+                            disabled
+                          >
+                            元に戻す
+                          </button>
+                        </div>
+
                         ${
                           openingInventoryLocked
                             ? `
@@ -7749,6 +7768,7 @@ async function renderSessions(
                             </div>
 
                             <div
+                              class="eventCarryMatrixScroller"
                               style="
                                 overflow-x:auto;
                                 border:1px solid #ecece7;
@@ -7761,6 +7781,7 @@ async function renderSessions(
                                 "
                               >
                                 <div
+                                  class="eventCarryMatrixHeader"
                                   style="
                                     display:grid;
                                     grid-template-columns:
@@ -8052,50 +8073,72 @@ async function renderSessions(
                                                   在${item.openingQty}
                                                 </div>
 
-                                                <input
-                                                  class="eventCarryQtyInput"
-                                                  data-variant-id="${escapeHtml(
-                                                    item.variantId
-                                                  )}"
-                                                  type="number"
-                                                  min="0"
-                                                  max="${item.openingQty}"
-                                                  step="1"
-                                                  inputmode="numeric"
-                                                  value="${
-                                                    openingEditMode
-                                                      ? (
-                                                          savedOpeningQtyByVariant.get(
-                                                            item.variantId
-                                                          ) ||
-                                                          ""
-                                                        )
-                                                      : ""
-                                                  }"
-                                                  placeholder="0"
-                                                  ${outOfStock ? "disabled" : ""}
-                                                  aria-label="${escapeHtml(
-                                                    `${group.design} ${group.body} ${group.color} ${size} イベント持参数`
-                                                  )}"
-                                                  style="
-                                                    width:46px;
-                                                    min-height:38px;
-                                                    padding:0 3px;
-                                                    border:1px solid ${
-                                                      outOfStock
-                                                        ? "#e4e4df"
-                                                        : "#deded9"
-                                                    };
-                                                    border-radius:8px;
-                                                    text-align:center;
-                                                    font-size:15px;
-                                                    ${
-                                                      outOfStock
-                                                        ? "background:#ededE9;color:#aaa;opacity:.72;"
+                                                <div class="eventCarryStepper">
+                                                  <button
+                                                    type="button"
+                                                    class="eventCarryStepButton"
+                                                    data-delta="-1"
+                                                    ${outOfStock ? "disabled" : ""}
+                                                    aria-label="${escapeHtml(
+                                                      `${group.design} ${group.body} ${group.color} ${size} を1減らす`
+                                                    )}"
+                                                  >−</button>
+
+                                                  <input
+                                                    class="eventCarryQtyInput"
+                                                    data-variant-id="${escapeHtml(
+                                                      item.variantId
+                                                    )}"
+                                                    type="number"
+                                                    min="0"
+                                                    max="${item.openingQty}"
+                                                    step="1"
+                                                    inputmode="numeric"
+                                                    value="${
+                                                      openingEditMode
+                                                        ? (
+                                                            savedOpeningQtyByVariant.get(
+                                                              item.variantId
+                                                            ) ||
+                                                            ""
+                                                          )
                                                         : ""
-                                                    }
-                                                  "
-                                                >
+                                                    }"
+                                                    placeholder="0"
+                                                    ${outOfStock ? "disabled" : ""}
+                                                    aria-label="${escapeHtml(
+                                                      `${group.design} ${group.body} ${group.color} ${size} イベント持参数`
+                                                    )}"
+                                                    style="
+                                                      width:46px;
+                                                      min-height:38px;
+                                                      padding:0 3px;
+                                                      border:1px solid ${
+                                                        outOfStock
+                                                          ? "#e4e4df"
+                                                          : "#deded9"
+                                                      };
+                                                      border-radius:8px;
+                                                      text-align:center;
+                                                      font-size:15px;
+                                                      ${
+                                                        outOfStock
+                                                          ? "background:#ededE9;color:#aaa;opacity:.72;"
+                                                          : ""
+                                                      }
+                                                    "
+                                                  >
+
+                                                  <button
+                                                    type="button"
+                                                    class="eventCarryStepButton"
+                                                    data-delta="1"
+                                                    ${outOfStock ? "disabled" : ""}
+                                                    aria-label="${escapeHtml(
+                                                      `${group.design} ${group.body} ${group.color} ${size} を1増やす`
+                                                    )}"
+                                                  >＋</button>
+                                                </div>
                                               </div>
                                             `;
                                           }
@@ -8259,44 +8302,80 @@ async function renderSessions(
                                             イベント持参数
                                           </div>
 
-                                          <input
-                                            class="eventCarryQtyInput"
-                                            data-variant-id="${escapeHtml(
-                                              row.variantId
-                                            )}"
-                                            type="number"
-                                            min="0"
-                                            max="${row.openingQty}"
-                                            step="1"
-                                            inputmode="numeric"
-                                            value="${
-                                              openingEditMode
-                                                ? (
-                                                    savedOpeningQtyByVariant.get(
-                                                      row.variantId
-                                                    ) ||
-                                                    ""
-                                                  )
-                                                : ""
-                                            }"
-                                            placeholder="0"
-                                            ${
-                                              Number(
-                                                row.openingQty ||
-                                                0
-                                              ) <= 0
-                                                ? "disabled"
-                                                : ""
-                                            }
-                                            style="${
-                                              Number(
-                                                row.openingQty ||
-                                                0
-                                              ) <= 0
-                                                ? `${inputStyle()} background:#ededE9;color:#aaa;opacity:.72;`
-                                                : inputStyle()
-                                            }"
-                                          >
+                                          <div class="eventCarryStepper">
+                                            <button
+                                              type="button"
+                                              class="eventCarryStepButton"
+                                              data-delta="-1"
+                                              ${
+                                                Number(
+                                                  row.openingQty ||
+                                                  0
+                                                ) <= 0
+                                                  ? "disabled"
+                                                  : ""
+                                              }
+                                              aria-label="${escapeHtml(
+                                                `${row.label} を1減らす`
+                                              )}"
+                                            >−</button>
+
+                                            <input
+                                              class="eventCarryQtyInput"
+                                              data-variant-id="${escapeHtml(
+                                                row.variantId
+                                              )}"
+                                              type="number"
+                                              min="0"
+                                              max="${row.openingQty}"
+                                              step="1"
+                                              inputmode="numeric"
+                                              value="${
+                                                openingEditMode
+                                                  ? (
+                                                      savedOpeningQtyByVariant.get(
+                                                        row.variantId
+                                                      ) ||
+                                                      ""
+                                                    )
+                                                  : ""
+                                              }"
+                                              placeholder="0"
+                                              ${
+                                                Number(
+                                                  row.openingQty ||
+                                                  0
+                                                ) <= 0
+                                                  ? "disabled"
+                                                  : ""
+                                              }
+                                              style="${
+                                                Number(
+                                                  row.openingQty ||
+                                                  0
+                                                ) <= 0
+                                                  ? `${inputStyle()} background:#ededE9;color:#aaa;opacity:.72;`
+                                                  : inputStyle()
+                                              }"
+                                            >
+
+                                            <button
+                                              type="button"
+                                              class="eventCarryStepButton"
+                                              data-delta="1"
+                                              ${
+                                                Number(
+                                                  row.openingQty ||
+                                                  0
+                                                ) <= 0
+                                                  ? "disabled"
+                                                  : ""
+                                              }
+                                              aria-label="${escapeHtml(
+                                                `${row.label} を1増やす`
+                                              )}"
+                                            >＋</button>
+                                          </div>
                                         </label>
                                       </div>
                                     </div>
@@ -9120,6 +9199,25 @@ async function renderSessions(
                               </button>
                             </div>
 
+                            <div class="closingInventoryDraftBar">
+                              <div
+                                id="closingInventoryDraftStatus"
+                                class="eventCarryDraftStatus"
+                                aria-live="polite"
+                              >
+                                入力はこの端末に自動保存されます
+                              </div>
+
+                              <button
+                                id="undoClosingInventoryButton"
+                                type="button"
+                                class="eventCarryUndoButton"
+                                disabled
+                              >
+                                元に戻す
+                              </button>
+                            </div>
+
                             <input
                               id="inventoryCountSearch"
                               type="search"
@@ -9318,11 +9416,12 @@ async function renderSessions(
                                       </div>
 
                                       <label
+                                        class="inventoryClosingControl"
                                         style="
                                           display:grid;
                                           grid-template-columns:
                                             minmax(0,1fr)
-                                            110px;
+                                            160px;
                                           gap:8px;
                                           align-items:center;
                                           margin-top:10px;
@@ -9336,26 +9435,46 @@ async function renderSessions(
                                           終了実数
                                         </span>
 
-                                        <input
-                                          class="inventoryClosingQty"
-                                          data-variant-id="${escapeHtml(
-                                            opening.variantId
-                                          )}"
-                                          type="number"
-                                          min="0"
-                                          step="1"
-                                          inputmode="numeric"
-                                          value="${
-                                            closing.closingQty !==
-                                              null &&
-                                            closing.closingQty !==
-                                              undefined
-                                              ? closing.closingQty
-                                              : ""
-                                          }"
-                                          placeholder="未入力"
-                                          style="${inputStyle()}"
-                                        >
+                                        <div class="inventoryClosingStepper">
+                                          <button
+                                            type="button"
+                                            class="inventoryClosingStepButton"
+                                            data-delta="-1"
+                                            aria-label="${escapeHtml(
+                                              `${opening.label} の終了実数を1減らす`
+                                            )}"
+                                          >−</button>
+
+                                          <input
+                                            class="inventoryClosingQty"
+                                            data-variant-id="${escapeHtml(
+                                              opening.variantId
+                                            )}"
+                                            type="number"
+                                            min="0"
+                                            step="1"
+                                            inputmode="numeric"
+                                            value="${
+                                              closing.closingQty !==
+                                                null &&
+                                              closing.closingQty !==
+                                                undefined
+                                                ? closing.closingQty
+                                                : ""
+                                            }"
+                                            placeholder="未入力"
+                                            style="${inputStyle()}"
+                                          >
+
+                                          <button
+                                            type="button"
+                                            class="inventoryClosingStepButton"
+                                            data-delta="1"
+                                            aria-label="${escapeHtml(
+                                              `${opening.label} の終了実数を1増やす`
+                                            )}"
+                                          >＋</button>
+                                        </div>
                                       </label>
 
                                       <div
@@ -11306,6 +11425,256 @@ async function renderSessions(
     }
 
 
+    const eventCarryDraftSessionId =
+      selectedInventoryCountSession
+        ?.sessionId ||
+      "";
+
+    const eventCarryDraftStorageKey =
+      eventCarryDraftSessionId
+        ? `icelolly-event-carry-draft:${eventCarryDraftSessionId}`
+        : "";
+
+    const eventCarryUndoStack = [];
+
+
+    function eventCarryValueSnapshot() {
+      return Array.from(
+        document.querySelectorAll(
+          ".eventCarryQtyInput"
+        )
+      ).map(
+        input => ({
+          variantId:
+            input.dataset.variantId ||
+            "",
+          value:
+            input.value ||
+            ""
+        })
+      );
+    }
+
+
+    function applyEventCarryValueSnapshot(
+      snapshot
+    ) {
+      const values =
+        new Map(
+          (
+            Array.isArray(snapshot)
+              ? snapshot
+              : []
+          ).map(
+            item => [
+              item.variantId,
+              item.value
+            ]
+          )
+        );
+
+      document
+        .querySelectorAll(
+          ".eventCarryQtyInput"
+        )
+        .forEach(
+          input => {
+            const value =
+              values.has(
+                input.dataset.variantId ||
+                ""
+              )
+                ? values.get(
+                    input.dataset.variantId ||
+                    ""
+                  )
+                : "";
+
+            input.value =
+              value === null ||
+              value === undefined
+                ? ""
+                : String(value);
+
+            input.dataset.lastValue =
+              input.value;
+          }
+        );
+    }
+
+
+    function updateEventCarryUndoButton() {
+      const button =
+        document.querySelector(
+          "#undoEventCarryButton"
+        );
+
+      if (button) {
+        button.disabled =
+          eventCarryUndoStack.length ===
+          0;
+      }
+    }
+
+
+    function rememberEventCarryUndo(
+      snapshot =
+        eventCarryValueSnapshot()
+    ) {
+      const previous =
+        eventCarryUndoStack[
+          eventCarryUndoStack.length -
+          1
+        ];
+
+      if (
+        previous &&
+        JSON.stringify(previous) ===
+          JSON.stringify(snapshot)
+      ) {
+        return;
+      }
+
+      eventCarryUndoStack.push(
+        snapshot
+      );
+
+      if (
+        eventCarryUndoStack.length >
+        30
+      ) {
+        eventCarryUndoStack.shift();
+      }
+
+      updateEventCarryUndoButton();
+    }
+
+
+    function setEventCarryDraftStatus(
+      text
+    ) {
+      const status =
+        document.querySelector(
+          "#eventCarryDraftStatus"
+        );
+
+      if (status) {
+        status.textContent =
+          text;
+      }
+    }
+
+
+    function saveEventCarryDraft() {
+      if (
+        !eventCarryDraftStorageKey
+      ) {
+        return;
+      }
+
+      try {
+        localStorage.setItem(
+          eventCarryDraftStorageKey,
+          JSON.stringify({
+            values:
+              eventCarryValueSnapshot(),
+            updatedAt:
+              new Date().toISOString()
+          })
+        );
+
+        setEventCarryDraftStatus(
+          "入力をこの端末に保存しました"
+        );
+
+      } catch (error) {
+        setEventCarryDraftStatus(
+          "端末への自動保存ができません"
+        );
+      }
+    }
+
+
+    function clearEventCarryDraft() {
+      if (
+        !eventCarryDraftStorageKey
+      ) {
+        return;
+      }
+
+      try {
+        localStorage.removeItem(
+          eventCarryDraftStorageKey
+        );
+      } catch (error) {
+        /* Saving to Firestore already succeeded. */
+      }
+    }
+
+
+    function restoreEventCarryDraft() {
+      if (
+        !eventCarryDraftStorageKey
+      ) {
+        return false;
+      }
+
+      try {
+        const raw =
+          localStorage.getItem(
+            eventCarryDraftStorageKey
+          );
+
+        if (!raw) {
+          return false;
+        }
+
+        const draft =
+          JSON.parse(raw);
+
+        if (
+          !Array.isArray(
+            draft?.values
+          )
+        ) {
+          return false;
+        }
+
+        applyEventCarryValueSnapshot(
+          draft.values
+        );
+
+        setEventCarryDraftStatus(
+          "前回の入力途中から再開しました"
+        );
+
+        return true;
+
+      } catch (error) {
+        return false;
+      }
+    }
+
+
+    function commitEventCarryDomChange() {
+      document
+        .querySelectorAll(
+          ".eventCarryQtyInput"
+        )
+        .forEach(
+          input => {
+            input.dataset.lastValue =
+              input.value ||
+              "";
+          }
+        );
+
+      updateEventCarrySummary();
+      applyEventCarryFilters();
+      saveEventCarryDraft();
+    }
+
+
     function updateEventCarrySummary() {
       let totalQty = 0;
       let skuCount = 0;
@@ -11424,6 +11793,8 @@ async function renderSessions(
           overwrite
         });
 
+        clearEventCarryDraft();
+
         sessionOpeningEditId =
           "";
 
@@ -11478,9 +11849,34 @@ async function renderSessions(
       )
       .forEach(
         input => {
+          input.dataset.lastValue =
+            input.value ||
+            "";
+
           input.addEventListener(
             "input",
             event => {
+              const undoSnapshot =
+                eventCarryValueSnapshot();
+
+              const changedItem =
+                undoSnapshot.find(
+                  item =>
+                    item.variantId ===
+                    (
+                      event.target.dataset
+                        .variantId ||
+                      ""
+                    )
+                );
+
+              if (changedItem) {
+                changedItem.value =
+                  event.target.dataset
+                    .lastValue ||
+                  "";
+              }
+
               const max =
                 Math.max(
                   0,
@@ -11510,8 +11906,108 @@ async function renderSessions(
                   String(max);
               }
 
-              updateEventCarrySummary();
-              applyEventCarryFilters();
+              rememberEventCarryUndo(
+                undoSnapshot
+              );
+
+              event.target.dataset
+                .lastValue =
+                event.target.value ||
+                "";
+
+              commitEventCarryDomChange();
+            }
+          );
+        }
+      );
+
+
+    document
+      .querySelectorAll(
+        ".eventCarryStepButton"
+      )
+      .forEach(
+        button => {
+          button.addEventListener(
+            "click",
+            () => {
+              const input =
+                button
+                  .closest(
+                    ".eventCarryStepper"
+                  )
+                  ?.querySelector(
+                    ".eventCarryQtyInput"
+                  );
+
+              if (
+                !input ||
+                input.disabled
+              ) {
+                return;
+              }
+
+              const max =
+                Math.max(
+                  0,
+                  Math.floor(
+                    Number(
+                      input.max ||
+                      0
+                    )
+                  )
+                );
+
+              const delta =
+                Number(
+                  button.dataset.delta ||
+                  0
+                );
+
+              const current =
+                Math.max(
+                  0,
+                  Math.floor(
+                    Number(
+                      input.value ||
+                      0
+                    )
+                  )
+                );
+
+              const next =
+                Math.min(
+                  max,
+                  Math.max(
+                    0,
+                    current +
+                    delta
+                  )
+                );
+
+              if (
+                next === current
+              ) {
+                return;
+              }
+
+              rememberEventCarryUndo();
+
+              input.value =
+                next > 0
+                  ? String(next)
+                  : "";
+
+              input.dataset.lastValue =
+                input.value;
+
+              if (
+                navigator.vibrate
+              ) {
+                navigator.vibrate(8);
+              }
+
+              commitEventCarryDomChange();
             }
           );
         }
@@ -11535,6 +12031,8 @@ async function renderSessions(
               if (!matrixRow) {
                 return;
               }
+
+              rememberEventCarryUndo();
 
               matrixRow
                 .querySelectorAll(
@@ -11560,8 +12058,7 @@ async function renderSessions(
                   }
                 );
 
-              updateEventCarrySummary();
-              applyEventCarryFilters();
+              commitEventCarryDomChange();
             }
           );
         }
@@ -11584,6 +12081,8 @@ async function renderSessions(
               if (!designKey) {
                 return;
               }
+
+              rememberEventCarryUndo();
 
               document
                 .querySelectorAll(
@@ -11625,8 +12124,7 @@ async function renderSessions(
                   }
                 );
 
-              updateEventCarrySummary();
-              applyEventCarryFilters();
+              commitEventCarryDomChange();
             }
           );
         }
@@ -11640,6 +12138,8 @@ async function renderSessions(
       ?.addEventListener(
         "click",
         () => {
+          rememberEventCarryUndo();
+
           document
             .querySelectorAll(
               ".eventCarryRow"
@@ -11662,8 +12162,7 @@ async function renderSessions(
               }
             );
 
-          updateEventCarrySummary();
-          applyEventCarryFilters();
+          commitEventCarryDomChange();
         }
       );
 
@@ -11675,6 +12174,8 @@ async function renderSessions(
       ?.addEventListener(
         "click",
         () => {
+          rememberEventCarryUndo();
+
           document
             .querySelectorAll(
               ".eventCarryQtyInput"
@@ -11686,8 +12187,7 @@ async function renderSessions(
               }
             );
 
-          updateEventCarrySummary();
-          applyEventCarryFilters();
+          commitEventCarryDomChange();
         }
       );
 
@@ -11731,6 +12231,8 @@ async function renderSessions(
       ?.addEventListener(
         "click",
         () => {
+          rememberEventCarryUndo();
+
           visibleCarryRows()
             .forEach(
               row => {
@@ -11750,8 +12252,7 @@ async function renderSessions(
               }
             );
 
-          updateEventCarrySummary();
-          applyEventCarryFilters();
+          commitEventCarryDomChange();
         }
       );
 
@@ -11763,6 +12264,8 @@ async function renderSessions(
       ?.addEventListener(
         "click",
         () => {
+          rememberEventCarryUndo();
+
           visibleCarryRows()
             .forEach(
               row => {
@@ -11778,8 +12281,7 @@ async function renderSessions(
               }
             );
 
-          updateEventCarrySummary();
-          applyEventCarryFilters();
+          commitEventCarryDomChange();
         }
       );
 
@@ -12037,6 +12539,58 @@ async function renderSessions(
 
     document
       .querySelector(
+        "#undoEventCarryButton"
+      )
+      ?.addEventListener(
+        "click",
+        () => {
+          const snapshot =
+            eventCarryUndoStack.pop();
+
+          if (!snapshot) {
+            return;
+          }
+
+          applyEventCarryValueSnapshot(
+            snapshot
+          );
+
+          updateEventCarryUndoButton();
+          commitEventCarryDomChange();
+          setEventCarryDraftStatus(
+            "1つ前の入力に戻しました"
+          );
+        }
+      );
+
+
+    if (
+      document.querySelector(
+        ".eventCarryQtyInput"
+      )
+    ) {
+      restoreEventCarryDraft();
+
+      document
+        .querySelectorAll(
+          ".eventCarryQtyInput"
+        )
+        .forEach(
+          input => {
+            input.dataset.lastValue =
+              input.value ||
+              "";
+          }
+        );
+
+      updateEventCarrySummary();
+      applyEventCarryFilters();
+      updateEventCarryUndoButton();
+    }
+
+
+    document
+      .querySelector(
         "#captureOpeningInventoryButton"
       )
       ?.addEventListener(
@@ -12248,6 +12802,262 @@ async function renderSessions(
     }
 
 
+    const closingInventoryDraftSessionId =
+      selectedInventoryCountSession
+        ?.sessionId ||
+      "";
+
+    const closingInventoryDraftStorageKey =
+      closingInventoryDraftSessionId
+        ? `icelolly-event-closing-draft:${closingInventoryDraftSessionId}`
+        : "";
+
+    const closingInventoryUndoStack = [];
+
+
+    function closingInventoryInputKey(
+      input
+    ) {
+      return [
+        input.dataset.variantId ||
+          "",
+        input.dataset.reason ||
+          "closingQty"
+      ].join(":");
+    }
+
+
+    function closingInventorySnapshot() {
+      return Array.from(
+        document.querySelectorAll(
+          ".inventoryClosingQty, .inventoryReasonInput"
+        )
+      ).map(
+        input => ({
+          key:
+            closingInventoryInputKey(
+              input
+            ),
+          value:
+            input.value ||
+            ""
+        })
+      );
+    }
+
+
+    function applyClosingInventorySnapshot(
+      snapshot
+    ) {
+      const values =
+        new Map(
+          (
+            Array.isArray(snapshot)
+              ? snapshot
+              : []
+          ).map(
+            item => [
+              item.key,
+              item.value
+            ]
+          )
+        );
+
+      document
+        .querySelectorAll(
+          ".inventoryClosingQty, .inventoryReasonInput"
+        )
+        .forEach(
+          input => {
+            const key =
+              closingInventoryInputKey(
+                input
+              );
+
+            if (
+              values.has(key)
+            ) {
+              input.value =
+                values.get(key) ??
+                "";
+            }
+
+            input.dataset.lastValue =
+              input.value ||
+              "";
+          }
+        );
+
+      document
+        .querySelectorAll(
+          ".inventoryCountRow"
+        )
+        .forEach(
+          row =>
+            updateClosingDifference(
+              row
+            )
+        );
+    }
+
+
+    function updateClosingInventoryUndoButton() {
+      const button =
+        document.querySelector(
+          "#undoClosingInventoryButton"
+        );
+
+      if (button) {
+        button.disabled =
+          closingInventoryUndoStack
+            .length ===
+          0;
+      }
+    }
+
+
+    function rememberClosingInventoryUndo(
+      snapshot =
+        closingInventorySnapshot()
+    ) {
+      closingInventoryUndoStack.push(
+        snapshot
+      );
+
+      if (
+        closingInventoryUndoStack.length >
+        30
+      ) {
+        closingInventoryUndoStack.shift();
+      }
+
+      updateClosingInventoryUndoButton();
+    }
+
+
+    function setClosingInventoryDraftStatus(
+      text
+    ) {
+      const status =
+        document.querySelector(
+          "#closingInventoryDraftStatus"
+        );
+
+      if (status) {
+        status.textContent =
+          text;
+      }
+    }
+
+
+    function saveClosingInventoryDraft() {
+      if (
+        !closingInventoryDraftStorageKey
+      ) {
+        return;
+      }
+
+      try {
+        localStorage.setItem(
+          closingInventoryDraftStorageKey,
+          JSON.stringify({
+            values:
+              closingInventorySnapshot(),
+            updatedAt:
+              new Date().toISOString()
+          })
+        );
+
+        setClosingInventoryDraftStatus(
+          "入力をこの端末に保存しました"
+        );
+
+      } catch (error) {
+        setClosingInventoryDraftStatus(
+          "端末への自動保存ができません"
+        );
+      }
+    }
+
+
+    function clearClosingInventoryDraft() {
+      if (
+        !closingInventoryDraftStorageKey
+      ) {
+        return;
+      }
+
+      try {
+        localStorage.removeItem(
+          closingInventoryDraftStorageKey
+        );
+      } catch (error) {
+        /* Saving to Firestore already succeeded. */
+      }
+    }
+
+
+    function restoreClosingInventoryDraft() {
+      if (
+        !closingInventoryDraftStorageKey
+      ) {
+        return false;
+      }
+
+      try {
+        const raw =
+          localStorage.getItem(
+            closingInventoryDraftStorageKey
+          );
+
+        if (!raw) {
+          return false;
+        }
+
+        const draft =
+          JSON.parse(raw);
+
+        if (
+          !Array.isArray(
+            draft?.values
+          )
+        ) {
+          return false;
+        }
+
+        applyClosingInventorySnapshot(
+          draft.values
+        );
+
+        setClosingInventoryDraftStatus(
+          "前回の入力途中から再開しました"
+        );
+
+        return true;
+
+      } catch (error) {
+        return false;
+      }
+    }
+
+
+    function commitClosingInventoryDomChange() {
+      document
+        .querySelectorAll(
+          ".inventoryClosingQty, .inventoryReasonInput"
+        )
+        .forEach(
+          input => {
+            input.dataset.lastValue =
+              input.value ||
+              "";
+          }
+        );
+
+      saveClosingInventoryDraft();
+    }
+
+
     document
       .querySelector(
         "#copyCalculatedStockToClosingButton"
@@ -12255,6 +13065,8 @@ async function renderSessions(
       ?.addEventListener(
         "click",
         () => {
+          rememberClosingInventoryUndo();
+
           document
             .querySelectorAll(
               ".inventoryCountRow"
@@ -12280,6 +13092,8 @@ async function renderSessions(
                 }
               }
             );
+
+          commitClosingInventoryDomChange();
         }
       );
 
@@ -12290,9 +13104,45 @@ async function renderSessions(
       )
       .forEach(
         input => {
+          input.dataset.lastValue =
+            input.value ||
+            "";
+
           input.addEventListener(
             "input",
             () => {
+              const undoSnapshot =
+                closingInventorySnapshot();
+
+              const changedItem =
+                undoSnapshot.find(
+                  item =>
+                    item.key ===
+                    closingInventoryInputKey(
+                      input
+                    )
+                );
+
+              if (changedItem) {
+                changedItem.value =
+                  input.dataset.lastValue ||
+                  "";
+              }
+
+              rememberClosingInventoryUndo(
+                undoSnapshot
+              );
+
+              if (
+                Number(
+                  input.value ||
+                  0
+                ) < 0
+              ) {
+                input.value =
+                  "";
+              }
+
               const row =
                 input.closest(
                   ".inventoryCountRow"
@@ -12305,6 +13155,8 @@ async function renderSessions(
                   row
                 );
               }
+
+              commitClosingInventoryDomChange();
             }
           );
 
@@ -12325,12 +13177,136 @@ async function renderSessions(
 
 
     document
+      .querySelectorAll(
+        ".inventoryReasonInput"
+      )
+      .forEach(
+        input => {
+          input.dataset.lastValue =
+            input.value ||
+            "";
+
+          input.addEventListener(
+            "input",
+            () => {
+              const undoSnapshot =
+                closingInventorySnapshot();
+
+              const changedItem =
+                undoSnapshot.find(
+                  item =>
+                    item.key ===
+                    closingInventoryInputKey(
+                      input
+                    )
+                );
+
+              if (changedItem) {
+                changedItem.value =
+                  input.dataset.lastValue ||
+                  "";
+              }
+
+              rememberClosingInventoryUndo(
+                undoSnapshot
+              );
+
+              commitClosingInventoryDomChange();
+            }
+          );
+        }
+      );
+
+
+    document
+      .querySelectorAll(
+        ".inventoryClosingStepButton"
+      )
+      .forEach(
+        button => {
+          button.addEventListener(
+            "click",
+            () => {
+              const input =
+                button
+                  .closest(
+                    ".inventoryClosingStepper"
+                  )
+                  ?.querySelector(
+                    ".inventoryClosingQty"
+                  );
+
+              if (!input) {
+                return;
+              }
+
+              const current =
+                Math.max(
+                  0,
+                  Math.floor(
+                    Number(
+                      input.value ||
+                      0
+                    )
+                  )
+                );
+
+              const next =
+                Math.max(
+                  0,
+                  current +
+                  Number(
+                    button.dataset.delta ||
+                    0
+                  )
+                );
+
+              if (
+                next === current
+              ) {
+                return;
+              }
+
+              rememberClosingInventoryUndo();
+
+              input.value =
+                next > 0
+                  ? String(next)
+                  : "";
+
+              const row =
+                input.closest(
+                  ".inventoryCountRow"
+                );
+
+              if (row) {
+                updateClosingDifference(
+                  row
+                );
+              }
+
+              if (
+                navigator.vibrate
+              ) {
+                navigator.vibrate(8);
+              }
+
+              commitClosingInventoryDomChange();
+            }
+          );
+        }
+      );
+
+
+    document
       .querySelector(
         "#clearClosingCountButton"
       )
       ?.addEventListener(
         "click",
         () => {
+          rememberClosingInventoryUndo();
+
           document
             .querySelectorAll(
               ".inventoryClosingQty"
@@ -12352,8 +13328,60 @@ async function renderSessions(
                   "";
               }
             );
+
+          commitClosingInventoryDomChange();
         }
       );
+
+
+    document
+      .querySelector(
+        "#undoClosingInventoryButton"
+      )
+      ?.addEventListener(
+        "click",
+        () => {
+          const snapshot =
+            closingInventoryUndoStack.pop();
+
+          if (!snapshot) {
+            return;
+          }
+
+          applyClosingInventorySnapshot(
+            snapshot
+          );
+
+          updateClosingInventoryUndoButton();
+          commitClosingInventoryDomChange();
+          setClosingInventoryDraftStatus(
+            "1つ前の入力に戻しました"
+          );
+        }
+      );
+
+
+    if (
+      document.querySelector(
+        ".inventoryClosingQty"
+      )
+    ) {
+      restoreClosingInventoryDraft();
+
+      document
+        .querySelectorAll(
+          ".inventoryClosingQty, .inventoryReasonInput"
+        )
+        .forEach(
+          input => {
+            input.dataset.lastValue =
+              input.value ||
+              "";
+          }
+        );
+
+      updateClosingInventoryUndoButton();
+    }
 
 
     document
@@ -12479,6 +13507,8 @@ async function renderSessions(
                     ?.email ||
                   ""
               });
+
+            clearClosingInventoryDraft();
 
             if (
               activeSessionId ===
@@ -12653,6 +13683,8 @@ async function renderSessions(
                 currentUser?.email ||
                 ""
             });
+
+            clearClosingInventoryDraft();
 
             await renderSessions(
               ++renderSequence
