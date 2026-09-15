@@ -1,5 +1,5 @@
 const CACHE_NAME =
-  "icelolly-sales-shell-20260916-close-hub-1";
+  "icelolly-sales-shell-20260916-skip-count-provisional-1";
 
 const CORE_ASSETS = [
   "./",
@@ -40,6 +40,7 @@ const CORE_ASSETS = [
   "./js/services/eventCloseServiceCompat.js",
   "./js/services/unidentifiedQuickService.js",
   "./js/services/closeWithUnidentifiedService.js",
+  "./js/services/provisionalWithoutCountService.js",
   "./js/services/offlineQueueService.js",
   "./js/services/stripePaymentService.js",
   "./stripe-result.html"
