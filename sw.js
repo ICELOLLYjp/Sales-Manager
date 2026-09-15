@@ -1,5 +1,5 @@
 const CACHE_NAME =
-  "icelolly-sales-shell-20260915-outside-opening-1";
+  "icelolly-sales-shell-20260915-unidentified-quick-1";
 
 const CORE_ASSETS = [
   "./",
@@ -36,6 +36,7 @@ const CORE_ASSETS = [
   "./js/services/inventoryFlowFinalizeService.js",
   "./js/services/eventCloseService.js",
   "./js/services/eventCloseServiceCompat.js",
+  "./js/services/unidentifiedQuickService.js",
   "./js/services/offlineQueueService.js",
   "./js/services/stripePaymentService.js",
   "./stripe-result.html"
