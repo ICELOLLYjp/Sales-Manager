@@ -1,5 +1,5 @@
 const CACHE_NAME =
-  "icelolly-sales-shell-20260915-iphone-count-2";
+  "icelolly-sales-shell-20260915-closing-matrix-1";
 
 const CORE_ASSETS = [
   "./",

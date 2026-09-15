@@ -7,7 +7,53 @@
   <title>ICELOLLY Sales Manager</title>
   <link rel="stylesheet" href="./css/app.css">
   <link rel="stylesheet" href="./css/responsive.css">
-  <link rel="stylesheet" href="./css/iphoneInventoryControls.css?v=20260915-2">
+  <link rel="stylesheet" href="./css/iphoneInventoryControls.css?v=20260915-closing-matrix-1">
+  <style>
+    /* Critical fallback: keep the iPhone count buttons usable even when an
+       older app.js is temporarily served by GitHub Pages or a service worker. */
+    .iphoneQtyFallbackStepper {
+      display: grid;
+      grid-template-columns: 48px minmax(72px, 1fr) 48px;
+      align-items: center;
+      gap: 6px;
+      width: 100%;
+      min-width: 190px;
+    }
+    .iphoneQtyFallbackButton {
+      width: 48px;
+      min-width: 48px;
+      min-height: 50px;
+      padding: 0;
+      border: 1px solid #d8d8d2;
+      border-radius: 12px;
+      background: #fff;
+      color: #1f1f1f;
+      font: 800 28px/1 system-ui, sans-serif;
+      touch-action: manipulation;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .iphoneQtyFallbackButton:active {
+      transform: scale(.96);
+      background: #ededE8;
+    }
+    .iphoneQtyFallbackStepper > input {
+      width: 100% !important;
+      min-width: 0 !important;
+      min-height: 50px !important;
+      padding-left: 4px !important;
+      padding-right: 4px !important;
+      text-align: center;
+    }
+    @media (max-width: 430px) {
+      .inventoryClosingControl:has(.iphoneQtyFallbackStepper) {
+        grid-template-columns: 1fr !important;
+      }
+      .inventoryClosingControl:has(.iphoneQtyFallbackStepper) > span {
+        margin-bottom: 2px;
+      }
+    }
+  </style>
 </head>
 <body>
   <div id="app">
@@ -16,9 +62,64 @@
     <nav class="bottom-nav" aria-label="Main navigation"><button data-route="dashboard" class="nav-btn active">Dashboard</button><button data-route="sessions" class="nav-btn">Sessions</button><button data-route="pos" class="nav-btn nav-btn-primary">POS</button><button data-route="inventory" class="nav-btn">Inventory</button><button data-route="more" class="nav-btn">More</button></nav>
   </div>
   <script>(function(){function showBootError(message){var status=document.getElementById("syncStatus"),view=document.getElementById("view");if(status)status.textContent="Error";if(view&&!view.dataset.booted)view.innerHTML='<div class="warning" style="margin:20px;">アプリの読み込みに失敗しました。<br>'+String(message||"Unknown error").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")+'</div>'}window.addEventListener("error",function(event){showBootError(event.message||event.error?.message||"JavaScript読み込みエラー")});window.addEventListener("unhandledrejection",function(event){showBootError(event.reason?.message||event.reason||"JavaScript処理エラー")})})();</script>
-  <script type="module" src="./js/app.js?v=20260915-iphone-count-2"></script>
+  <script type="module" src="./js/app.js?v=20260915-closing-matrix-1"></script>
   <script type="module" src="./js/transactionHistorySearch.js?v=20260914-history-duplicate-lag-fix-1"></script>
   <script type="module" src="./js/posUxEnhancements.js?v=20260914-pos-history-top-1"></script>
   <script type="module" src="./js/inventoryFlowPanel.js?v=20260914-all-size-cells-1"></script>
+  <script>
+    (function () {
+      function enhanceInput(input) {
+        if (!input || input.dataset.iphoneStepperReady === "1") return;
+        if (input.closest(".inventoryClosingStepper, .eventCarryStepper, .iphoneQtyFallbackStepper")) return;
+
+        var wrapper = document.createElement("div");
+        wrapper.className = "iphoneQtyFallbackStepper";
+
+        var minus = document.createElement("button");
+        minus.type = "button";
+        minus.className = "iphoneQtyFallbackButton";
+        minus.textContent = "−";
+        minus.setAttribute("aria-label", "数量を1減らす");
+
+        var plus = document.createElement("button");
+        plus.type = "button";
+        plus.className = "iphoneQtyFallbackButton";
+        plus.textContent = "＋";
+        plus.setAttribute("aria-label", "数量を1増やす");
+
+        input.parentNode.insertBefore(wrapper, input);
+        wrapper.appendChild(minus);
+        wrapper.appendChild(input);
+        wrapper.appendChild(plus);
+        input.dataset.iphoneStepperReady = "1";
+
+        function change(delta) {
+          var current = input.value === "" ? 0 : Number(input.value);
+          if (!Number.isFinite(current)) current = 0;
+          var next = Math.max(0, Math.floor(current) + delta);
+          input.value = String(next);
+          input.dispatchEvent(new Event("input", { bubbles: true }));
+          input.dispatchEvent(new Event("change", { bubbles: true }));
+          if (navigator.vibrate) navigator.vibrate(8);
+        }
+
+        minus.addEventListener("click", function () { change(-1); });
+        plus.addEventListener("click", function () { change(1); });
+      }
+
+      function enhanceVisibleCountInputs() {
+        document.querySelectorAll(".inventoryClosingQty, .eventCarryQtyInput").forEach(enhanceInput);
+      }
+
+      enhanceVisibleCountInputs();
+      new MutationObserver(enhanceVisibleCountInputs).observe(document.body, {
+        childList: true,
+        subtree: true
+      });
+      document.addEventListener("visibilitychange", function () {
+        if (!document.hidden) enhanceVisibleCountInputs();
+      });
+    })();
+  </script>
 </body>
 </html>
