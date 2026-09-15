@@ -91,7 +91,7 @@ async function inventoryCountService() {
   ) {
     inventoryCountServicePromise =
       import(
-        "./services/inventoryCountService.js?v=20260911-safe-opening-1"
+        "./services/inventoryCountService.js?v=20260915-zero-sku-2"
       )
         .catch(
           error => {
@@ -4903,6 +4903,24 @@ function buildEventInventorySnapshotRows({
     );
 
   const rows = [];
+  const rowIds =
+    new Set();
+
+  function addRow(row) {
+    if (
+      !row?.variantId ||
+      rowIds.has(
+        row.variantId
+      )
+    ) {
+      return;
+    }
+
+    rows.push(row);
+    rowIds.add(
+      row.variantId
+    );
+  }
 
   (
     tshirtSnapshot
@@ -4935,7 +4953,7 @@ function buildEventInventorySnapshotRows({
         row.size ||
         "";
 
-      rows.push({
+      addRow({
         variantId:
           row.variantId,
 
@@ -4998,7 +5016,7 @@ function buildEventInventorySnapshotRows({
           row.variantId
         ) || {};
 
-      rows.push({
+      addRow({
         variantId:
           row.variantId,
 
@@ -5050,11 +5068,130 @@ function buildEventInventorySnapshotRows({
     }
   );
 
+  (
+    Array.isArray(variants)
+      ? variants
+      : []
+  ).forEach(
+    variant => {
+      const variantId =
+        variant.variantId ||
+        variant.id ||
+        "";
+
+      if (
+        !variantId ||
+        rowIds.has(
+          variantId
+        )
+      ) {
+        return;
+      }
+
+      const category =
+        variant.category ||
+        variant.productId ||
+        "";
+
+      const isTshirt =
+        category === "tshirt" ||
+        variant.inventorySource ===
+          "tshirt";
+
+      const isAccessory =
+        variant.inventorySource ===
+          "accessory" &&
+        EVENT_COUNT_TRACKED_CATEGORIES
+          .has(category);
+
+      if (
+        !isTshirt &&
+        !isAccessory
+      ) {
+        return;
+      }
+
+      if (isTshirt) {
+        const body =
+          variant.body ||
+          "";
+
+        const color =
+          variant.color ||
+          "";
+
+        const size =
+          variant.size ||
+          "";
+
+        addRow({
+          variantId,
+          category:
+            "tshirt",
+          inventorySource:
+            "tshirt",
+          inventoryKey:
+            variant.inventoryKey ||
+            "",
+          sku:
+            variant.pinkoiSku ||
+            variant.sku ||
+            "",
+          label:
+            variant.design ||
+            variant.displayName ||
+            "Tシャツ",
+          body,
+          color,
+          size,
+          detail:
+            [
+              body,
+              color,
+              size
+            ]
+              .filter(Boolean)
+              .join(" / "),
+          openingQty:
+            0
+        });
+
+        return;
+      }
+
+      addRow({
+        variantId,
+        category,
+        inventorySource:
+          "accessory",
+        inventoryKey:
+          variant.inventoryKey ||
+          "",
+        sku:
+          variant.sku ||
+          "",
+        label:
+          variant.design ||
+          variant.displayName ||
+          "アクセサリー",
+        body: "",
+        color: "",
+        size: "",
+        detail:
+          POS_CATEGORY_LABELS[
+            category
+          ] ||
+          category,
+        openingQty:
+          0
+      });
+    }
+  );
+
   return rows
     .filter(
       row =>
-        row.variantId &&
-        row.openingQty > 0
+        row.variantId
     )
     .sort(
       (a, b) => {
@@ -7324,7 +7461,13 @@ async function renderSessions(
                 );
 
               const savedOpeningSkuCount =
-                openingItems.length;
+                openingItems.filter(
+                  item =>
+                    Number(
+                      item.openingQty ||
+                      0
+                    ) > 0
+                ).length;
 
               const offlinePendingSalesCount =
                 getOfflineSalesQueueForSession(
@@ -7508,7 +7651,7 @@ async function renderSessions(
 
                         <div class="list-row">
                           <span>
-                            実在庫のあるSKU
+                            表示対象SKU
                           </span>
 
                           <strong>
@@ -7745,7 +7888,7 @@ async function renderSessions(
                             line-height:1.5;
                           "
                         >
-                          Tシャツはデザインを縦、サイズを横に並べています。Body・Colorが違う場合は別行です。在庫0はグレー表示され入力できません。「この色を全在庫追加」は各色ごとに表示し、「デザイン全体を追加」は同じDesignにつき1つだけ表示します。
+                          Tシャツはデザインを縦、サイズを横に並べています。Body・Colorが違う場合は別行です。登録済みの在庫0 SKUも表示し、0から入力できます。「この色を全在庫追加」は各色ごとに表示し、「デザイン全体を追加」は同じDesignにつき1つだけ表示します。
                         </div>
 
                         <div
@@ -8078,7 +8221,6 @@ async function renderSessions(
                                                     type="button"
                                                     class="eventCarryStepButton"
                                                     data-delta="-1"
-                                                    ${outOfStock ? "disabled" : ""}
                                                     aria-label="${escapeHtml(
                                                       `${group.design} ${group.body} ${group.color} ${size} を1減らす`
                                                     )}"
@@ -8091,7 +8233,6 @@ async function renderSessions(
                                                     )}"
                                                     type="number"
                                                     min="0"
-                                                    max="${item.openingQty}"
                                                     step="1"
                                                     inputmode="numeric"
                                                     value="${
@@ -8105,7 +8246,6 @@ async function renderSessions(
                                                         : ""
                                                     }"
                                                     placeholder="0"
-                                                    ${outOfStock ? "disabled" : ""}
                                                     aria-label="${escapeHtml(
                                                       `${group.design} ${group.body} ${group.color} ${size} イベント持参数`
                                                     )}"
@@ -8115,7 +8255,7 @@ async function renderSessions(
                                                       padding:0 3px;
                                                       border:1px solid ${
                                                         outOfStock
-                                                          ? "#e4e4df"
+                                                          ? "#cfcfc8"
                                                           : "#deded9"
                                                       };
                                                       border-radius:8px;
@@ -8123,7 +8263,7 @@ async function renderSessions(
                                                       font-size:15px;
                                                       ${
                                                         outOfStock
-                                                          ? "background:#ededE9;color:#aaa;opacity:.72;"
+                                                          ? "background:#fff;color:#1f1f1f;"
                                                           : ""
                                                       }
                                                     "
@@ -8133,7 +8273,6 @@ async function renderSessions(
                                                     type="button"
                                                     class="eventCarryStepButton"
                                                     data-delta="1"
-                                                    ${outOfStock ? "disabled" : ""}
                                                     aria-label="${escapeHtml(
                                                       `${group.design} ${group.body} ${group.color} ${size} を1増やす`
                                                     )}"
@@ -8307,14 +8446,6 @@ async function renderSessions(
                                               type="button"
                                               class="eventCarryStepButton"
                                               data-delta="-1"
-                                              ${
-                                                Number(
-                                                  row.openingQty ||
-                                                  0
-                                                ) <= 0
-                                                  ? "disabled"
-                                                  : ""
-                                              }
                                               aria-label="${escapeHtml(
                                                 `${row.label} を1減らす`
                                               )}"
@@ -8327,7 +8458,6 @@ async function renderSessions(
                                               )}"
                                               type="number"
                                               min="0"
-                                              max="${row.openingQty}"
                                               step="1"
                                               inputmode="numeric"
                                               value="${
@@ -8341,20 +8471,12 @@ async function renderSessions(
                                                   : ""
                                               }"
                                               placeholder="0"
-                                              ${
-                                                Number(
-                                                  row.openingQty ||
-                                                  0
-                                                ) <= 0
-                                                  ? "disabled"
-                                                  : ""
-                                              }
                                               style="${
                                                 Number(
                                                   row.openingQty ||
                                                   0
                                                 ) <= 0
-                                                  ? `${inputStyle()} background:#ededE9;color:#aaa;opacity:.72;`
+                                                  ? `${inputStyle()} background:#fff;color:#1f1f1f;`
                                                   : inputStyle()
                                               }"
                                             >
@@ -8363,14 +8485,6 @@ async function renderSessions(
                                               type="button"
                                               class="eventCarryStepButton"
                                               data-delta="1"
-                                              ${
-                                                Number(
-                                                  row.openingQty ||
-                                                  0
-                                                ) <= 0
-                                                  ? "disabled"
-                                                  : ""
-                                              }
                                               aria-label="${escapeHtml(
                                                 `${row.label} を1増やす`
                                               )}"
@@ -11384,17 +11498,6 @@ async function renderSessions(
                 ".eventCarryQtyInput"
               );
 
-            const currentQty =
-              Math.max(
-                0,
-                Math.floor(
-                  Number(
-                    row.dataset.currentQty ||
-                    0
-                  )
-                )
-              );
-
             const requestedQty =
               Math.max(
                 0,
@@ -11405,15 +11508,6 @@ async function renderSessions(
                   )
                 )
               );
-
-            if (
-              requestedQty >
-              currentQty
-            ) {
-              throw new Error(
-                `${row.dataset.label || "商品"} の持参数が実在庫 ${currentQty} を超えています。`
-              );
-            }
 
             return {
               variantId:
@@ -11451,8 +11545,7 @@ async function renderSessions(
         )
         .filter(
           item =>
-            item.variantId &&
-            item.openingQty > 0
+            item.variantId
         );
     }
 
@@ -11909,17 +12002,6 @@ async function renderSessions(
                   "";
               }
 
-              const max =
-                Math.max(
-                  0,
-                  Math.floor(
-                    Number(
-                      event.target.max ||
-                      0
-                    )
-                  )
-                );
-
               const value =
                 Math.max(
                   0,
@@ -11931,12 +12013,8 @@ async function renderSessions(
                   )
                 );
 
-              if (
-                value > max
-              ) {
-                event.target.value =
-                  String(max);
-              }
+              event.target.value =
+                String(value);
 
               rememberEventCarryUndo(
                 undoSnapshot
@@ -11979,17 +12057,6 @@ async function renderSessions(
                 return;
               }
 
-              const max =
-                Math.max(
-                  0,
-                  Math.floor(
-                    Number(
-                      input.max ||
-                      0
-                    )
-                  )
-                );
-
               const delta =
                 Number(
                   button.dataset.delta ||
@@ -12008,13 +12075,10 @@ async function renderSessions(
                 );
 
               const next =
-                Math.min(
-                  max,
-                  Math.max(
-                    0,
-                    current +
-                    delta
-                  )
+                Math.max(
+                  0,
+                  current +
+                  delta
                 );
 
               if (
@@ -22651,7 +22715,7 @@ async function registerOfflineServiceWorker() {
     await navigator
       .serviceWorker
       .register(
-        "./sw.js?v=20260915-zero-display-1"
+        "./sw.js?v=20260915-zero-sku-2"
       );
 
   } catch (error) {

@@ -226,9 +226,7 @@ function normalizeCount(
                 )
                 .filter(
                   item =>
-                    item.variantId &&
-                    item.openingQty >
-                      0
+                    item.variantId
                 )
           }
         : null,
@@ -378,8 +376,7 @@ export async function saveEventOpeningInventory({
       )
       .filter(
         item =>
-          item.variantId &&
-          item.openingQty > 0
+          item.variantId
       );
 
   if (!normalizedItems.length) {
