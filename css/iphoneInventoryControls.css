@@ -1,0 +1,181 @@
+/* iPhone-first controls for event opening inventory. */
+
+.eventCarryDraftBar {
+  position: sticky;
+  top: 0;
+  z-index: 12;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 12px 0 4px;
+  padding: 9px 10px;
+  border: 1px solid #e4e4df;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
+  backdrop-filter: blur(8px);
+}
+
+.closingInventoryDraftBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 10px 0 4px;
+  padding: 9px 10px;
+  border: 1px solid #e4e4df;
+  border-radius: 12px;
+  background: #f8f8f5;
+}
+
+.eventCarryDraftStatus {
+  min-width: 0;
+  color: #686863;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.eventCarryUndoButton {
+  flex: 0 0 auto;
+  min-width: 92px;
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid #d7d7d1;
+  border-radius: 10px;
+  background: #fff;
+  color: #1f1f1f;
+  font-size: 14px;
+  font-weight: 800;
+  touch-action: manipulation;
+}
+
+.eventCarryUndoButton:disabled {
+  color: #aaa;
+  background: #f2f2ef;
+  opacity: 0.72;
+}
+
+.eventCarryMatrixHeader,
+.eventCarryMatrixRow {
+  grid-template-columns: 140px repeat(5, 112px) !important;
+}
+
+.eventCarryMatrixScroller > div {
+  min-width: 700px !important;
+}
+
+.eventCarryStepper {
+  display: grid;
+  grid-template-columns: 40px minmax(42px, 1fr) 40px;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+}
+
+.eventCarryStepButton {
+  min-width: 40px;
+  min-height: 44px;
+  padding: 0;
+  border: 1px solid #d8d8d2;
+  border-radius: 10px;
+  background: #fff;
+  color: #1f1f1f;
+  font-size: 25px;
+  font-weight: 700;
+  line-height: 1;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.eventCarryStepButton:active {
+  transform: scale(0.96);
+  background: #ededE8;
+}
+
+.eventCarryStepButton:disabled {
+  color: #bcbcb7;
+  background: #ededE9;
+  opacity: 0.72;
+}
+
+.eventCarryStepper .eventCarryQtyInput {
+  width: 100% !important;
+  min-width: 0;
+  min-height: 44px !important;
+  padding: 0 2px !important;
+  text-align: center;
+  font-size: 17px !important;
+  font-weight: 800;
+}
+
+.inventoryClosingStepper {
+  display: grid;
+  grid-template-columns: 44px minmax(56px, 1fr) 44px;
+  align-items: center;
+  gap: 5px;
+}
+
+.inventoryClosingStepButton {
+  min-width: 44px;
+  min-height: 48px;
+  padding: 0;
+  border: 1px solid #d8d8d2;
+  border-radius: 11px;
+  background: #fff;
+  color: #1f1f1f;
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.inventoryClosingStepButton:active {
+  transform: scale(0.96);
+  background: #ededE8;
+}
+
+.inventoryClosingStepper .inventoryClosingQty {
+  width: 100% !important;
+  min-width: 0;
+  min-height: 48px !important;
+  padding: 0 3px !important;
+  text-align: center;
+  font-size: 17px !important;
+  font-weight: 800;
+}
+
+.eventCarryAccessoryRow > div {
+  grid-template-columns: minmax(0, 1fr) minmax(148px, 168px) !important;
+}
+
+@media (max-width: 430px) {
+  .eventCarryDraftBar {
+    top: env(safe-area-inset-top, 0px);
+  }
+
+  .eventCarryMatrixHeader,
+  .eventCarryMatrixRow {
+    grid-template-columns: 126px repeat(5, 108px) !important;
+  }
+
+  .eventCarryMatrixScroller > div {
+    min-width: 666px !important;
+  }
+
+  .eventCarryAccessoryRow {
+    padding: 12px 8px !important;
+  }
+
+  .eventCarryAccessoryRow > div {
+    grid-template-columns: minmax(0, 1fr) 152px !important;
+    gap: 8px !important;
+  }
+
+  .inventoryClosingControl {
+    grid-template-columns: minmax(0, 1fr) 158px !important;
+  }
+}
