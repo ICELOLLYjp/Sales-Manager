@@ -1,5 +1,6 @@
 import { getFirebaseState } from "../firebase.js";
 import { provisionallyCloseEventSession as baseProvisionalClose } from "./eventCloseServiceCompat.js?v=20260915-outside-opening-1";
+import { summarizeEventFlow } from "./eventFlowAccountingService.js?v=20260916-flow-accounting-1";
 
 const TRACKED_CATEGORIES = new Set([
   "tshirt",
@@ -38,12 +39,6 @@ function int(value) {
 function reductionTotal(closing) {
   return ["loss", "theft", "damage", "gift", "sample"]
     .reduce((sum, key) => sum + nonNegativeInt(closing?.[key]), 0);
-}
-
-function openingItems(session) {
-  return Array.isArray(session?.inventoryCount?.opening?.items)
-    ? session.inventoryCount.opening.items
-    : [];
 }
 
 function closingItems(session) {
@@ -135,7 +130,10 @@ async function loadSessionAndSales(sessionId) {
 function buildSummary(session, transactions) {
   const units = quickUnits(transactions);
   const unitByKey = new Map(units.map(unit => [unit.allocationKey, unit]));
-  const opening = openingItems(session).filter(item => TRACKED_CATEGORIES.has(text(item?.category)));
+  const flow = summarizeEventFlow(session);
+  const opening = flow.adjustedOpeningItems.filter(item =>
+    TRACKED_CATEGORIES.has(text(item?.category))
+  );
   const closingById = new Map(
     closingItems(session).map(item => [text(item?.variantId), item])
   );
@@ -170,6 +168,7 @@ function buildSummary(session, transactions) {
 
   let closingComplete = opening.length > 0;
   const gapByCategory = new Map();
+  const negativeGapByCategory = new Map();
   let differenceCount = 0;
 
   opening.forEach(item => {
@@ -200,6 +199,11 @@ function buildSummary(session, transactions) {
     if (difference !== 0) differenceCount += 1;
     if (difference > 0) {
       gapByCategory.set(category, (gapByCategory.get(category) || 0) + difference);
+    } else if (difference < 0) {
+      negativeGapByCategory.set(
+        category,
+        (negativeGapByCategory.get(category) || 0) + Math.abs(difference)
+      );
     }
   });
 
@@ -209,7 +213,8 @@ function buildSummary(session, transactions) {
   if (closingComplete) {
     remainingByCategory.forEach((quantity, category) => {
       const gap = nonNegativeInt(gapByCategory.get(category));
-      if (quantity > 0 && gap === quantity) {
+      const negativeGap = nonNegativeInt(negativeGapByCategory.get(category));
+      if (quantity > 0 && negativeGap === 0 && gap === quantity) {
         autoResolvedCategories.add(category);
         autoResolvedTotal += quantity;
       }
@@ -259,7 +264,12 @@ function buildSummary(session, transactions) {
     differenceCount,
     tshirtCountStatus: text(externalCounts?.tshirt?.status),
     accessoryCountStatus: text(externalCounts?.accessory?.status),
-    persistedStatus: text(session?.inventoryCount?.unidentifiedQuick?.status)
+    persistedStatus: text(session?.inventoryCount?.unidentifiedQuick?.status),
+    flowEntryCount: flow.flowEntryCount,
+    restockTotal: flow.restockTotal,
+    openingCorrectionTotal: flow.openingCorrectionTotal,
+    adjustedOpeningTotal: flow.adjustedOpeningTotal,
+    flowOnlySkuCount: flow.flowOnlySkuCount
   };
 }
 
@@ -282,7 +292,7 @@ async function persistSummary(sessionRef, summary, savedByEmail = "", forcedStat
 
   await updateDoc(sessionRef, {
     "inventoryCount.unidentifiedQuick": {
-      version: 1,
+      version: 2,
       status,
       source: "inventory_reconciliation",
       quickTotal: summary.quickTotal,
@@ -295,6 +305,11 @@ async function persistSummary(sessionRef, summary, savedByEmail = "", forcedStat
       differenceCount: summary.differenceCount,
       tshirtCountStatus: summary.tshirtCountStatus,
       accessoryCountStatus: summary.accessoryCountStatus,
+      flowEntryCount: summary.flowEntryCount,
+      restockTotal: summary.restockTotal,
+      openingCorrectionTotal: summary.openingCorrectionTotal,
+      adjustedOpeningTotal: summary.adjustedOpeningTotal,
+      flowOnlySkuCount: summary.flowOnlySkuCount,
       savedByEmail: text(savedByEmail),
       savedAt: serverTimestamp()
     },
@@ -368,6 +383,9 @@ export async function provisionallyCloseWithUnidentified({
     quickAllocatedTotal: summary.identifiedTotal,
     quickUnresolvedTotal: summary.unresolvedTotal,
     unidentifiedGroups: summary.groups,
-    differenceCount: summary.differenceCount
+    differenceCount: summary.differenceCount,
+    restockTotal: summary.restockTotal,
+    openingCorrectionTotal: summary.openingCorrectionTotal,
+    adjustedOpeningTotal: summary.adjustedOpeningTotal
   };
 }
