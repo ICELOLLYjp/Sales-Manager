@@ -198,6 +198,30 @@ function bindCard(card, summary, onSaved, includeQuick) {
   }
 }
 
+function syncLegacyUnregisteredCard(summary) {
+  const card = document.querySelector("#eventUnregisteredItemsCard");
+  if (!card) return;
+  const pendingIds = new Set(summary.unregisteredItems.map(item => item.tempId));
+  let visibleCount = 0;
+  card.querySelectorAll(".eui-row[data-temp-id]").forEach(row => {
+    const visible = pendingIds.has(text(row.dataset.tempId));
+    row.style.display = visible ? "" : "none";
+    if (visible) visibleCount += 1;
+  });
+  card.querySelector("#elsrLegacyLinkedNote")?.remove();
+  if (visibleCount === 0) {
+    const list = card.querySelector(".eui-list");
+    if (list) {
+      const note = document.createElement("div");
+      note.id = "elsrLegacyLinkedNote";
+      note.className = "if-muted";
+      note.style.marginTop = "8px";
+      note.textContent = "未紐付けの一時商品はありません。";
+      list.appendChild(note);
+    }
+  }
+}
+
 function placeHubCard(card) {
   const hub = document.querySelector("#eventCloseHub");
   if (!hub) return false;
@@ -260,6 +284,7 @@ async function renderInventory(force = false) {
     const summary = await loadLateSkuResolutionSummary({ sessionId });
     if (overlaySessionId() !== sessionId) return;
     document.querySelector(`#${INVENTORY_CARD_ID}`)?.remove();
+    syncLegacyUnregisteredCard(summary);
     if (!summary.unregisteredItems.length) return;
     installStyles();
     const card = document.createElement("section");
