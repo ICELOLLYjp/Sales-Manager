@@ -4,7 +4,9 @@ const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { COLLECTION } = require("./candidateStorage");
 
 const AUDIT_COLLECTION = "gmailExpenseCandidateAudit";
+const SESSION_COLLECTION = "salesSessions";
 const REVIEW_STATUSES = new Set(["unreviewed", "kept", "excluded"]);
+const EXPENSE_SCOPES = new Set(["unassigned", "general", "event"]);
 const MAX_LIST = 100;
 
 function validMonth(month) {
@@ -20,6 +22,14 @@ function validCandidateId(value) {
   const id = String(value || "").trim();
   if (!/^[a-f0-9]{64}$/.test(id)) {
     throw new HttpsError("invalid-argument", "候補IDが正しくありません。");
+  }
+  return id;
+}
+
+function validSessionId(value) {
+  const id = String(value || "").trim();
+  if (!/^[A-Za-z0-9_-]{1,160}$/.test(id)) {
+    throw new HttpsError("invalid-argument", "イベントIDが正しくありません。");
   }
   return id;
 }
@@ -56,6 +66,9 @@ function duplicateGroups(items) {
 
 function publicCandidate(snapshot) {
   const data = snapshot.data() || {};
+  const expenseScope = EXPENSE_SCOPES.has(data.expenseScope)
+    ? data.expenseScope
+    : data.eventId ? "event" : "unassigned";
   return {
     id: snapshot.id,
     account: String(data.account || ""),
@@ -65,6 +78,9 @@ function publicCandidate(snapshot) {
     subject: String(data.subject || "").slice(0, 300),
     reviewStatus: REVIEW_STATUSES.has(data.reviewStatus) ? data.reviewStatus : "unreviewed",
     reviewRequired: data.reviewRequired !== false,
+    expenseScope,
+    eventId: expenseScope === "event" ? String(data.eventId || "") : null,
+    eventName: expenseScope === "event" ? String(data.eventName || "").slice(0, 200) : null,
     amount: typeof data.amount === "number" ? data.amount : null,
     currency: typeof data.currency === "string" ? data.currency : null,
     paymentConfirmed: data.paymentConfirmed === true,
@@ -72,19 +88,35 @@ function publicCandidate(snapshot) {
   };
 }
 
+function publicSession(snapshot) {
+  const data = snapshot.data() || {};
+  return {
+    id: snapshot.id,
+    eventName: String(data.eventName || "名称未設定").slice(0, 200),
+    country: String(data.country || "").slice(0, 100),
+    city: String(data.city || "").slice(0, 100),
+    startDate: String(data.startDate || "").slice(0, 10),
+    endDate: String(data.endDate || "").slice(0, 10),
+    status: String(data.status || "open").slice(0, 40)
+  };
+}
+
 async function listCandidates(db, month) {
   const normalizedMonth = validMonth(month);
-  const snapshot = await db.collection(COLLECTION)
-    .where("lastScanMonth", "==", normalizedMonth)
-    .limit(MAX_LIST)
-    .get();
-  const candidates = snapshot.docs.map(publicCandidate)
+  const [candidateSnapshot, sessionSnapshot] = await Promise.all([
+    db.collection(COLLECTION).where("lastScanMonth", "==", normalizedMonth).limit(MAX_LIST).get(),
+    db.collection(SESSION_COLLECTION).limit(200).get()
+  ]);
+  const candidates = candidateSnapshot.docs.map(publicCandidate)
     .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")) || a.subject.localeCompare(b.subject));
+  const sessions = sessionSnapshot.docs.map(publicSession)
+    .sort((a, b) => b.startDate.localeCompare(a.startDate) || a.eventName.localeCompare(b.eventName, "ja"));
   return {
     month: normalizedMonth,
     candidates,
+    sessions,
     duplicateGroups: duplicateGroups(candidates),
-    truncated: snapshot.size >= MAX_LIST,
+    truncated: candidateSnapshot.size >= MAX_LIST,
     maxResults: MAX_LIST
   };
 }
@@ -121,6 +153,52 @@ async function setReviewStatus({ db, candidateId, status, actorEmail, now = new 
   });
 }
 
+async function setExpenseScope({ db, candidateId, expenseScope, eventId, actorEmail, now = new Date() }) {
+  const id = validCandidateId(candidateId);
+  if (!EXPENSE_SCOPES.has(expenseScope)) {
+    throw new HttpsError("invalid-argument", "イベント分類が正しくありません。");
+  }
+  const candidateRef = db.collection(COLLECTION).doc(id);
+  const sessionRef = expenseScope === "event"
+    ? db.collection(SESSION_COLLECTION).doc(validSessionId(eventId))
+    : null;
+  const auditRef = db.collection(AUDIT_COLLECTION).doc();
+  return db.runTransaction(async transaction => {
+    const candidateSnapshot = await transaction.get(candidateRef);
+    if (!candidateSnapshot.exists) throw new HttpsError("not-found", "候補が見つかりません。");
+    const sessionSnapshot = sessionRef ? await transaction.get(sessionRef) : null;
+    if (sessionRef && !sessionSnapshot.exists) throw new HttpsError("not-found", "対象イベントが見つかりません。");
+    const previousScope = EXPENSE_SCOPES.has(candidateSnapshot.data()?.expenseScope)
+      ? candidateSnapshot.data().expenseScope
+      : candidateSnapshot.data()?.eventId ? "event" : "unassigned";
+    const previousEventId = candidateSnapshot.data()?.eventId || null;
+    const nextEventId = sessionSnapshot ? sessionSnapshot.id : null;
+    const nextEventName = sessionSnapshot ? String(sessionSnapshot.data()?.eventName || "名称未設定").slice(0, 200) : null;
+    if (previousScope === expenseScope && previousEventId === nextEventId) {
+      return { id, expenseScope, eventId: nextEventId, eventName: nextEventName, changed: false };
+    }
+    transaction.update(candidateRef, {
+      expenseScope,
+      eventId: nextEventId,
+      eventName: nextEventName,
+      eventAssignedAt: now,
+      eventAssignedBy: actorEmail
+    });
+    transaction.set(auditRef, {
+      candidateId: id,
+      action: "expense_scope_changed",
+      previousScope,
+      previousEventId,
+      expenseScope,
+      eventId: nextEventId,
+      eventName: nextEventName,
+      actorEmail,
+      createdAt: now
+    });
+    return { id, expenseScope, eventId: nextEventId, eventName: nextEventName, changed: true };
+  });
+}
+
 function createCandidateList({ requireStaff, db, staffEmails }) {
   return onCall({
     region: "asia-southeast1",
@@ -152,14 +230,37 @@ function createCandidateReview({ requireStaff, db, staffEmails }) {
   });
 }
 
+function createCandidateEventAssignment({ requireStaff, db, staffEmails }) {
+  return onCall({
+    region: "asia-southeast1",
+    secrets: [staffEmails],
+    timeoutSeconds: 60,
+    maxInstances: 5
+  }, async request => {
+    const actorEmail = requireStaff(request);
+    const result = await setExpenseScope({
+      db,
+      candidateId: request.data?.candidateId,
+      expenseScope: request.data?.expenseScope,
+      eventId: request.data?.eventId,
+      actorEmail
+    });
+    return { ...result, expensePosted: false };
+  });
+}
+
 module.exports = {
   AUDIT_COLLECTION,
   REVIEW_STATUSES,
+  EXPENSE_SCOPES,
   duplicateKey,
   duplicateGroups,
   publicCandidate,
+  publicSession,
   listCandidates,
   setReviewStatus,
+  setExpenseScope,
   createCandidateList,
-  createCandidateReview
+  createCandidateReview,
+  createCandidateEventAssignment
 };

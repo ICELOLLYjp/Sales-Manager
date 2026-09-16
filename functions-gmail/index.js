@@ -165,3 +165,7 @@ exports.gmailExpenseCandidateList = require("./candidateReview").createCandidate
 exports.gmailExpenseCandidateReview = require("./candidateReview").createCandidateReview({
   requireStaff, db, staffEmails: STAFF_EMAILS
 });
+
+exports.gmailExpenseCandidateAssignEvent = require("./candidateReview").createCandidateEventAssignment({
+  requireStaff, db, staffEmails: STAFF_EMAILS
+});
