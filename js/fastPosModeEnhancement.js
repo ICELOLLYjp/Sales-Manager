@@ -11,15 +11,25 @@ function installStyles() {
   const style = document.createElement("style");
   style.id = STYLE_ID;
   style.textContent = `
-    #posModeQuick,
-    #posModeSku,
-    #fastPosOpenButton,
+    .fp-mode-row{
+      display:grid!important;
+      grid-template-columns:repeat(3,minmax(0,1fr))!important;
+      gap:7px!important;
+      width:100%!important;
+      align-items:stretch!important;
+    }
+    .fp-mode-row>#posModeQuick,
+    .fp-mode-row>#posModeSku,
+    .fp-mode-row>#fastPosOpenButton,
     #${FAST_OVERLAY_ID} .fp-mode-choice{
+      width:100%!important;
+      min-width:0!important;
       min-height:38px!important;
-      padding:0 14px!important;
+      padding:0 8px!important;
       border-radius:19px!important;
       font:800 13px system-ui,sans-serif!important;
       transition:background .15s ease,color .15s ease,box-shadow .15s ease,transform .08s ease!important;
+      box-sizing:border-box!important;
     }
 
     #posModeQuick,
@@ -91,7 +101,19 @@ function installStyles() {
   document.head.appendChild(style);
 }
 
+function normalizeTopModeRow() {
+  const quick = document.getElementById("posModeQuick");
+  const sku = document.getElementById("posModeSku");
+  const fast = document.getElementById("fastPosOpenButton");
+  if (!quick || !sku || !fast) return;
+
+  const parent = quick.parentElement;
+  if (!parent || sku.parentElement !== parent || fast.parentElement !== parent) return;
+  parent.classList.add("fp-mode-row");
+}
+
 function syncTopButtons() {
+  normalizeTopModeRow();
   const mode = currentMode();
   const buttons = {
     quick: document.getElementById("posModeQuick"),
