@@ -24,6 +24,10 @@
     <div class="row" data-account="fjmthrs@gmail.com"><div class="email">fjmthrs@gmail.com</div><p class="status">状態を確認しています…</p><button type="button" disabled>このGmailの候補を見る</button></div>
     <div class="row" data-account="icelolly.zakka@gmail.com"><div class="email">icelolly.zakka@gmail.com</div><p class="status">状態を確認しています…</p><button type="button" disabled>このGmailの候補を見る</button></div>
     <p id="notice" aria-live="polite"></p>
+    <div id="saveArea" class="row" hidden>
+      <button id="saveCandidates" type="button">表示中の候補を保存</button>
+      <p class="muted">候補として保存するだけで、経費台帳には登録しません。同じメールは再保存しても重複して増えません。</p>
+    </div>
   </section>
   <section class="card"><h2>検索結果（未確認）</h2><p class="muted">これは経費台帳ではありません。請求書は支払いの証明ではなく、金額・重複・出店との関連は未判定です。候補は保存せず、ページを閉じると表示が消えます。</p><div id="results" aria-live="polite">まだ取得していません。</div></section>
 </main>
@@ -34,9 +38,10 @@
   const accounts = ["fjmthrs@gmail.com", "icelolly.zakka@gmail.com"];
   const rows = new Map(accounts.map(a => [a, document.querySelector(`.row[data-account="${a}"]`)]));
   const staff = document.getElementById("staff"), login = document.getElementById("login"), notice = document.getElementById("notice"), results = document.getElementById("results"), month = document.getElementById("month");
-  let connected = new Map(), signedIn = false, busy = false, functions = null, version = 0;
+  const saveArea = document.getElementById("saveArea"), saveCandidates = document.getElementById("saveCandidates");
+  let connected = new Map(), signedIn = false, busy = false, functions = null, version = 0, currentPreview = null;
   function message(value, error = false) { notice.textContent = value; if(error) notice.setAttribute("role", "alert"); else notice.removeAttribute("role"); }
-  function update() { login.disabled = busy; month.disabled = busy; for(const account of accounts) rows.get(account).querySelector("button").disabled = busy || !signedIn || connected.get(account) !== true; }
+  function update() { login.disabled = busy; month.disabled = busy; saveCandidates.disabled = busy || !currentPreview; for(const account of accounts) rows.get(account).querySelector("button").disabled = busy || !signedIn || connected.get(account) !== true; }
   async function callable(name, data = {}) { if(!functions || !signedIn) throw new Error("Sales Managerにログインしてください。"); const response = await httpsCallable(functions, name)(data); return response.data; }
   async function refresh() {
     if(!signedIn || busy) return;
@@ -54,6 +59,7 @@
     if(busy || !signedIn || connected.get(account) !== true) return;
     const selectedMonth = month.value;
     if(!/^20\d{2}-(0[1-9]|1[0-2])$/.test(selectedMonth)) { message("対象月を選択してください。", true); return; }
+    currentPreview = null; saveArea.hidden = true;
     busy = true; update(); message(`${account} の候補を取得中です…`);
     try {
       const data = await callable("gmailExpensePreview", { account, month: selectedMonth });
@@ -69,11 +75,24 @@
         const tag = document.createElement("span"); tag.className = "tag"; tag.textContent = "経費・支払ともに未確認";
         wrapper.append(heading, meta, tag); results.append(wrapper);
       }
-      message("候補を一時表示しました。経費への登録・候補の保存は行っていません。");
+      currentPreview = (data.messages || []).length ? { account, month: selectedMonth, messages: data.messages } : null;
+      saveArea.hidden = !currentPreview;
+      message("候補を一時表示しました。まだ保存も経費登録も行っていません。");
     } catch(e) { message(`取得できませんでした: ${e.message || e}`, true); }
     finally { busy = false; update(); }
   }
+  async function savePreview() {
+    if(busy || !currentPreview) return;
+    busy = true; update(); message("表示中の候補を保存しています…");
+    try {
+      const data = await callable("gmailExpenseSaveCandidates", currentPreview);
+      message(`${data.saved}件を候補として保存しました。新規${data.created}件、保存済み${data.existing}件です。経費台帳には登録していません。`);
+      saveCandidates.textContent = "同じ候補を再保存して確認";
+    } catch(e) { message(`候補を保存できませんでした: ${e.message || e}`, true); }
+    finally { busy = false; update(); }
+  }
   for(const account of accounts) rows.get(account).querySelector("button").addEventListener("click", () => preview(account));
+  saveCandidates.addEventListener("click", savePreview);
   login.addEventListener("click", async () => { try { await loginWithGoogle(); } catch(e) { message(`ログインできませんでした: ${e.message || e}`, true); } });
   try {
     await initFirebase(); const { app, enabled } = getFirebaseState();
