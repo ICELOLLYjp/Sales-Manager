@@ -1,5 +1,5 @@
 const CACHE_NAME =
-  "icelolly-sales-shell-20260916-accessory-flow-1";
+  "icelolly-sales-shell-20260916-accessory-flow-2";
 
 const CORE_ASSETS = [
   "./",
@@ -21,6 +21,7 @@ const CORE_ASSETS = [
   "./js/views/dashboardView.js",
   "./js/inventoryFlowPanel.js",
   "./js/inventoryFlowAccessoryUi.js",
+  "./js/inventoryFlowAccessoryCleanup.js",
   "./js/posUxEnhancements.js",
   "./js/transactionHistorySearch.js",
 
