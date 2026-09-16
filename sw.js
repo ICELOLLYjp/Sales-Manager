@@ -1,5 +1,5 @@
 const CACHE_NAME =
-  "icelolly-sales-shell-20260916-late-sku-resolution-1";
+  "icelolly-sales-shell-20260916-late-sku-resolution-2";
 
 const CORE_ASSETS = [
   "./",
@@ -24,6 +24,7 @@ const CORE_ASSETS = [
   "./js/inventoryFlowAccessoryCleanup.js",
   "./js/eventUnregisteredItemsUi.js",
   "./js/eventLateSkuResolutionUi.js",
+  "./js/eventLateSkuResolutionSessionsUi.js",
   "./js/posUxEnhancements.js",
   "./js/transactionHistorySearch.js",
 
@@ -50,6 +51,7 @@ const CORE_ASSETS = [
   "./js/services/eventCheckpointReuseServiceV2.js",
   "./js/services/eventUnregisteredItemService.js",
   "./js/services/eventLateSkuResolutionService.js",
+  "./js/services/eventLateSkuResolutionSessionService.js",
   "./js/services/eventCloseService.js",
   "./js/services/eventCloseServiceCompat.js",
   "./js/services/eventCloseFlowCompatService.js",
