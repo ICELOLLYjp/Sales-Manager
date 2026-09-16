@@ -46,12 +46,22 @@ Updated: 2026-09-17 (Japan time). Repo: `ICELOLLYjp/Sales-Manager`.
 - Production review showed that one month can contain multiple events and general business expenses. Candidates therefore require an explicit scope: unassigned, general business, or one existing `salesSessions` event.
 - Event assignment is independently auditable and can be used as a review-page filter. It is classification only and does not update `salesSessions.expenses`.
 
+## Phase 4 in development: explicit evidence inspection
+
+- Only candidates already marked `kept` may be inspected.
+- Inspection is a separate user action. It retrieves a bounded text excerpt and attachment metadata from Gmail readonly.
+- Raw body text, attachment bytes and OAuth tokens are not written to candidate records or logs.
+- Currency and amount-looking strings are hints only. They are not accepted as an expense amount.
+- PDF attachments are identified by metadata, but their contents are not fetched or parsed in this phase.
+- The inspection response is temporary in the browser and does not post an expense.
+
 ## Remaining work before full expense management
 
 1. Review, merge, deploy and live-test candidate event assignment and event filtering. Deploy only the Gmail Functions codebase and never the tracked Firestore rules.
 2. Confirm that event assignment and review-state changes persist using production candidate data.
 3. Refine probable duplicate warnings after candidates are separated by event.
-4. Add body and PDF parsing as a later isolated phase. Preserve unknown amounts and distinguish invoice from payment evidence.
+4. Live-test bounded body and attachment inspection on a kept production candidate.
+5. If a PDF attachment exists, add PDF-byte retrieval and parsing as a separate isolated phase. Preserve unknown amounts and distinguish invoice from payment evidence.
 4. Add a separate, user-approved expense-posting action only after review. Never post during fetch, scan or candidate save.
 5. Add per-account partial failures and weekly server sync only after the manual workflow is stable.
 6. ChatGPT's own weekly reminders/summaries do not automatically populate Sales Manager.
