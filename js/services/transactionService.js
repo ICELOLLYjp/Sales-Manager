@@ -2811,17 +2811,21 @@ export async function voidSaleTransaction({
                 )
               );
 
-            const currentQty =
-              Math.max(
-                0,
-                Number(
-                  accessoryDesigns[
-                    index
-                  ]?.[
-                    target.stockField
-                  ] || 0
-                )
+            const rawCurrentQty =
+              Number(
+                accessoryDesigns[
+                  index
+                ]?.[
+                  target.stockField
+                ] ?? 0
               );
+
+            const currentQty =
+              Number.isFinite(
+                rawCurrentQty
+              )
+                ? rawCurrentQty
+                : 0;
 
             accessoryDesigns[
               index
