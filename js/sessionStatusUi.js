@@ -63,6 +63,21 @@ function unresolvedQuickCount(session) {
   return Math.max(explicit, groupTotal);
 }
 
+function pendingInventoryNote(session, unresolvedQuick) {
+  const pending = session?.inventoryCount?.pendingInventory || {};
+  const parts = [];
+  const missing = Math.max(0, Number(pending?.missingClosingCount || 0));
+  const unregistered = Math.max(0, Number(pending?.unregisteredItemCount || 0));
+  const differences = Math.max(0, Number(pending?.residualDifferenceCount || 0));
+  const unapplied = Math.max(0, Number(pending?.unappliedMovementCount || 0));
+  if (missing) parts.push(`棚卸未確認 ${missing}`);
+  if (unresolvedQuick) parts.push(`未特定 ${unresolvedQuick}`);
+  if (unregistered) parts.push(`未登録 ${unregistered}`);
+  if (differences) parts.push(`差異 ${differences}`);
+  if (unapplied) parts.push(`未反映 ${unapplied}`);
+  return parts.length ? parts.join(" / ") : "未処理項目を記録済み";
+}
+
 function statusMeta(session) {
   const status = text(session?.status);
   const unresolved = unresolvedQuickCount(session);
@@ -117,6 +132,21 @@ function statusMeta(session) {
   }
 
   if (status === "closed") {
+    const pendingInventory = session?.inventoryCount?.pendingInventory || {};
+    const closedWithPending =
+      text(session?.eventCloseMode) === "closed_with_pending_inventory" ||
+      text(pendingInventory?.status) === "closed_with_pending_items" ||
+      text(session?.inventoryCount?.reconciliationStatus) === "closed_with_pending_inventory";
+
+    if (closedWithPending) {
+      return {
+        label: "未処理あり終了",
+        note: pendingInventoryNote(session, unresolved),
+        className: "review",
+        rank: 48
+      };
+    }
+
     if (unresolved > 0) {
       return {
         label: `未特定あり終了 ${unresolved}点`,
