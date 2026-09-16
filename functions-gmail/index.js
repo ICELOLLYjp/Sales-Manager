@@ -153,3 +153,7 @@ exports.gmailExpensePreview = require("./expensePreview").createExpensePreview({
   requireStaff, db, clientId: CLIENT_ID, clientSecret: CLIENT_SECRET,
   tokenKey: TOKEN_KEY, staffEmails: STAFF_EMAILS
 });
+
+exports.gmailExpenseSaveCandidates = require("./candidateStorage").createExpenseCandidateSaver({
+  requireStaff, db, staffEmails: STAFF_EMAILS
+});
