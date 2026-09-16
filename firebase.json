@@ -3,6 +3,10 @@
     {
       "source": "functions",
       "codebase": "stripe"
+    },
+    {
+      "source": "functions-gmail",
+      "codebase": "gmail-expenses"
     }
   ]
 }
