@@ -6,7 +6,7 @@
   <meta name="referrer" content="no-referrer">
   <title>保存済みGmail経費候補 | ICELOLLY Sales Manager</title>
   <style>
-    :root{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:#203043;background:#f6f8fb}body{margin:0}main{max-width:860px;margin:auto;padding:22px 16px 56px}a{color:#225b96}h1{font-size:1.65rem;margin:20px 0 8px}h2{font-size:1.2rem}p{line-height:1.65}.muted{color:#526274;font-size:.94rem}.card{background:#fff;border:1px solid #dce3eb;border-radius:14px;padding:18px;margin:16px 0}.item{border-top:1px solid #e5ebf1;padding:16px 0;overflow-wrap:anywhere}.item:first-child{border-top:0}.item strong{display:block;margin:5px 0}.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}.classification{display:grid;gap:5px;margin-top:10px;max-width:100%}button,input,select{font:inherit}button{padding:10px 14px;min-height:44px;border:1px solid #245783;border-radius:10px;background:#245b90;color:#fff;font-weight:650}button.secondary{background:#fff;color:#245783}button.exclude{background:#fff;color:#9a2430;border-color:#9a2430}button:disabled{opacity:.5}input,select{padding:10px;border:1px solid #9eabba;border-radius:8px;background:#fff;max-width:100%}.tag{display:inline-block;padding:3px 8px;border-radius:8px;font-size:.83rem;margin:4px 6px 0 0}.unreviewed{background:#fff2d5;color:#705000}.kept{background:#e1f4e8;color:#17643a}.excluded{background:#f0f2f4;color:#526274}.duplicate{background:#ffe4e4;color:#8c1d28}.scope{background:#e8eff8;color:#244f78}#notice{white-space:pre-wrap;overflow-wrap:anywhere}#notice[role=alert]{color:#a21f30}
+    :root{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:#203043;background:#f6f8fb}body{margin:0}main{max-width:860px;margin:auto;padding:22px 16px 56px}a{color:#225b96}h1{font-size:1.65rem;margin:20px 0 8px}h2{font-size:1.2rem}p{line-height:1.65}.muted{color:#526274;font-size:.94rem}.card{background:#fff;border:1px solid #dce3eb;border-radius:14px;padding:18px;margin:16px 0}.item{border-top:1px solid #e5ebf1;padding:16px 0;overflow-wrap:anywhere}.item:first-child{border-top:0}.item strong{display:block;margin:5px 0}.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}.classification{display:grid;gap:5px;margin-top:10px;max-width:100%}button,input,select{font:inherit}button{padding:10px 14px;min-height:44px;border:1px solid #245783;border-radius:10px;background:#245b90;color:#fff;font-weight:650}button.secondary{background:#fff;color:#245783}button.exclude{background:#fff;color:#9a2430;border-color:#9a2430}button:disabled{opacity:.5}input,select{padding:10px;border:1px solid #9eabba;border-radius:8px;background:#fff;max-width:100%}.tag{display:inline-block;padding:3px 8px;border-radius:8px;font-size:.83rem;margin:4px 6px 0 0}.unreviewed{background:#fff2d5;color:#705000}.kept{background:#e1f4e8;color:#17643a}.excluded{background:#f0f2f4;color:#526274}.duplicate{background:#ffe4e4;color:#8c1d28}.scope{background:#e8eff8;color:#244f78}.evidence{margin-top:12px;padding:12px;border:1px solid #dce3eb;border-radius:10px;background:#f8fafc}.evidence pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;font-size:.9rem;max-height:320px;overflow:auto}.evidence ul{padding-left:20px}#notice{white-space:pre-wrap;overflow-wrap:anywhere}#notice[role=alert]{color:#a21f30}
   </style>
 </head>
 <body>
@@ -43,6 +43,7 @@
   const filterArea = document.getElementById("filterArea"), eventFilter = document.getElementById("eventFilter");
   const notice = document.getElementById("notice"), summary = document.getElementById("summary"), results = document.getElementById("results");
   let signedIn = false, busy = false, functions = null, state = null;
+  const evidenceById = new Map();
 
   function message(value, error = false) {
     notice.textContent = value;
@@ -53,8 +54,8 @@
     month.disabled = busy;
     load.disabled = busy || !signedIn;
     eventFilter.disabled = busy || !state;
-    for(const control of results.querySelectorAll("button[data-status], select[data-scope]")) {
-      if(control.matches("button")) control.disabled = busy || control.dataset.status === control.closest(".item")?.dataset.status;
+    for(const control of results.querySelectorAll("button[data-status], button[data-evidence], select[data-scope]")) {
+      if(control.matches("button[data-status]")) control.disabled = busy || control.dataset.status === control.closest(".item")?.dataset.status;
       else control.disabled = busy;
     }
   }
@@ -118,7 +119,39 @@
         const button = document.createElement("button"); button.type = "button"; button.dataset.status = option[0];
         button.textContent = option[1]; button.className = option[2]; button.disabled = busy || item.reviewStatus === option[0]; actions.append(button);
       }
-      article.append(actions); results.append(article);
+      article.append(actions);
+      if(item.reviewStatus === "kept") {
+        const inspect = document.createElement("button"); inspect.type = "button"; inspect.className = "secondary"; inspect.dataset.evidence = "true";
+        inspect.textContent = evidenceById.has(item.id) ? "本文と添付を再確認" : "本文と添付を確認";
+        actions.append(inspect);
+      }
+      const evidence = evidenceById.get(item.id);
+      if(evidence && item.reviewStatus === "kept") {
+        const panel = document.createElement("section"); panel.className = "evidence";
+        const heading = document.createElement("strong"); heading.textContent = "メール本文と添付の一時確認";
+        const note = document.createElement("p"); note.className = "muted"; note.textContent = "この内容は候補レコードへ保存していません。PDF本文はまだ解析していません。";
+        panel.append(heading, note);
+        if(evidence.excerpt) {
+          const excerpt = document.createElement("pre"); excerpt.textContent = evidence.excerpt; panel.append(excerpt);
+        } else {
+          const empty = document.createElement("p"); empty.textContent = "読み取れる本文テキストはありませんでした。"; panel.append(empty);
+        }
+        if((evidence.moneyHints || []).length) {
+          const hints = document.createElement("p"); hints.textContent = `金額表記の候補: ${evidence.moneyHints.join(" ／ ")}`; panel.append(hints);
+        }
+        const attachmentHeading = document.createElement("strong"); attachmentHeading.textContent = `添付ファイル ${(evidence.attachments || []).length}件`; panel.append(attachmentHeading);
+        if((evidence.attachments || []).length) {
+          const list = document.createElement("ul");
+          for(const file of evidence.attachments) {
+            const row = document.createElement("li");
+            const size = typeof file.size === "number" ? ` ／ ${Math.ceil(file.size / 1024)} KB` : "";
+            row.textContent = `${file.filename} ／ ${file.mimeType}${size}${file.isPdf ? " ／ PDF" : ""}`; list.append(row);
+          }
+          panel.append(list);
+        }
+        article.append(panel);
+      }
+      results.append(article);
     }
   }
   async function loadCandidates() {
@@ -144,6 +177,17 @@
     } catch(e) { message(`確認状態を保存できませんでした: ${e.message || e}`, true); }
     finally { busy = false; update(); }
   }
+  async function inspectEvidence(candidateId) {
+    if(busy || !state) return;
+    busy = true; update(); message("メール本文と添付情報を一時取得しています…");
+    try {
+      const data = await callable("gmailExpenseInspectEvidence", { candidateId });
+      evidenceById.set(candidateId, data);
+      render();
+      message(`本文情報を一時表示しました。添付${(data.attachments || []).length}件、PDF${data.pdfCount || 0}件です。経費登録とPDF解析は行っていません。`);
+    } catch(e) { message(`本文と添付情報を取得できませんでした: ${e.message || e}`, true); }
+    finally { busy = false; update(); }
+  }
   async function assignEvent(candidateId, value) {
     if(busy || !state) return;
     const expenseScope = value.startsWith("event:") ? "event" : value;
@@ -158,8 +202,10 @@
     finally { busy = false; update(); }
   }
   results.addEventListener("click", event => {
-    const button = event.target.closest("button[data-status]");
     const article = event.target.closest(".item[data-id]");
+    const evidenceButton = event.target.closest("button[data-evidence]");
+    if(evidenceButton && article) { inspectEvidence(article.dataset.id); return; }
+    const button = event.target.closest("button[data-status]");
     if(button && article) review(article.dataset.id, button.dataset.status);
   });
   results.addEventListener("change", event => {
