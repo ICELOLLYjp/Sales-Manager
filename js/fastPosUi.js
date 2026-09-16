@@ -82,15 +82,14 @@ function installStyles() {
   style.id = "fastPosStyles";
   style.textContent = `
     #${BUTTON_ID}{min-height:36px;padding:0 14px;border:1px solid #185fa5;border-radius:18px;background:#eaf4ff;color:#185fa5;font:800 13px system-ui,sans-serif}
-    #${OVERLAY_ID}{position:fixed;inset:0;z-index:12000;background:#f5f5f2;color:#1f1f1f;overflow:auto;-webkit-overflow-scrolling:touch}
-    #${OVERLAY_ID} .fp-head{position:sticky;top:0;z-index:2;background:#fff;border-bottom:1px solid #ddd;padding:calc(10px + env(safe-area-inset-top)) 12px 10px;display:flex;gap:8px;align-items:center}
-    #${OVERLAY_ID} .fp-head strong{flex:1;min-width:0;font-size:17px}
-    #${OVERLAY_ID} .fp-head-actions{display:flex;gap:6px;align-items:center;flex-shrink:0}
-    #${OVERLAY_ID} .fp-history,
-    #${OVERLAY_ID} .fp-currency,
-    #${OVERLAY_ID} .fp-close{min-height:40px;border:1px solid #deded9;border-radius:10px;padding:0 10px;background:#f3f3f0;color:#222;font:800 12px system-ui;white-space:nowrap}
-    #${OVERLAY_ID} .fp-currency{min-width:54px;background:#fff;text-align:center;opacity:1;-webkit-text-fill-color:#555}
-    #${OVERLAY_ID} .fp-close{border-color:transparent;color:#1677d2}
+    #${OVERLAY_ID}{position:fixed;top:var(--fp-top-offset,0px);right:0;bottom:0;left:0;z-index:12000;background:#f5f5f2;color:#1f1f1f;overflow:auto;-webkit-overflow-scrolling:touch}
+    #${OVERLAY_ID} .fp-head{max-width:480px;margin:0 auto;padding:16px 16px 10px;background:#f5f5f2}
+    #${OVERLAY_ID} .fp-history-row{display:flex;justify-content:flex-end;align-items:center;margin-bottom:10px}
+    #${OVERLAY_ID} .fp-title-row{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+    #${OVERLAY_ID} .fp-title-row strong{font:800 24px/1.2 system-ui,sans-serif}
+    #${OVERLAY_ID} .fp-history{min-height:42px;padding:0 14px;border:1px solid #deded9;border-radius:12px;background:#f3f3f0;color:#222;font:800 13px system-ui;white-space:nowrap}
+    #${OVERLAY_ID} .fp-currency{min-width:76px;min-height:44px;padding:0 12px;border:1px solid #deded9;border-radius:12px;background:#fff;color:#555;font:800 14px system-ui;text-align:center;opacity:1;-webkit-text-fill-color:#555}
+    #${OVERLAY_ID} .fp-close[hidden]{display:none}
     #${OVERLAY_ID} .fp-wrap{max-width:480px;margin:auto;padding:12px 10px calc(30px + env(safe-area-inset-bottom))}
     #${OVERLAY_ID} .fp-card{background:#fff;border:1px solid #e1e1dc;border-radius:16px;padding:12px;margin-bottom:10px}
     #${OVERLAY_ID} .fp-session{font-size:12px;color:#666;line-height:1.45}
@@ -221,14 +220,16 @@ async function openFastPos() {
   overlay.id = OVERLAY_ID;
   overlay.innerHTML = `
     <div class="fp-head">
-      <strong>最速POS</strong>
-      <div class="fp-head-actions">
+      <div class="fp-history-row">
         <button class="fp-history" type="button">会計履歴</button>
+      </div>
+      <div class="fp-title-row">
+        <strong>EVENT POS</strong>
         <select class="fp-currency" aria-label="通貨" disabled>
           <option selected>${esc(currency)}</option>
         </select>
-        <button class="fp-close" type="button">閉じる</button>
       </div>
+      <button class="fp-close" type="button" hidden aria-label="最速POSを閉じる"></button>
     </div>
     <div class="fp-wrap">
       <section class="fp-card">
@@ -261,6 +262,8 @@ async function openFastPos() {
     </div>
   `;
   document.body.appendChild(overlay);
+  const topbarBottom = document.querySelector(".topbar")?.getBoundingClientRect().bottom || 0;
+  overlay.style.setProperty("--fp-top-offset", `${Math.max(0, Math.round(topbarBottom))}px`);
 
   const amountEl = overlay.querySelector("#fpAmount");
   const statusEl = overlay.querySelector("#fpStatus");
