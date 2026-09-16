@@ -36,10 +36,18 @@ Updated: 2026-09-17 (Japan time). Repo: `ICELOLLYjp/Sales-Manager`.
 - Stored records still contain metadata only. Email body and PDF parsing remain out of scope for this phase.
 - Browser code does not write Firestore directly. The staff-authenticated Gmail Functions codebase performs the candidate write.
 
+## Phase 3 in development: saved candidate review
+
+- Staff can list saved candidates by month through a server callable. The browser does not read Firestore directly.
+- Each candidate can be marked `kept`, `excluded` or returned to `unreviewed`.
+- Every actual review-state change creates a separate audit record in `gmailExpenseCandidateAudit`.
+- Same-date records with a normalized matching sender and subject are shown as possible duplicates. They remain separate records and are never deleted or merged automatically.
+- Review actions do not post expenses and do not fetch bodies or attachments.
+
 ## Remaining work before full expense management
 
-1. Review, merge, deploy and live-test explicit candidate storage. Deploy only the Gmail Functions codebase and never the tracked Firestore rules.
-2. Add saved-candidate review, audit history and duplicate warnings. Keep exact Gmail-source idempotency separate from probable cross-email duplicate matching.
+1. Review, merge, deploy and live-test saved-candidate review and duplicate warnings. Deploy only the Gmail Functions codebase and never the tracked Firestore rules.
+2. Confirm that review changes persist and possible duplicate warnings are understandable using production candidate data.
 3. Add body and PDF parsing as a later isolated phase. Preserve unknown amounts and distinguish invoice from payment evidence.
 4. Add a separate, user-approved expense-posting action only after review. Never post during fetch, scan or candidate save.
 5. Add per-account partial failures and weekly server sync only after the manual workflow is stable.
