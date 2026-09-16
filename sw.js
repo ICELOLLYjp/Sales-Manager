@@ -1,5 +1,5 @@
 const CACHE_NAME =
-  "icelolly-sales-shell-20260916-fast-pos-switch-1";
+  "icelolly-sales-shell-20260916-fast-pos-session-1";
 
 const CORE_ASSETS = [
   "./",
@@ -31,6 +31,7 @@ const CORE_ASSETS = [
   "./js/posUxEnhancements.js",
   "./js/fastPosUi.js",
   "./js/fastPosModeEnhancement.js",
+  "./js/fastPosSessionEnhancement.js",
   "./js/transactionHistorySearch.js",
 
   "./js/inventoryAdapters/tshirtAdapter.js",
