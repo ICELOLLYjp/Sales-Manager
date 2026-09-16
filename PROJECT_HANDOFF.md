@@ -324,7 +324,7 @@ Sale-time cost snapshots preserve historical accounting.
 
 FX is still partial. Manual Session FX exists; sale-date/payment-date/current/actual-provider rate handling is not fully implemented.
 
-Wise / PayNow many-to-many reconciliation, Gmail expense candidates, and full final-profit reconciliation remain future work.
+Wise / PayNow many-to-many reconciliation and full final-profit reconciliation remain future work. Gmail metadata preview is live and has been tested against both connected accounts. Explicit idempotent candidate storage is the current development phase; it remains separate from expense posting.
 
 ---
 
@@ -360,6 +360,9 @@ Wise / PayNow many-to-many reconciliation, Gmail expense candidates, and full fi
 - independent T-shirt sales dimensions for Design, Body, Color, and Size
 - cost schedules/snapshots
 - Stripe client/backend foundations
+- Gmail readonly OAuth for two approved accounts
+- staff-only manual Gmail metadata preview, live-tested for both accounts
+- metadata preview does not save candidates or post expenses automatically
 
 ## Needs field test
 
@@ -396,7 +399,9 @@ Wise / PayNow many-to-many reconciliation, Gmail expense candidates, and full fi
 
 - generic promotion builder
 - Wise / PayNow many-to-many reconciliation
+- Gmail saved-candidate review and duplicate warnings
 - Gmail expense candidate extraction including attachments/PDFs
+- explicit reviewed-candidate to expense posting
 - sale-date/payment-date/current/actual-provider FX stack
 - final event financial reconciliation
 - Session notes / event review
@@ -497,4 +502,6 @@ Security/config:
 
 # Next implementation focus
 
-Do not add another large inventory-close model before the next real-event field test. Amount-only later allocation and normalized T-shirt sales aggregation are implemented. The next focus should normally be field-testing these flows, especially duplicate taps, negative stock, void-after-classification, and mixed exact/Quick T-shirt reporting, unless a higher-priority defect is found.
+For Gmail expenses, preserve this sequence: manual metadata preview -> explicit candidate save -> human review and duplicate warning -> body/PDF extraction -> separate user-approved expense posting. Fetching or saving a candidate must never post an expense. Deploy only `functions:gmail-expenses`; never deploy the tracked Firestore rules with this work.
+
+Do not add another large inventory-close model before the next real-event field test. Amount-only later allocation and normalized T-shirt sales aggregation are implemented.
