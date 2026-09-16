@@ -26,6 +26,21 @@ function safeNumber(value) {
   return number;
 }
 
+function normalizedTshirtBodyKey(item) {
+  const explicit = String(
+    item?.tshirtBodyKey ||
+    item?.bodyId ||
+    ""
+  ).trim();
+  if (explicit) return explicit;
+  if (String(item?.category || "").trim() !== "tshirt") return "";
+  const label = String(item?.body || item?.label || "").trim().toLocaleLowerCase("en");
+  if (label === "vintage" || label.includes("pigment")) return "Vintage";
+  if (label === "organic" || label.includes("organic")) return "Organic";
+  if (label === "mij" || label.includes("made in japan") || label === "japan") return "MIJ";
+  return "";
+}
+
 function createTransactionId() {
   if (
     globalThis.crypto &&
@@ -109,6 +124,9 @@ function normalizeItems(items) {
           item?.variantId || ""
         ).trim() || null;
 
+      const tshirtBodyKey =
+        normalizedTshirtBodyKey(item);
+
       return {
         lineId:
           String(
@@ -127,6 +145,46 @@ function normalizeItems(items) {
             item?.category ||
             ""
           ).trim(),
+
+        detail:
+          String(
+            item?.detail ||
+            ""
+          ).trim(),
+
+        tshirtBodyKey:
+          tshirtBodyKey,
+
+        bodyId:
+          String(
+            item?.bodyId ||
+            tshirtBodyKey ||
+            ""
+          ).trim() || null,
+
+        designId:
+          String(item?.designId || "").trim() || null,
+
+        colorId:
+          String(item?.colorId || "").trim() || null,
+
+        sizeId:
+          String(item?.sizeId || "").trim() || null,
+
+        body:
+          String(item?.body || "").trim() || null,
+
+        design:
+          String(item?.design || "").trim() || null,
+
+        color:
+          String(item?.color || "").trim() || null,
+
+        size:
+          String(item?.size || "").trim() || null,
+
+        sku:
+          String(item?.sku || "").trim() || null,
 
         quantity,
 
@@ -176,7 +234,10 @@ function normalizeItems(items) {
         variantId,
 
         inventoryKey:
-          item?.inventoryKey || null
+          item?.inventoryKey || null,
+
+        inventorySource:
+          item?.inventorySource || null
       };
     })
     .filter(
@@ -333,7 +394,9 @@ function fingerprintFor({
         trackingMode:
           item.trackingMode,
         variantId:
-          item.variantId || null
+          item.variantId || null,
+        tshirtBodyKey:
+          item.tshirtBodyKey || null
       })
     )
   });
@@ -1477,19 +1540,53 @@ export async function commitQuickSale({
 
                 bodyId:
                   variant.bodyId ||
+                  item.bodyId ||
                   null,
 
                 designId:
                   variant.designId ||
+                  item.designId ||
                   null,
 
                 colorId:
                   variant.colorId ||
+                  item.colorId ||
                   null,
 
                 sizeId:
                   variant.sizeId ||
-                  null
+                  item.sizeId ||
+                  null,
+
+                body:
+                  variant.body ||
+                  item.body ||
+                  null,
+
+                design:
+                  variant.design ||
+                  item.design ||
+                  null,
+
+                color:
+                  variant.color ||
+                  item.color ||
+                  null,
+
+                size:
+                  variant.size ||
+                  item.size ||
+                  null,
+
+                sku:
+                  variant.sku ||
+                  item.sku ||
+                  null,
+
+                tshirtBodyKey:
+                  item.tshirtBodyKey ||
+                  variant.bodyId ||
+                  ""
               };
             }
           );
