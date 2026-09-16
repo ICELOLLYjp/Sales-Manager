@@ -15,12 +15,28 @@ For inventory, daily close, event close, reconciliation, expenses, and future wo
 
 Do not invent `0`, a guessed SKU, an estimated quantity, or a fake completion state merely to let the workflow continue.
 
+## Unknown and zero are different
+
+Inventory count values must distinguish a physically confirmed zero from an unknown / uncounted value.
+
+Use the following representation for event closing-count rows:
+
+- confirmed zero: `closingQty: 0`, `countStatus: "known"`
+- confirmed positive quantity: `closingQty: <number>`, `countStatus: "known"`
+- unknown / not counted: `closingQty: null`, `countStatus: "unknown"`
+
+An empty field must never be silently converted to zero.
+
+The count UI must offer explicit actions for both `0` and `不明`, including bulk actions where useful. If some rows remain unknown, the external count may be stored with `status: "partial"` and the workflow may continue.
+
 ## Event inventory
 
 A user may:
 
 - skip an intermediate count,
 - count only some SKUs,
+- explicitly mark a SKU as zero,
+- explicitly leave a SKU unknown,
 - leave Restock / Opening correction unknown if it was not recorded,
 - leave some closing quantities unknown,
 - leave Quick sales unidentified,
@@ -55,6 +71,7 @@ The upcoming daily-close workflow must follow the same rule:
 
 - a day may be closed with no physical count,
 - a partial count may be saved,
+- confirmed zero and unknown must remain distinguishable,
 - unknown items remain unknown rather than becoming zero,
 - the next day can begin from the known state plus explicit later movements,
 - daily history must retain whether each value was confirmed, inherited, skipped, or unresolved.
