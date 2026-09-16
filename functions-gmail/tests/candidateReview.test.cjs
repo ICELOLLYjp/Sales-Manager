@@ -1,7 +1,7 @@
 "use strict";
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
-const { duplicateGroups, publicCandidate } = require("../candidateReview");
+const { duplicateGroups, publicCandidate, publicSession } = require("../candidateReview");
 
 function snapshot(id, data) {
   return { id, data: () => data };
@@ -38,4 +38,28 @@ test("unknown review status is treated as unreviewed", () => {
   const item = publicCandidate(snapshot("abc", { reviewStatus: "unexpected" }));
   assert.equal(item.reviewStatus, "unreviewed");
   assert.equal(item.reviewRequired, true);
+});
+
+test("candidate expense scope is explicit and defaults safely", () => {
+  const unassigned = publicCandidate(snapshot("a", {}));
+  const general = publicCandidate(snapshot("b", { expenseScope: "general" }));
+  const event = publicCandidate(snapshot("c", { expenseScope: "event", eventId: "session1", eventName: "Public Garden" }));
+  assert.equal(unassigned.expenseScope, "unassigned");
+  assert.equal(general.expenseScope, "general");
+  assert.equal(event.eventId, "session1");
+  assert.equal(event.eventName, "Public Garden");
+});
+
+test("session options expose only classification metadata", () => {
+  const item = publicSession(snapshot("session1", {
+    eventName: "Public Garden",
+    country: "Singapore",
+    city: "Singapore",
+    startDate: "2026-09-12",
+    endDate: "2026-09-13",
+    secret: "PRIVATE"
+  }));
+  assert.equal(item.id, "session1");
+  assert.equal(item.eventName, "Public Garden");
+  assert.ok(!JSON.stringify(item).includes("PRIVATE"));
 });
