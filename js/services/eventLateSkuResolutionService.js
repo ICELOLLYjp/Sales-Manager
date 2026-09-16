@@ -222,7 +222,7 @@ async function loadSessionAndSales(sessionId) {
   };
 }
 
-async function loadFormalCandidates(db) {
+export async function loadFormalCandidates(db) {
   const { doc, collection, getDocFromServer, getDocsFromServer } = await firestoreModule();
   const [variantsSnapshot, tshirtSnapshot, accessorySnapshot] = await Promise.all([
     getDocsFromServer(collection(db, "productVariants")),

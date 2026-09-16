@@ -354,6 +354,8 @@ Wise / PayNow many-to-many reconciliation, Gmail expense candidates, and full fi
 - amount-only Stripe QR
 - Quick / SKU / 最速 three-way switching
 - Fast POS offline state + shared Session selector
+- amount-only history classification to category or one exact SKU
+- one-time canonical stock application when an amount-only sale is classified to SKU
 - cost schedules/snapshots
 - Stripe client/backend foundations
 
@@ -366,6 +368,7 @@ Wise / PayNow many-to-many reconciliation, Gmail expense candidates, and full fi
 - Fast POS manual/offline sync under unstable network
 - Fast POS Stripe QR on event-day live environment
 - Fast POS shared Session switching when a normal POS cart already has items
+- amount-only later classification, including subsequent sale void and stock restore
 
 ## Remaining integration debt
 
@@ -381,7 +384,7 @@ Wise / PayNow many-to-many reconciliation, Gmail expense candidates, and full fi
 ## High priority after next field test
 
 1. Fix defects found by the real-event end-to-end test.
-2. Later allocation UI for amount-only/unclassified sales to category/SKU without duplicate revenue or inventory mutation.
+2. Field-test later allocation of amount-only sales to category or one exact SKU, including duplicate-tap protection and subsequent void.
 3. Normalize T-shirt sales aggregation by category/design/body/color/size.
 4. Analytics: popular size/design/color, sell-through, SOLD OUT, Restock effect, event/city/country comparison.
 5. Lost-opportunity capture; do not infer lost sales only from negative stock.
@@ -431,6 +434,8 @@ POS:
 - `js/fastPosModeEnhancement.js`
 - `js/fastPosSessionEnhancement.js`
 - `js/services/fastAmountSaleService.js`
+- `js/services/fastAmountAllocationService.js`
+- `js/fastAmountAllocationUi.js`
 
 Event inventory / close:
 
@@ -487,4 +492,4 @@ Security/config:
 
 # Next implementation focus
 
-Do not add another large inventory-close model before the next real-event field test. The next code feature after this handoff should normally be **later allocation of amount-only/unclassified Fast POS sales**, unless field testing exposes a higher-priority defect.
+Do not add another large inventory-close model before the next real-event field test. The amount-only later-allocation feature is now implemented for category-only classification or a single exact SKU plus quantity. The next focus should normally be field-testing this flow, especially duplicate taps, negative stock, and void-after-classification, unless a higher-priority defect is found.

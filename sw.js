@@ -1,5 +1,5 @@
 const CACHE_NAME =
-  "icelolly-sales-shell-20260916-fast-pos-header-1";
+  "icelolly-sales-shell-20260916-fast-amount-allocation-1";
 
 const CORE_ASSETS = [
   "./",
@@ -33,6 +33,7 @@ const CORE_ASSETS = [
   "./js/fastPosModeEnhancement.js",
   "./js/fastPosSessionEnhancement.js",
   "./js/transactionHistorySearch.js",
+  "./js/fastAmountAllocationUi.js",
 
   "./js/inventoryAdapters/tshirtAdapter.js",
   "./js/inventoryAdapters/accessoryAdapter.js",
@@ -71,6 +72,7 @@ const CORE_ASSETS = [
   "./js/services/offlineQueueService.js",
   "./js/services/stripePaymentService.js",
   "./js/services/fastAmountSaleService.js",
+  "./js/services/fastAmountAllocationService.js",
   "./stripe-result.html"
 ];
 
