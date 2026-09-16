@@ -55,13 +55,23 @@ Updated: 2026-09-17 (Japan time). Repo: `ICELOLLYjp/Sales-Manager`.
 - PDF attachments are identified by metadata, but their contents are not fetched or parsed in this phase.
 - The inspection response is temporary in the browser and does not post an expense.
 
+## Phase 5 in development: human-reviewed evidence draft
+
+- After temporary inspection, staff may explicitly save amount, currency, evidence status, expense category and description as an `evidenceReview` draft.
+- `paid_evidence` and `invoiced` require a positive amount and supported currency. Unknown stays unknown.
+- Saving the draft requires the candidate to be kept and assigned to an event or general business.
+- Draft changes are audited. Raw body text and attachment bytes are not stored.
+- Candidate amount and currency may be updated from the reviewed draft, but `expensePosted` remains false and no `salesSessions.expenses` value changes.
+- A separate future action is still required to post an approved expense.
+
 ## Remaining work before full expense management
 
 1. Review, merge, deploy and live-test candidate event assignment and event filtering. Deploy only the Gmail Functions codebase and never the tracked Firestore rules.
 2. Confirm that event assignment and review-state changes persist using production candidate data.
 3. Refine probable duplicate warnings after candidates are separated by event.
 4. Live-test bounded body and attachment inspection on a kept production candidate.
-5. If a PDF attachment exists, add PDF-byte retrieval and parsing as a separate isolated phase. Preserve unknown amounts and distinguish invoice from payment evidence.
+5. Live-test manual evidence review storage using the confirmed Public Garden clothing-rack payment.
+6. If a PDF attachment exists, add PDF-byte retrieval and parsing as a separate isolated phase. Preserve unknown amounts and distinguish invoice from payment evidence.
 4. Add a separate, user-approved expense-posting action only after review. Never post during fetch, scan or candidate save.
 5. Add per-account partial failures and weekly server sync only after the manual workflow is stable.
 6. ChatGPT's own weekly reminders/summaries do not automatically populate Sales Manager.

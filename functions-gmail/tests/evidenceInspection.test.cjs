@@ -32,5 +32,5 @@ test("payload inspection lists attachments but does not include attachment bytes
 });
 
 test("money hints are suggestions only", () => {
-  assert.deepEqual(findMoneyHints("Total SGD 120.00 and tax 8.40 SGD"), ["SGD 120.00", "8.40 SGD"]);
+  assert.deepEqual(findMoneyHints("Payment received $100. Total SGD 120.00 and tax 8.40 SGD"), ["SGD 120.00", "8.40 SGD", "$100"]);
 });

@@ -503,6 +503,6 @@ Security/config:
 
 # Next implementation focus
 
-For Gmail expenses, preserve this sequence: manual metadata preview -> explicit candidate save -> event/general classification -> human review and duplicate warning -> explicit bounded body/attachment inspection -> PDF extraction when present -> separate user-approved expense posting. Body inspection is allowed only for candidates marked kept, and raw body/attachment bytes are not persisted during inspection. Fetching or saving a candidate must never post an expense. Deploy only `functions:gmail-expenses`; never deploy the tracked Firestore rules with this work.
+For Gmail expenses, preserve this sequence: manual metadata preview -> explicit candidate save -> event/general classification -> human review and duplicate warning -> explicit bounded body/attachment inspection -> human-reviewed evidence draft -> PDF extraction when present -> separate user-approved expense posting. Body inspection is allowed only for candidates marked kept, and raw body/attachment bytes are not persisted during inspection. The live Public Garden clothing-rack email confirmed payment of SGD 100 in the body and had no attachment. Fetching or saving a candidate must never post an expense. Deploy only `functions:gmail-expenses`; never deploy the tracked Firestore rules with this work.
 
 Do not add another large inventory-close model before the next real-event field test. Amount-only later allocation and normalized T-shirt sales aggregation are implemented.

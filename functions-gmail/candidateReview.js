@@ -84,6 +84,13 @@ function publicCandidate(snapshot) {
     amount: typeof data.amount === "number" ? data.amount : null,
     currency: typeof data.currency === "string" ? data.currency : null,
     paymentConfirmed: data.paymentConfirmed === true,
+    evidenceReview: data.evidenceReview && typeof data.evidenceReview === "object" ? {
+      amount: typeof data.evidenceReview.amount === "number" ? data.evidenceReview.amount : null,
+      currency: typeof data.evidenceReview.currency === "string" ? data.evidenceReview.currency : null,
+      paymentStatus: typeof data.evidenceReview.paymentStatus === "string" ? data.evidenceReview.paymentStatus : "unverified",
+      category: typeof data.evidenceReview.category === "string" ? data.evidenceReview.category : "other",
+      description: typeof data.evidenceReview.description === "string" ? data.evidenceReview.description.slice(0, 500) : null
+    } : null,
     expensePosted: data.expensePosted === true
   };
 }
