@@ -174,3 +174,7 @@ exports.gmailExpenseInspectEvidence = require("./evidenceInspection").createEvid
   requireStaff, db, clientId: CLIENT_ID, clientSecret: CLIENT_SECRET,
   tokenKey: TOKEN_KEY, staffEmails: STAFF_EMAILS
 });
+
+exports.gmailExpenseSaveEvidenceReview = require("./evidenceReview").createEvidenceReviewSaver({
+  requireStaff, db, staffEmails: STAFF_EMAILS
+});
