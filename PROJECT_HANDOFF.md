@@ -324,7 +324,7 @@ Sale-time cost snapshots preserve historical accounting.
 
 FX is still partial. Manual Session FX exists; sale-date/payment-date/current/actual-provider rate handling is not fully implemented.
 
-Wise / PayNow many-to-many reconciliation and full final-profit reconciliation remain future work. Gmail metadata preview is live and has been tested against both connected accounts. Explicit idempotent candidate storage is the current development phase; it remains separate from expense posting.
+Wise / PayNow many-to-many reconciliation and full final-profit reconciliation remain future work. Gmail metadata preview and explicit idempotent candidate storage are live-tested. Saved-candidate human review, audit history and possible-duplicate warnings are the current development phase; all remain separate from expense posting.
 
 ---
 
@@ -363,6 +363,7 @@ Wise / PayNow many-to-many reconciliation and full final-profit reconciliation r
 - Gmail readonly OAuth for two approved accounts
 - staff-only manual Gmail metadata preview, live-tested for both accounts
 - metadata preview does not save candidates or post expenses automatically
+- explicit candidate save, live-tested with 25 new records and a repeat save producing 0 new / 25 existing
 
 ## Needs field test
 

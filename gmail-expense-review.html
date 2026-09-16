@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>保存済みGmail経費候補 | ICELOLLY Sales Manager</title>
+  <style>
+    :root{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:#203043;background:#f6f8fb}body{margin:0}main{max-width:820px;margin:auto;padding:22px 16px 56px}a{color:#225b96}h1{font-size:1.65rem;margin:20px 0 8px}h2{font-size:1.2rem}p{line-height:1.65}.muted{color:#526274;font-size:.94rem}.card{background:#fff;border:1px solid #dce3eb;border-radius:14px;padding:18px;margin:16px 0}.item{border-top:1px solid #e5ebf1;padding:16px 0;overflow-wrap:anywhere}.item:first-child{border-top:0}.item strong{display:block;margin:5px 0}.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}button,input{font:inherit}button{padding:10px 14px;min-height:44px;border:1px solid #245783;border-radius:10px;background:#245b90;color:#fff;font-weight:650}button.secondary{background:#fff;color:#245783}button.exclude{background:#fff;color:#9a2430;border-color:#9a2430}button:disabled{opacity:.5}input{padding:10px;border:1px solid #9eabba;border-radius:8px}.tag{display:inline-block;padding:3px 8px;border-radius:8px;font-size:.83rem;margin:4px 6px 0 0}.unreviewed{background:#fff2d5;color:#705000}.kept{background:#e1f4e8;color:#17643a}.excluded{background:#f0f2f4;color:#526274}.duplicate{background:#ffe4e4;color:#8c1d28}#notice{white-space:pre-wrap;overflow-wrap:anywhere}#notice[role=alert]{color:#a21f30}
+  </style>
+</head>
+<body>
+<main>
+  <a href="./">← Sales Manager</a> · <a href="./gmail-expenses.html">Gmail候補の取得</a>
+  <h1>保存済みGmail経費候補</h1>
+  <p class="muted">保存済み候補を確認し、候補に残すか除外するかを選びます。この画面では経費台帳への登録、本文取得、PDF解析は行いません。</p>
+  <section class="card">
+    <h2>表示条件</h2>
+    <p id="staff">ログイン状態を確認しています…</p>
+    <button id="login" class="secondary" type="button" hidden>Sales Managerにログイン</button>
+    <label for="month">対象月</label>
+    <input type="month" id="month" value="2026-09" min="2025-01" max="2030-12">
+    <button id="load" type="button" disabled>保存済み候補を表示</button>
+    <p id="notice" aria-live="polite"></p>
+  </section>
+  <section class="card">
+    <h2>候補一覧</h2>
+    <div id="summary" class="muted">まだ読み込んでいません。</div>
+    <div id="results" aria-live="polite"></div>
+  </section>
+</main>
+<script type="module">
+  import { initFirebase, getFirebaseState } from "./js/firebase.js";
+  import { initAuth, loginWithGoogle } from "./js/auth.js";
+  import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-functions.js";
+
+  const staff = document.getElementById("staff"), login = document.getElementById("login");
+  const month = document.getElementById("month"), load = document.getElementById("load");
+  const notice = document.getElementById("notice"), summary = document.getElementById("summary"), results = document.getElementById("results");
+  let signedIn = false, busy = false, functions = null, state = null;
+
+  function message(value, error = false) {
+    notice.textContent = value;
+    if(error) notice.setAttribute("role", "alert"); else notice.removeAttribute("role");
+  }
+  function update() {
+    login.disabled = busy;
+    month.disabled = busy;
+    load.disabled = busy || !signedIn;
+    for(const button of results.querySelectorAll("button[data-status]")) {
+      button.disabled = busy || button.dataset.status === button.closest(".item")?.dataset.status;
+    }
+  }
+  async function callable(name, data = {}) {
+    if(!functions || !signedIn) throw new Error("Sales Managerにログインしてください。");
+    const response = await httpsCallable(functions, name)(data);
+    return response.data;
+  }
+  function statusLabel(status) {
+    return status === "kept" ? "候補に残す" : status === "excluded" ? "除外" : "未確認";
+  }
+  function render() {
+    results.replaceChildren();
+    const candidates = state?.candidates || [];
+    const duplicateIds = new Set((state?.duplicateGroups || []).flat());
+    const counts = { unreviewed: 0, kept: 0, excluded: 0 };
+    for(const item of candidates) counts[item.reviewStatus] = (counts[item.reviewStatus] || 0) + 1;
+    summary.textContent = `${state?.month || month.value}：${candidates.length}件　未確認${counts.unreviewed}件　候補に残す${counts.kept}件　除外${counts.excluded}件${state?.truncated ? "　表示上限に達しています" : ""}`;
+    if(!candidates.length) {
+      const empty = document.createElement("p"); empty.textContent = "保存済み候補はありません。"; results.append(empty); return;
+    }
+    for(const item of candidates) {
+      const article = document.createElement("article"); article.className = "item"; article.dataset.id = item.id; article.dataset.status = item.reviewStatus;
+      const title = document.createElement("strong"); title.textContent = item.subject || "（件名なし）";
+      const meta = document.createElement("div"); meta.textContent = `${item.date || "日付不明"} · ${item.sender || "差出人不明"} · ${item.account}`;
+      const status = document.createElement("span"); status.className = `tag ${item.reviewStatus}`; status.textContent = statusLabel(item.reviewStatus);
+      article.append(title, meta, status);
+      if(duplicateIds.has(item.id)) {
+        const duplicate = document.createElement("span"); duplicate.className = "tag duplicate"; duplicate.textContent = "重複の可能性あり"; article.append(duplicate);
+      }
+      const actions = document.createElement("div"); actions.className = "actions";
+      for(const option of [
+        ["kept", "候補に残す", "secondary"],
+        ["excluded", "除外", "exclude"],
+        ["unreviewed", "未確認に戻す", "secondary"]
+      ]) {
+        const button = document.createElement("button"); button.type = "button"; button.dataset.status = option[0];
+        button.textContent = option[1]; button.className = option[2]; button.disabled = busy || item.reviewStatus === option[0]; actions.append(button);
+      }
+      article.append(actions); results.append(article);
+    }
+  }
+  async function loadCandidates() {
+    if(busy || !signedIn) return;
+    const selectedMonth = month.value;
+    if(!/^20\d{2}-(0[1-9]|1[0-2])$/.test(selectedMonth)) { message("対象月を選択してください。", true); return; }
+    busy = true; update(); message("保存済み候補を読み込んでいます…");
+    try {
+      state = await callable("gmailExpenseCandidateList", { month: selectedMonth });
+      render();
+      message("保存済み候補を表示しました。まだ経費台帳には登録していません。");
+    } catch(e) { message(`候補を読み込めませんでした: ${e.message || e}`, true); }
+    finally { busy = false; update(); }
+  }
+  async function review(candidateId, status) {
+    if(busy || !state) return;
+    busy = true; update(); message("確認状態を保存しています…");
+    try {
+      await callable("gmailExpenseCandidateReview", { candidateId, status });
+      const item = state.candidates.find(row => row.id === candidateId);
+      if(item) { item.reviewStatus = status; item.reviewRequired = status === "unreviewed"; }
+      render();
+      message("確認状態を保存しました。経費台帳には登録していません。");
+    } catch(e) { message(`確認状態を保存できませんでした: ${e.message || e}`, true); }
+    finally { busy = false; update(); }
+  }
+  results.addEventListener("click", event => {
+    const button = event.target.closest("button[data-status]");
+    const article = event.target.closest(".item[data-id]");
+    if(button && article) review(article.dataset.id, button.dataset.status);
+  });
+  load.addEventListener("click", loadCandidates);
+  login.addEventListener("click", async () => { try { await loginWithGoogle(); } catch(e) { message(`ログインできませんでした: ${e.message || e}`, true); } });
+  try {
+    await initFirebase(); const { app, enabled } = getFirebaseState();
+    if(!enabled || !app) throw new Error("Firebaseを初期化できませんでした。");
+    functions = getFunctions(app, "asia-southeast1");
+    await initAuth((user, error) => {
+      signedIn = Boolean(user);
+      staff.textContent = user ? `ログイン中: ${user.email}` : "Sales Managerへのログインが必要です。";
+      login.hidden = Boolean(user);
+      update();
+      if(error) message(error.message || "操作が許可されていません。", true);
+    });
+  } catch(e) { message(e.message || String(e), true); }
+</script>
+</body>
+</html>
