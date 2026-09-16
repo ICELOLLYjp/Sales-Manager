@@ -49,12 +49,23 @@ function closingComplete(session) {
   });
 }
 
-function statusMeta(session) {
-  const status = text(session?.status);
-  const unresolved = Math.max(
+function unresolvedQuickCount(session) {
+  const explicit = Math.max(
     0,
     Number(session?.inventoryCount?.unidentifiedQuick?.unresolvedTotal || 0)
   );
+  const groupTotal = (Array.isArray(session?.inventoryCount?.unidentifiedQuick?.groups)
+    ? session.inventoryCount.unidentifiedQuick.groups
+    : []).reduce((sum, group) => {
+      const quantity = Number(group?.quantity || 0);
+      return sum + (Number.isFinite(quantity) ? Math.max(0, Math.trunc(quantity)) : 0);
+    }, 0);
+  return Math.max(explicit, groupTotal);
+}
+
+function statusMeta(session) {
+  const status = text(session?.status);
+  const unresolved = unresolvedQuickCount(session);
   const counted = closingComplete(session);
   const waitingForCount =
     session?.provisionalCloseMode === "inventory_pending" ||
@@ -106,23 +117,22 @@ function statusMeta(session) {
   }
 
   if (status === "closed") {
-    const unidentifiedClosed =
-      session?.eventCloseMode === "closed_with_unidentified" ||
-      session?.inventoryCount?.unidentifiedQuick?.status === "closed_unidentified" ||
-      session?.inventoryCount?.reconciliationStatus === "closed_with_unidentified";
-
-    if (unidentifiedClosed) {
+    if (unresolved > 0) {
       return {
-        label: unresolved > 0 ? `未特定あり終了 ${unresolved}点` : "未特定あり終了",
-        note: "イベント終了済み",
+        label: `未特定あり終了 ${unresolved}点`,
+        note: "後からSKU確定可",
         className: "done-unidentified",
         rank: 50
       };
     }
 
+    const resolvedAfterClose =
+      text(session?.inventoryCount?.unidentifiedQuick?.status) === "resolved_after_close" ||
+      text(session?.inventoryCount?.reconciliationStatus) === "resolved_after_close";
+
     return {
       label: "終了",
-      note: "イベント終了済み",
+      note: resolvedAfterClose ? "未特定解決済み" : "イベント終了済み",
       className: "done",
       rank: 60
     };
@@ -199,7 +209,7 @@ function sortActiveRows(rows, rawById) {
 
 function updateOpenHeader(rawById) {
   const title = Array.from(document.querySelectorAll(".card-title"))
-    .find(element => text(element.textContent) === "Open Sessions");
+    .find(element => text(element.textContent) === "Open Sessions" || text(element.textContent) === "進行中・処理待ち");
   if (!title) return;
 
   title.textContent = "進行中・処理待ち";
