@@ -2,7 +2,7 @@ import { getFirebaseState } from "./firebase.js";
 import {
   loadCheckpointReuseSummary,
   applyReusableCheckpointToClosing
-} from "./services/eventCheckpointReuseService.js?v=20260916-checkpoint-reuse-1";
+} from "./services/eventCheckpointReuseServiceV2.js?v=20260916-checkpoint-reuse-2";
 
 const INVENTORY_SESSION_KEY = "icelolly-sales-inventory-session";
 const PANEL_ID = "eventCheckpointReusePanel";
@@ -127,13 +127,15 @@ async function renderPanel(force = false) {
       `
       : "";
 
+    const sourceNote = Number(summary.sourceCheckpointCount || 0) > 1
+      ? `SKUごとに最新の ${summary.sourceCheckpointCount} 回のカウントを利用しています。`
+      : `${esc(checkpointTypeLabel(summary.checkpointType))}${summary.checkpointLabel ? `「${esc(summary.checkpointLabel)}」` : ""}${summary.checkpointCapturedAtIso ? ` / ${esc(dateLabel(summary.checkpointCapturedAtIso))}` : ""}`;
+
     panel.innerHTML = `
       <div class="ecr-title">前回カウントを再利用</div>
       <div class="ecr-note">
-        ${esc(checkpointTypeLabel(summary.checkpointType))}
-        ${summary.checkpointLabel ? `「${esc(summary.checkpointLabel)}」` : ""}
-        ${summary.checkpointCapturedAtIso ? ` / ${esc(dateLabel(summary.checkpointCapturedAtIso))}` : ""}<br>
-        前回カウント後にSKU販売・Quick販売・Restock・開始修正がない商品は、もう一度数えなくて大丈夫です。
+        ${sourceNote}<br>
+        Tシャツとアクセサリーを別の時間に数えても、SKUごとの最新カウントを使います。カウント後にSKU販売・Quick販売・Restock・開始修正がない商品は、もう一度数えなくて大丈夫です。
       </div>
       <div class="ecr-grid">
         <div class="ecr-stat"><strong>${summary.reusableCount}</strong><span>再カウント不要</span></div>
