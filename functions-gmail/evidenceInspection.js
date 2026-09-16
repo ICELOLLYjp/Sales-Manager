@@ -104,7 +104,8 @@ function findMoneyHints(text) {
   const source = String(text || "").slice(0, MAX_TEXT_BYTES);
   const patterns = [
     /(?:SGD|S\$|JPY|¥|TWD|NT\$|HKD|HK\$|USD|US\$|THB|฿)\s*[\d,]+(?:\.\d{1,2})?/gi,
-    /[\d,]+(?:\.\d{1,2})?\s*(?:SGD|JPY|TWD|HKD|USD|THB)\b/gi
+    /[\d,]+(?:\.\d{1,2})?\s*(?:SGD|JPY|TWD|HKD|USD|THB)\b/gi,
+    /(?<![A-Za-z])\$\s*[\d,]+(?:\.\d{1,2})?/g
   ];
   const found = [];
   for (const pattern of patterns) {
@@ -135,6 +136,12 @@ function createEvidenceInspection({ requireStaff, db, clientId, clientSecret, to
     }
     const account = String(candidate.account || "");
     const messageId = String(candidate.messageId || "");
+    let eventCurrency = null;
+    if (candidate.expenseScope === "event" && typeof candidate.eventId === "string" && candidate.eventId) {
+      const session = await db.collection("salesSessions").doc(candidate.eventId).get();
+      const currency = String(session.data()?.currency || "").toUpperCase();
+      if (["JPY", "SGD", "TWD", "HKD", "THB", "USD"].includes(currency)) eventCurrency = currency;
+    }
     if (!/^[A-Za-z0-9_-]+$/.test(messageId)) {
       throw new HttpsError("failed-precondition", "Gmailメッセージ情報を確認できません。");
     }
@@ -170,6 +177,7 @@ function createEvidenceInspection({ requireStaff, db, clientId, clientSecret, to
       excerptTruncated: evidence.excerptTruncated,
       attachments: evidence.attachments,
       moneyHints: findMoneyHints(evidence.excerpt),
+      eventCurrency,
       pdfCount: evidence.attachments.filter(item => item.isPdf).length,
       persisted: false,
       expensePosted: false,
