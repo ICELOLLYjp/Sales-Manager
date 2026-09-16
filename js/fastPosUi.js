@@ -84,8 +84,13 @@ function installStyles() {
     #${BUTTON_ID}{min-height:36px;padding:0 14px;border:1px solid #185fa5;border-radius:18px;background:#eaf4ff;color:#185fa5;font:800 13px system-ui,sans-serif}
     #${OVERLAY_ID}{position:fixed;inset:0;z-index:12000;background:#f5f5f2;color:#1f1f1f;overflow:auto;-webkit-overflow-scrolling:touch}
     #${OVERLAY_ID} .fp-head{position:sticky;top:0;z-index:2;background:#fff;border-bottom:1px solid #ddd;padding:calc(10px + env(safe-area-inset-top)) 12px 10px;display:flex;gap:8px;align-items:center}
-    #${OVERLAY_ID} .fp-head strong{flex:1;font-size:17px}
-    #${OVERLAY_ID} .fp-close{border:0;background:#eee;border-radius:10px;padding:9px 12px;font:700 14px system-ui}
+    #${OVERLAY_ID} .fp-head strong{flex:1;min-width:0;font-size:17px}
+    #${OVERLAY_ID} .fp-head-actions{display:flex;gap:6px;align-items:center;flex-shrink:0}
+    #${OVERLAY_ID} .fp-history,
+    #${OVERLAY_ID} .fp-currency,
+    #${OVERLAY_ID} .fp-close{min-height:40px;border:1px solid #deded9;border-radius:10px;padding:0 10px;background:#f3f3f0;color:#222;font:800 12px system-ui;white-space:nowrap}
+    #${OVERLAY_ID} .fp-currency{min-width:54px;background:#fff;text-align:center;opacity:1;-webkit-text-fill-color:#555}
+    #${OVERLAY_ID} .fp-close{border-color:transparent;color:#1677d2}
     #${OVERLAY_ID} .fp-wrap{max-width:480px;margin:auto;padding:12px 10px calc(30px + env(safe-area-inset-bottom))}
     #${OVERLAY_ID} .fp-card{background:#fff;border:1px solid #e1e1dc;border-radius:16px;padding:12px;margin-bottom:10px}
     #${OVERLAY_ID} .fp-session{font-size:12px;color:#666;line-height:1.45}
@@ -142,6 +147,55 @@ function makeTransactionId() {
   return `sale_fast_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
+function waitFor(find, timeoutMs = 3500) {
+  return new Promise(resolve => {
+    const started = Date.now();
+
+    function check() {
+      const result = find();
+      if (result) {
+        resolve(result);
+        return;
+      }
+      if (Date.now() - started >= timeoutMs) {
+        resolve(null);
+        return;
+      }
+      window.setTimeout(check, 60);
+    }
+
+    check();
+  });
+}
+
+function cardTitle(label) {
+  return Array.from(document.querySelectorAll(".card-title"))
+    .find(element => element.textContent?.trim() === label) || null;
+}
+
+async function openActiveSessionHistory(sessionId) {
+  stripeToken += 1;
+  document.getElementById(OVERLAY_ID)?.remove();
+
+  const sessionsNav = document.querySelector('.nav-btn[data-route="sessions"]');
+  if (!sessionsNav) return;
+  sessionsNav.click();
+
+  const detailButton = await waitFor(() =>
+    Array.from(document.querySelectorAll(".sessionDetailButton"))
+      .find(button => button.dataset.sessionId === sessionId)
+  );
+
+  if (!detailButton) {
+    window.alert("現在の販売セッションの会計履歴を開けませんでした。");
+    return;
+  }
+
+  detailButton.click();
+  const historyTitle = await waitFor(() => cardTitle("会計履歴"));
+  historyTitle?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
 async function openFastPos() {
   if (document.querySelector(`#${OVERLAY_ID}`)) return;
 
@@ -168,7 +222,13 @@ async function openFastPos() {
   overlay.innerHTML = `
     <div class="fp-head">
       <strong>最速POS</strong>
-      <button class="fp-close" type="button">閉じる</button>
+      <div class="fp-head-actions">
+        <button class="fp-history" type="button">会計履歴</button>
+        <select class="fp-currency" aria-label="通貨" disabled>
+          <option selected>${esc(currency)}</option>
+        </select>
+        <button class="fp-close" type="button">閉じる</button>
+      </div>
     </div>
     <div class="fp-wrap">
       <section class="fp-card">
@@ -206,6 +266,10 @@ async function openFastPos() {
   const statusEl = overlay.querySelector("#fpStatus");
   const manualButton = overlay.querySelector("#fpManual");
   const stripeButton = overlay.querySelector("#fpStripe");
+
+  overlay.querySelector(".fp-history")?.addEventListener("click", () => {
+    void openActiveSessionHistory(session.id);
+  });
 
   function amount() {
     return parseDigitString(rawAmount, currency);
