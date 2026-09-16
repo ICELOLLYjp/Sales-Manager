@@ -43,12 +43,15 @@ Updated: 2026-09-17 (Japan time). Repo: `ICELOLLYjp/Sales-Manager`.
 - Every actual review-state change creates a separate audit record in `gmailExpenseCandidateAudit`.
 - Same-date records with a normalized matching sender and subject are shown as possible duplicates. They remain separate records and are never deleted or merged automatically.
 - Review actions do not post expenses and do not fetch bodies or attachments.
+- Production review showed that one month can contain multiple events and general business expenses. Candidates therefore require an explicit scope: unassigned, general business, or one existing `salesSessions` event.
+- Event assignment is independently auditable and can be used as a review-page filter. It is classification only and does not update `salesSessions.expenses`.
 
 ## Remaining work before full expense management
 
-1. Review, merge, deploy and live-test saved-candidate review and duplicate warnings. Deploy only the Gmail Functions codebase and never the tracked Firestore rules.
-2. Confirm that review changes persist and possible duplicate warnings are understandable using production candidate data.
-3. Add body and PDF parsing as a later isolated phase. Preserve unknown amounts and distinguish invoice from payment evidence.
+1. Review, merge, deploy and live-test candidate event assignment and event filtering. Deploy only the Gmail Functions codebase and never the tracked Firestore rules.
+2. Confirm that event assignment and review-state changes persist using production candidate data.
+3. Refine probable duplicate warnings after candidates are separated by event.
+4. Add body and PDF parsing as a later isolated phase. Preserve unknown amounts and distinguish invoice from payment evidence.
 4. Add a separate, user-approved expense-posting action only after review. Never post during fetch, scan or candidate save.
 5. Add per-account partial failures and weekly server sync only after the manual workflow is stable.
 6. ChatGPT's own weekly reminders/summaries do not automatically populate Sales Manager.
