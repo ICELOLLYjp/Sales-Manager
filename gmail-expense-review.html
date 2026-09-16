@@ -6,7 +6,7 @@
   <meta name="referrer" content="no-referrer">
   <title>保存済みGmail経費候補 | ICELOLLY Sales Manager</title>
   <style>
-    :root{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:#203043;background:#f6f8fb}body{margin:0}main{max-width:860px;margin:auto;padding:22px 16px 56px}a{color:#225b96}h1{font-size:1.65rem;margin:20px 0 8px}h2{font-size:1.2rem}p{line-height:1.65}.muted{color:#526274;font-size:.94rem}.card{background:#fff;border:1px solid #dce3eb;border-radius:14px;padding:18px;margin:16px 0}.item{border-top:1px solid #e5ebf1;padding:16px 0;overflow-wrap:anywhere}.item:first-child{border-top:0}.item strong{display:block;margin:5px 0}.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}.classification{display:grid;gap:5px;margin-top:10px;max-width:100%}button,input,select{font:inherit}button{padding:10px 14px;min-height:44px;border:1px solid #245783;border-radius:10px;background:#245b90;color:#fff;font-weight:650}button.secondary{background:#fff;color:#245783}button.exclude{background:#fff;color:#9a2430;border-color:#9a2430}button:disabled{opacity:.5}input,select{padding:10px;border:1px solid #9eabba;border-radius:8px;background:#fff;max-width:100%}.tag{display:inline-block;padding:3px 8px;border-radius:8px;font-size:.83rem;margin:4px 6px 0 0}.unreviewed{background:#fff2d5;color:#705000}.kept{background:#e1f4e8;color:#17643a}.excluded{background:#f0f2f4;color:#526274}.duplicate{background:#ffe4e4;color:#8c1d28}.scope{background:#e8eff8;color:#244f78}.evidence{margin-top:12px;padding:12px;border:1px solid #dce3eb;border-radius:10px;background:#f8fafc}.evidence pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;font-size:.9rem;max-height:320px;overflow:auto}.evidence ul{padding-left:20px}#notice{white-space:pre-wrap;overflow-wrap:anywhere}#notice[role=alert]{color:#a21f30}
+    :root{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:#203043;background:#f6f8fb}body{margin:0}main{max-width:860px;margin:auto;padding:22px 16px 56px}a{color:#225b96}h1{font-size:1.65rem;margin:20px 0 8px}h2{font-size:1.2rem}p{line-height:1.65}.muted{color:#526274;font-size:.94rem}.card{background:#fff;border:1px solid #dce3eb;border-radius:14px;padding:18px;margin:16px 0}.item{border-top:1px solid #e5ebf1;padding:16px 0;overflow-wrap:anywhere}.item:first-child{border-top:0}.item strong{display:block;margin:5px 0}.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}.classification{display:grid;gap:5px;margin-top:10px;max-width:100%}button,input,select{font:inherit}button{padding:10px 14px;min-height:44px;border:1px solid #245783;border-radius:10px;background:#245b90;color:#fff;font-weight:650}button.secondary{background:#fff;color:#245783}button.exclude{background:#fff;color:#9a2430;border-color:#9a2430}button:disabled{opacity:.5}input,select{padding:10px;border:1px solid #9eabba;border-radius:8px;background:#fff;max-width:100%}.tag{display:inline-block;padding:3px 8px;border-radius:8px;font-size:.83rem;margin:4px 6px 0 0}.unreviewed{background:#fff2d5;color:#705000}.kept{background:#e1f4e8;color:#17643a}.excluded{background:#f0f2f4;color:#526274}.duplicate{background:#ffe4e4;color:#8c1d28}.scope{background:#e8eff8;color:#244f78}.evidence{margin-top:12px;padding:12px;border:1px solid #dce3eb;border-radius:10px;background:#f8fafc}.evidence pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;font-size:.9rem;max-height:320px;overflow:auto}.evidence ul{padding-left:20px}.review-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:14px}.review-form label{display:grid;gap:5px}.review-form .wide{grid-column:1/-1}@media(max-width:600px){.review-form{grid-template-columns:1fr}}#notice{white-space:pre-wrap;overflow-wrap:anywhere}#notice[role=alert]{color:#a21f30}
   </style>
 </head>
 <body>
@@ -54,7 +54,7 @@
     month.disabled = busy;
     load.disabled = busy || !signedIn;
     eventFilter.disabled = busy || !state;
-    for(const control of results.querySelectorAll("button[data-status], button[data-evidence], select[data-scope]")) {
+    for(const control of results.querySelectorAll("button[data-status], button[data-evidence], button[data-save-evidence], select[data-scope], .review-form input, .review-form select")) {
       if(control.matches("button[data-status]")) control.disabled = busy || control.dataset.status === control.closest(".item")?.dataset.status;
       else control.disabled = busy;
     }
@@ -105,6 +105,9 @@
       const scopeTag = document.createElement("span"); scopeTag.className = "tag scope";
       scopeTag.textContent = item.expenseScope === "event" ? (item.eventName || "イベント") : item.expenseScope === "general" ? "イベント共通／一般経費" : "未分類";
       article.append(title, meta, status, scopeTag);
+      if(item.evidenceReview) {
+        const reviewed = document.createElement("span"); reviewed.className = "tag kept"; reviewed.textContent = "解析下書きあり"; article.append(reviewed);
+      }
       if(duplicateIds.has(item.id)) {
         const duplicate = document.createElement("span"); duplicate.className = "tag duplicate"; duplicate.textContent = "重複の可能性あり"; article.append(duplicate);
       }
@@ -149,6 +152,28 @@
           }
           panel.append(list);
         }
+        const saved = item.evidenceReview || {};
+        const form = document.createElement("div"); form.className = "review-form";
+        const amountLabel = document.createElement("label"); amountLabel.textContent = "確認した金額";
+        const amount = document.createElement("input"); amount.type = "number"; amount.min = "0"; amount.step = "0.01"; amount.dataset.field = "amount"; amount.value = saved.amount ?? ""; amountLabel.append(amount);
+        const currencyLabel = document.createElement("label"); currencyLabel.textContent = "通貨";
+        const currency = document.createElement("select"); currency.dataset.field = "currency"; currency.add(new Option("未確認", ""));
+        for(const code of ["JPY","SGD","TWD","HKD","THB","USD"]) currency.add(new Option(code, code));
+        currency.value = saved.currency || evidence.eventCurrency || ""; currencyLabel.append(currency);
+        const paymentLabel = document.createElement("label"); paymentLabel.textContent = "証拠の状態";
+        const payment = document.createElement("select"); payment.dataset.field = "paymentStatus";
+        payment.add(new Option("未確認", "unverified")); payment.add(new Option("請求書のみ", "invoiced")); payment.add(new Option("支払確認あり", "paid_evidence"));
+        payment.value = saved.paymentStatus || "unverified"; paymentLabel.append(payment);
+        const categoryLabel = document.createElement("label"); categoryLabel.textContent = "経費分類";
+        const category = document.createElement("select"); category.dataset.field = "category";
+        for(const option of [["boothFee","出店料"],["flight","航空券"],["hotel","宿泊"],["shipping","発送"],["transport","現地交通"],["interpreter","通訳"],["other","その他"]]) category.add(new Option(option[1], option[0]));
+        category.value = saved.category || "other"; categoryLabel.append(category);
+        const descriptionLabel = document.createElement("label"); descriptionLabel.className = "wide"; descriptionLabel.textContent = "内容";
+        const description = document.createElement("input"); description.type = "text"; description.maxLength = 500; description.dataset.field = "description";
+        description.value = saved.description || item.subject || ""; descriptionLabel.append(description);
+        const saveDraft = document.createElement("button"); saveDraft.type = "button"; saveDraft.dataset.saveEvidence = "true"; saveDraft.textContent = "解析結果を下書き保存";
+        form.append(amountLabel, currencyLabel, paymentLabel, categoryLabel, descriptionLabel, saveDraft);
+        panel.append(form);
         article.append(panel);
       }
       results.append(article);
@@ -188,6 +213,31 @@
     } catch(e) { message(`本文と添付情報を取得できませんでした: ${e.message || e}`, true); }
     finally { busy = false; update(); }
   }
+  async function saveEvidenceReview(candidateId, article) {
+    if(busy || !state || !article) return;
+    const field = name => article.querySelector(`[data-field="${name}"]`)?.value ?? "";
+    const review = {
+      amount: field("amount"),
+      currency: field("currency"),
+      paymentStatus: field("paymentStatus"),
+      category: field("category"),
+      description: field("description")
+    };
+    busy = true; update(); message("解析結果の下書きを保存しています…");
+    try {
+      const data = await callable("gmailExpenseSaveEvidenceReview", { candidateId, review });
+      const item = state.candidates.find(row => row.id === candidateId);
+      if(item) {
+        item.evidenceReview = data.evidenceReview;
+        item.amount = data.evidenceReview.amount;
+        item.currency = data.evidenceReview.currency;
+        item.paymentConfirmed = data.evidenceReview.paymentStatus === "paid_evidence";
+      }
+      render();
+      message("解析結果を候補の下書きとして保存しました。経費台帳には登録していません。");
+    } catch(e) { message(`解析結果を保存できませんでした: ${e.message || e}`, true); }
+    finally { busy = false; update(); }
+  }
   async function assignEvent(candidateId, value) {
     if(busy || !state) return;
     const expenseScope = value.startsWith("event:") ? "event" : value;
@@ -205,6 +255,8 @@
     const article = event.target.closest(".item[data-id]");
     const evidenceButton = event.target.closest("button[data-evidence]");
     if(evidenceButton && article) { inspectEvidence(article.dataset.id); return; }
+    const saveEvidenceButton = event.target.closest("button[data-save-evidence]");
+    if(saveEvidenceButton && article) { saveEvidenceReview(article.dataset.id, article); return; }
     const button = event.target.closest("button[data-status]");
     if(button && article) review(article.dataset.id, button.dataset.status);
   });
