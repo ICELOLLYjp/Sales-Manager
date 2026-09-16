@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>Gmail接続 | ICELOLLY Sales Manager</title>
+  <style>
+    :root { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #202b38; background: #f6f8fa; }
+    body { margin: 0; }
+    main { max-width: 640px; margin: 0 auto; padding: 24px 16px 64px; }
+    a { color: #2457a8; }
+    h1 { margin: 20px 0 8px; font-size: 1.65rem; }
+    h2 { margin: 0 0 12px; font-size: 1.15rem; }
+    p { line-height: 1.65; }
+    .muted { color: #596775; font-size: .94rem; }
+    .card { background: white; border: 1px solid #d9e0e7; border-radius: 14px; padding: 20px; margin-top: 18px; }
+    .account { padding: 16px 0; border-top: 1px solid #e5e9ee; }
+    .account:first-of-type { border-top: none; }
+    .email { font-weight: 650; overflow-wrap: anywhere; }
+    .status { margin: 6px 0 10px; color: #435260; }
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    button { border: 1px solid #254e78; border-radius: 10px; background: #245b90; color: white; font: inherit; font-weight: 600; padding: 10px 16px; min-height: 44px; cursor: pointer; }
+    button.secondary { background: white; color: #254e78; }
+    button:disabled { opacity: .45; cursor: not-allowed; }
+    #notice { min-height: 1.6em; margin-top: 16px; white-space: pre-wrap; overflow-wrap: anywhere; }
+    #notice[role="alert"] { color: #a12d2d; }
+  </style>
+</head>
+<body>
+  <main>
+    <a href="./">← Sales Managerに戻る</a>
+    <h1>Gmail接続</h1>
+    <p class="muted">経費候補を読み取るためのアカウント設定です。2つのGmailは別々にGoogleの許可画面で認可します。現時点ではメール取得・経費同期・経費登録は行いません。</p>
+    <section class="card" aria-label="Sales Managerログイン">
+      <h2>操作するスタッフ</h2>
+      <p id="staffState" aria-live="polite">ログイン状態を確認しています…</p>
+      <button type="button" id="login" class="secondary" hidden>GoogleでSales Managerにログイン</button>
+      <button type="button" id="refresh" class="secondary" disabled>接続状態を再確認</button>
+    </section>
+    <section class="card" aria-label="Gmailアカウント">
+      <h2>対象Gmail</h2>
+      <div class="account" data-account="fjmthrs@gmail.com">
+        <div class="email">fjmthrs@gmail.com</div>
+        <p class="status" aria-live="polite">未確認</p>
+        <div class="actions"><button type="button" data-action="connect" disabled>このGmailを接続</button><button type="button" data-action="disconnect" class="secondary" disabled>接続を解除</button></div>
+      </div>
+      <div class="account" data-account="icelolly.zakka@gmail.com">
+        <div class="email">icelolly.zakka@gmail.com</div>
+        <p class="status" aria-live="polite">未確認</p>
+        <div class="actions"><button type="button" data-action="connect" disabled>このGmailを接続</button><button type="button" data-action="disconnect" class="secondary" disabled>接続を解除</button></div>
+      </div>
+    </section>
+    <p id="notice" aria-live="polite"></p>
+    <p class="muted">接続操作ではGoogleの認可画面へ移動します。許可後はSales Managerのトップ画面に戻るため、このページを再び開いて「接続状態を再確認」を押してください。接続を解除すると、保存した接続情報が削除され、Googleへの認可取り消しも試みます。</p>
+  </main>
+  <script type="module">
+    import { initFirebase, getFirebaseState } from "./js/firebase.js";
+    import { initAuth, loginWithGoogle } from "./js/auth.js";
+    import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-functions.js";
+
+    const accounts = ["fjmthrs@gmail.com", "icelolly.zakka@gmail.com"];
+    const callback = "https://asia-southeast1-t-shirtstock.cloudfunctions.net/gmailOAuthCallback";
+    const staffState = document.getElementById("staffState");
+    const notice = document.getElementById("notice");
+    const loginButton = document.getElementById("login");
+    const refreshButton = document.getElementById("refresh");
+    const rows = new Map(accounts.map(account => [account, document.querySelector(`.account[data-account="${account}"]`)]));
+    let signedIn = false;
+    let busy = false;
+    let functions = null;
+    let requestVersion = 0;
+    let connections = new Map();
+
+    function message(value, error = false) {
+      notice.textContent = value;
+      if (error) notice.setAttribute("role", "alert");
+      else notice.removeAttribute("role");
+    }
+    function updateButtons() {
+      loginButton.disabled = busy;
+      refreshButton.disabled = busy || !signedIn;
+      for (const account of accounts) {
+        const row = rows.get(account);
+        const connected = connections.get(account);
+        row.querySelector('[data-action="connect"]').disabled = busy || !signedIn || connected !== false;
+        row.querySelector('[data-action="disconnect"]').disabled = busy || !signedIn || connected !== true;
+      }
+    }
+    async function call(name, data = {}) {
+      if (!functions || !signedIn) throw new Error("先にSales Managerへログインしてください。");
+      const result = await httpsCallable(functions, name)(data);
+      return result.data;
+    }
+    async function refreshStatus() {
+      if (!signedIn || busy) return;
+      const version = ++requestVersion;
+      busy = true;
+      updateButtons();
+      message("接続状態を確認しています…");
+      try {
+        const result = await call("gmailOAuthStatus");
+        if (version !== requestVersion || !signedIn) return;
+        connections = new Map();
+        for (const item of result.accounts || []) {
+          if (accounts.includes(item.account)) connections.set(item.account, item.connected === true);
+        }
+        for (const account of accounts) {
+          const connected = connections.get(account);
+          rows.get(account).querySelector(".status").textContent = connected === true ? "接続済み" : connected === false ? "未接続" : "状態を取得できませんでした";
+        }
+        message("接続状態を更新しました。メール取得・経費登録は行っていません。");
+      } catch (error) {
+        message(`接続状態を取得できませんでした: ${error.message || error}`, true);
+      } finally {
+        busy = false;
+        updateButtons();
+      }
+    }
+    async function connect(account) {
+      if (!signedIn || busy || connections.get(account) !== false) return;
+      busy = true;
+      updateButtons();
+      message(`${account} のGoogle認可画面を準備しています…`);
+      try {
+        const result = await call("gmailOAuthStart", { account });
+        const target = new URL(result.url);
+        if (target.protocol !== "https:" || target.hostname !== "accounts.google.com" || target.pathname !== "/o/oauth2/v2/auth" || target.searchParams.get("redirect_uri") !== callback || target.searchParams.get("scope") !== "https://www.googleapis.com/auth/gmail.readonly") {
+          throw new Error("認可先が予期したGoogle URLと一致しません。操作を中止しました。");
+        }
+        window.location.assign(target.href);
+      } catch (error) {
+        busy = false;
+        updateButtons();
+        message(`接続を開始できませんでした: ${error.message || error}`, true);
+      }
+    }
+    async function disconnect(account) {
+      if (!signedIn || busy || connections.get(account) !== true) return;
+      if (!window.confirm(`${account} のGmail接続を解除しますか？`)) return;
+      busy = true;
+      updateButtons();
+      message("接続を解除しています…");
+      try {
+        const result = await call("gmailOAuthDisconnect", { account });
+        connections.set(account, false);
+        rows.get(account).querySelector(".status").textContent = "未接続";
+        message(result.revokeSucceeded ? "接続を解除しました。" : "アプリ内の接続は解除しました。Google側の認可取り消しは確認できませんでした。Googleアカウントでもアクセス権をご確認ください。");
+      } catch (error) {
+        message(`接続解除に失敗しました: ${error.message || error}`, true);
+      } finally {
+        busy = false;
+        updateButtons();
+      }
+    }
+    for (const account of accounts) {
+      const row = rows.get(account);
+      row.querySelector('[data-action="connect"]').addEventListener("click", () => connect(account));
+      row.querySelector('[data-action="disconnect"]').addEventListener("click", () => disconnect(account));
+    }
+    refreshButton.addEventListener("click", refreshStatus);
+    loginButton.addEventListener("click", async () => {
+      loginButton.disabled = true;
+      try { await loginWithGoogle(); }
+      catch (error) { message(`ログインできませんでした: ${error.message || error}`, true); }
+      finally { updateButtons(); }
+    });
+    try {
+      await initFirebase();
+      const { app, enabled } = getFirebaseState();
+      if (!enabled || !app) throw new Error("Firebaseを初期化できませんでした。");
+      functions = getFunctions(app, "asia-southeast1");
+      await initAuth((user, error) => {
+        signedIn = Boolean(user);
+        ++requestVersion;
+        connections = new Map();
+        staffState.textContent = user ? `ログイン中: ${user.email}` : "Sales Managerへのログインが必要です。";
+        loginButton.hidden = Boolean(user);
+        if (error) message(error.message || "このアカウントでは操作できません。", true);
+        for (const account of accounts) rows.get(account).querySelector(".status").textContent = "未確認";
+        updateButtons();
+        if (user) refreshStatus();
+      });
+    } catch (error) {
+      staffState.textContent = "初期化に失敗しました。";
+      message(error.message || String(error), true);
+    }
+  </script>
+</body>
+</html>
