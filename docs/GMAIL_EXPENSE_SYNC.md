@@ -1,40 +1,33 @@
-# Gmail expense sync — implementation and rollout
+# Gmail expense candidates — development handoff
 
-**Status: draft PR, not deployed.** No Gmail accounts have been linked to Sales Manager. The ChatGPT weekly report is a separate automation and does not populate Sales Manager. No expense is posted automatically.
+Updated: 2026-09-17 (Japan time). Repo: `ICELOLLYjp/Sales-Manager`.
 
-## Implemented in this branch
+## Production state reported by the owner
 
-- `js/services/gmailExpenseCandidateService.js`: normalize candidates and flag duplicates without posting expenses.
-- `functions-gmail/`: a Firebase Functions codebase isolated from Stripe. Staff-only callable OAuth start/status/disconnect; public one-use callback with expiring state; Gmail readonly; verify the Gmail profile matches the selected account; AES-256-GCM-encrypted refresh tokens. No OAuth tokens in browser redirects.
-- GitHub Actions syntax and unit checks; these cannot verify production deployment, live OAuth or Firestore rules.
-- `functions-gmail/package-lock.json`: dependency versions locked after local npm audit and five passing local unit tests.
+- Gmail API enabled in Firebase project `t-shirtstock`; standalone OAuth Web client and redirect URI `https://asia-southeast1-t-shirtstock.cloudfunctions.net/gmailOAuthCallback`.
+- The owner confirmed **both** `fjmthrs@gmail.com` and `icelolly.zakka@gmail.com` show 「接続済み」 in `gmail-connect.html` after separately consenting to Gmail readonly.
+- Four existing Gmail Functions (start/callback/status/disconnect) have been deployed using **only** `firebase.cmd deploy --only functions:gmail-expenses --project t-shirtstock`. Stripe Functions were not targeted.
+- The initial 401/invalid_client OAuth issue was resolved by using the matching client secret from the owner's locally downloaded OAuth JSON. The JSON, secret values and encryption key must never be copied into GitHub or chat. Do not recreate or rotate secrets without a concrete reason.
+- Production has **not** been shown to fetch email or post any expense. Google OAuth verification status/long-term restricted-scope requirements remain a separate review item. The app can require separate consent screens.
 
-## IMPORTANT: deployed Firestore rules differ from repository
+## Draft PR #6: first manual preview, not complete expense sync
 
-The actual production rules shown in Firebase Console use `isAllowedUser()` checking verified email membership in an allowlist and **only explicitly named collection matches**. There is no catch-all matching other collections in the visible complete rule. The owner used the Firebase Console rules playground to simulate a signed-in, verified allowlisted user. Reads of `gmailOAuthConnections`, `gmailOAuthStates`, and `gmailExpenseCandidates` were denied; a simulated create in `gmailOAuthConnections` was also denied. These are simulation results, not a production data write or a full rule-test suite; recheck the current published rules before production use.
+- `functions-gmail/expensePreview.js` adds a staff-only callable `gmailExpensePreview`. It decrypts the stored server-side refresh token, refreshes the Google access token server-side, runs a bounded month-and-keyword Gmail search, and returns at most 25 message metadata rows **per selected account** (date, sender, subject, Gmail message/thread ID).
+- `gmail-expenses.html` is an isolated user-driven preview page. The owner chooses a month and an individual connected account; no background polling occurs.
+- No Gmail bodies, PDF attachments, invoice totals or payment proof are read in this first iteration; no merchant/amount/currency is inferred from a subject. Search matches are *possible* expenses, not confirmed expenses; results can include unrelated mail, and Gmail search may miss relevant messages.
+- Preview results exist only in memory in the authenticated browser, disappear on reload, and are **not saved** as candidate records. Neither preview nor OAuth updates `salesSessions.expenses`, sales transactions, stock or financial totals. There is no expense-posting action.
+- CI now installs the Gmail Functions dependencies and checks/smoke-tests the preview. Passing CI does **not** demonstrate that live Gmail fetching succeeds or that user access and Firestore rules are correct.
 
-The repository's existing `firestore.rules` on `main` is a **stale permissive template** allowing any signed-in user to access all collections. DO NOT deploy or copy it to production, including via `firebase deploy --only firestore:rules`. An earlier change to this PR's rule file also would have weakened the deployed allowlist; it was reverted, so **this PR deliberately does not change `firestore.rules`**. The PR's `firebase.json` was also corrected to contain ONLY the separate `stripe` and `gmail-expenses` Functions codebases; it no longer includes the dangerous `firestore.rules` deployment target. Do not publish the production staff-email allowlist into the public GitHub repository. Later security changes must start from an exact, privately retained backup of the deployed production rules and use rule tests before any separate deployment.
+## Security constraints
 
-## OAuth client settings
+- Keep Google OAuth JSON, client secrets, encrypted refresh tokens, key and Firebase staff-email allowlist off public GitHub, screenshots and chat.
+- Only server-side code reads `gmailOAuthConnections`. Callable handlers require a verified Firebase Auth identity on `GMAIL_STAFF_EMAILS`.
+- **The tracked `firestore.rules` is stale and permissive.** Previously verified *deployed* production rules used a verified-email allowlist and explicit collection matches, rejecting browser access to `gmailOAuthConnections`, `gmailOAuthStates` and `gmailExpenseCandidates`. Re-check if rules change. Never deploy the tracked rules or run unrestricted `firebase deploy`.
+- Release preview with the Gmail-specific codebase only: `firebase.cmd deploy --only functions:gmail-expenses --project t-shirtstock`. There is no new Firestore rule deployment.
 
-The owner created a distinct Google Cloud OAuth **Web application** client named `ICELOLLY Gmail Expense Sync` in project `t-shirtstock` and downloaded the OAuth JSON locally. Keep that file, the client ID/secret and any token out of ChatGPT, screenshots and public GitHub.
+## Remaining work before full expense management
 
-- Authorized JavaScript origins: blank (server-side OAuth).
-- Authorized redirect URI: `https://asia-southeast1-t-shirtstock.cloudfunctions.net/gmailOAuthCallback`.
-- This URL is planned, not yet live; compare against the exact Firebase CLI deployment output before attempting authorization. An exact match is required.
-
-## Remaining release steps (local trusted operator)
-
-1. Privately confirm the currently published Firestore rules still deny browser access to all three Gmail collections. **Do not deploy repository Firestore rules.** Verify authorized staff Firebase Auth separately.
-2. Review this PR's OAuth handlers, IAM, token encryption, OAuth state flow, production scopes and Google restricted-scope verification/personal-use requirements before merging and deploying. Do not switch the whole existing production OAuth app to Testing merely for convenience.
-3. Using an authenticated local Firebase CLI and the **existing** project `t-shirtstock`, configure the secrets interactively (never commit or paste secret values here): `GMAIL_OAUTH_CLIENT_ID`, `GMAIL_OAUTH_CLIENT_SECRET`, `GMAIL_TOKEN_ENCRYPTION_KEY` (base64 for exactly 32 random bytes), and `GMAIL_STAFF_EMAILS` (staff Firebase Auth email allowlist). Keep the downloaded JSON entirely local.
-4. Install `functions-gmail` dependencies and deploy **only** `functions:gmail-expenses`, never `functions:stripe` or all functions. Verify callback URI and invoker permissions. Only the OAuth callback should be publicly invokable; callable endpoints must verify Firebase Auth and the staff allowlist server-side.
-5. Implement and deploy the authenticated connection UI, then separately authorize **each** Gmail account. This branch does not yet have the UI, Gmail retrieval, attachment/PDF parsing, candidate storage, an operational manual Sync button, or a server-side weekly sync. The ChatGPT weekly automation remains separate.
-6. Implement Gmail fetching, partial failure and per-account status, idempotent candidate upsert and a review inbox. Do not write `salesSessions.expenses`, `salesTransactions`, inventory or accounting totals when syncing. Expense posting requires a distinct explicit confirmation feature in the future.
-
-## Behavior contract
-
-- `fjmthrs@gmail.com` and `icelolly.zakka@gmail.com` each require a separate Gmail readonly grant; never claim two accounts are connected on one token.
-- OAuth refresh tokens remain encrypted on the server, with their key only in Firebase Functions Secrets; no tokens or raw messages in GitHub Pages/localStorage/logs/client-accessible Firestore.
-- Preserve review choices during rescans; warn rather than silently drop potential duplicates; an invoice alone does not prove payment; unknown amounts remain unknown.
-- No Gmail send/edit/delete scope or automatic expense posting.
+1. Review PR #6, then merge intentionally; update local project from latest main before deploying.
+2. Deploy only Gmail Functions; verify the live callable using the authenticated `gmail-expenses.html` page. The UI page is published by the existing GitHub Pages main workflow after merge. Do not claim live email retrieval before testing.
+3. Build separately: attachment/PDF parsing, stable idempotent candidate storage, duplicate review and audit trail, user-approved expense posting, per-account partial failures, and weekly server sync. Preserve reviewed choices on rescans and distinguish invoice from confirmed payment.
+4. ChatGPT's own weekly reminders/summaries do not automatically populate Sales Manager. The app's weekly server sync is not yet implemented.

@@ -19,7 +19,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - run: npm ci --prefix functions-gmail --no-audit --no-fund
       - run: node --check functions-gmail/index.js
       - run: node --check functions-gmail/oauthCore.js
+      - run: node --check functions-gmail/expensePreview.js
       - run: node --test functions-gmail/tests/*.test.cjs
       - run: node --experimental-default-type=module tests/gmailExpenseCandidateService.test.mjs

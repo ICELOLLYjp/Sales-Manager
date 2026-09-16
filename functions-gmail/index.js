@@ -72,7 +72,7 @@ exports.gmailOAuthCallback = onRequest({
   if (!code || req.query.error) { endPage(res, "cancelled"); return; }
   try {
     // Consume state before exchanging the code: one callback can never link two accounts.
-    const ref = db.collection(STATES).doc(id);
+    const ref = db.collection(STATES).doc(stateId(state));
     const pending = await db.runTransaction(async tx => {
       const snapshot = await tx.get(ref);
       if (!snapshot.exists || snapshot.data().expiresAt.toMillis() <= Date.now()) return null;
@@ -147,4 +147,9 @@ exports.gmailOAuthDisconnect = onCall({
   } catch { /* Local disconnect is still mandatory even if Google is unreachable. */ }
   await ref.delete();
   return { account, disconnected: true, revokeSucceeded };
+});
+
+exports.gmailExpensePreview = require("./expensePreview").createExpensePreview({
+  requireStaff, db, clientId: CLIENT_ID, clientSecret: CLIENT_SECRET,
+  tokenKey: TOKEN_KEY, staffEmails: STAFF_EMAILS
 });
