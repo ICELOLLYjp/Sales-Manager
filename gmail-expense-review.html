@@ -54,8 +54,8 @@
     month.disabled = busy;
     load.disabled = busy || !signedIn;
     eventFilter.disabled = busy || !state;
-    for(const control of results.querySelectorAll("button[data-status], select[data-scope]")) {
-      if(control.matches("button")) control.disabled = busy || control.dataset.status === control.closest(".item")?.dataset.status;
+    for(const control of results.querySelectorAll("button[data-status], button[data-evidence], select[data-scope]")) {
+      if(control.matches("button[data-status]")) control.disabled = busy || control.dataset.status === control.closest(".item")?.dataset.status;
       else control.disabled = busy;
     }
   }
