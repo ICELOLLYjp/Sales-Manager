@@ -8,29 +8,12 @@ service cloud.firestore {
 
     function allowedUser() {
       return signedIn();
-      // Existing application-wide rule preserved for now; tighten staff access separately.
+      // Phase 1:
+      // 実運用ではここを許可メールまたはusers Collection参照へ変更します。
     }
 
-    // The Gmail OAuth callback and future sync use Admin SDK, which bypasses
-    // client rules. No client, including a signed-in client, may access these.
-    match /gmailOAuthStates/{document=**} {
-      allow read, write: if false;
-    }
-    match /gmailOAuthConnections/{document=**} {
-      allow read, write: if false;
-    }
-    match /gmailExpenseCandidates/{document=**} {
-      allow read, write: if false;
-    }
-
-    // Firestore rules grant access if ANY matching allow returns true. The
-    // exclusions below are essential; the explicit denies above alone do NOT
-    // override this broad legacy rule.
-    match /{topLevel}/{document=**} {
-      allow read, write: if allowedUser()
-        && topLevel != 'gmailOAuthStates'
-        && topLevel != 'gmailOAuthConnections'
-        && topLevel != 'gmailExpenseCandidates';
+    match /{document=**} {
+      allow read, write: if allowedUser();
     }
   }
 }
