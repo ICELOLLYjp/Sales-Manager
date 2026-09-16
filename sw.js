@@ -1,5 +1,5 @@
 const CACHE_NAME =
-  "icelolly-sales-shell-20260916-checkpoint-reuse-1";
+  "icelolly-sales-shell-20260916-checkpoint-reuse-2";
 
 const CORE_ASSETS = [
   "./",
@@ -42,6 +42,7 @@ const CORE_ASSETS = [
   "./js/services/inventoryFlowFinalizeService.js",
   "./js/services/eventFlowAccountingService.js",
   "./js/services/eventCheckpointReuseService.js",
+  "./js/services/eventCheckpointReuseServiceV2.js",
   "./js/services/eventCloseService.js",
   "./js/services/eventCloseServiceCompat.js",
   "./js/services/eventCloseFlowCompatService.js",
