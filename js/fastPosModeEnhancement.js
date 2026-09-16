@@ -11,12 +11,19 @@ function installStyles() {
   const style = document.createElement("style");
   style.id = STYLE_ID;
   style.textContent = `
-    .fp-mode-row{
+    .fp-mode-switch{
       display:grid!important;
       grid-template-columns:repeat(3,minmax(0,1fr))!important;
-      gap:7px!important;
-      width:100%!important;
+      gap:8px!important;
+      width:calc(100% - 20px)!important;
+      max-width:480px!important;
+      margin:10px auto 0!important;
+      padding:0!important;
       align-items:stretch!important;
+      box-sizing:border-box!important;
+    }
+    .fp-mode-switch-top{
+      margin-top:0!important;
     }
     .fp-mode-row>#posModeQuick,
     .fp-mode-row>#posModeSku,
@@ -24,10 +31,11 @@ function installStyles() {
     #${FAST_OVERLAY_ID} .fp-mode-choice{
       width:100%!important;
       min-width:0!important;
-      min-height:38px!important;
-      padding:0 8px!important;
-      border-radius:19px!important;
-      font:800 13px system-ui,sans-serif!important;
+      height:46px!important;
+      min-height:46px!important;
+      padding:0 10px!important;
+      border-radius:23px!important;
+      font:800 14px system-ui,sans-serif!important;
       transition:background .15s ease,color .15s ease,box-shadow .15s ease,transform .08s ease!important;
       box-sizing:border-box!important;
     }
@@ -75,20 +83,11 @@ function installStyles() {
     #fastPosOpenButton:active,
     #${FAST_OVERLAY_ID} .fp-mode-choice:active{transform:scale(.97)!important}
 
-    #${FAST_OVERLAY_ID} .fp-mode-switch{
-      display:grid;
-      grid-template-columns:repeat(3,minmax(0,1fr));
-      gap:7px;
-      max-width:480px;
-      margin:10px auto 0;
-      padding:0 10px;
-      box-sizing:border-box;
-    }
     #${FAST_OVERLAY_ID} .fp-mode-choice{
       width:100%;
       min-width:0;
     }
-    #${FAST_OVERLAY_ID} .fp-mode-caption{
+    .fp-mode-caption{
       max-width:480px;
       margin:5px auto 0;
       padding:0 12px;
@@ -96,6 +95,9 @@ function installStyles() {
       font:600 10px/1.4 system-ui,sans-serif;
       color:#777;
       text-align:center;
+    }
+    .fp-mode-caption-top{
+      margin-bottom:14px!important;
     }
   `;
   document.head.appendChild(style);
@@ -109,7 +111,24 @@ function normalizeTopModeRow() {
 
   const parent = quick.parentElement;
   if (!parent || sku.parentElement !== parent || fast.parentElement !== parent) return;
-  parent.classList.add("fp-mode-row");
+  parent.classList.add("fp-mode-row", "fp-mode-switch", "fp-mode-switch-top");
+
+  const heading = Array.from(document.querySelectorAll(".page-title"))
+    .find(element => element.textContent?.trim() === "EVENT POS");
+  const headingColumn = heading?.parentElement;
+  const headingRow = headingColumn?.parentElement;
+
+  if (headingColumn?.contains(parent) && headingRow) {
+    headingRow.insertAdjacentElement("afterend", parent);
+  }
+
+  let caption = parent.nextElementSibling;
+  if (!caption?.classList.contains("fp-mode-caption-top")) {
+    caption = document.createElement("div");
+    caption.className = "fp-mode-caption fp-mode-caption-top";
+    caption.textContent = "Quick・SKU・金額だけの最速POSをいつでも切り替えられます";
+    parent.insertAdjacentElement("afterend", caption);
+  }
 }
 
 function syncTopButtons() {
