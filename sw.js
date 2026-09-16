@@ -1,5 +1,5 @@
 const CACHE_NAME =
-  "icelolly-sales-shell-20260916-pos-mode-switch-2";
+  "icelolly-sales-shell-20260916-fast-pos-header-1";
 
 const CORE_ASSETS = [
   "./",
