@@ -1,5 +1,5 @@
 const CACHE_NAME =
-  "icelolly-sales-shell-20260916-daily-trend-1";
+  "icelolly-sales-shell-20260916-fast-pos-1";
 
 const CORE_ASSETS = [
   "./",
@@ -29,6 +29,7 @@ const CORE_ASSETS = [
   "./js/eventLateSkuResolutionUi.js",
   "./js/eventLateSkuResolutionSessionsUi.js",
   "./js/posUxEnhancements.js",
+  "./js/fastPosUi.js",
   "./js/transactionHistorySearch.js",
 
   "./js/inventoryAdapters/tshirtAdapter.js",
@@ -67,6 +68,7 @@ const CORE_ASSETS = [
   "./js/services/provisionalWithoutCountService.js",
   "./js/services/offlineQueueService.js",
   "./js/services/stripePaymentService.js",
+  "./js/services/fastAmountSaleService.js",
   "./stripe-result.html"
 ];
 
