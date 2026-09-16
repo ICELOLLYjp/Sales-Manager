@@ -38,7 +38,9 @@ function normalizePreviewCandidate(raw, expectedAccount, month) {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
     throw new HttpsError("invalid-argument", "保存する候補が正しくありません。");
   }
-  const account = assertAccount(raw.account);
+  let account;
+  try { account = assertAccount(raw.account); }
+  catch { throw new HttpsError("invalid-argument", "Gmailアカウントが正しくありません。"); }
   if (account !== expectedAccount) throw new HttpsError("invalid-argument", "Gmailアカウントが一致しません。");
   const messageId = validId(raw.messageId);
   const date = clean(raw.date, 10);
