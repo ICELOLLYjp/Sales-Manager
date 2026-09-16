@@ -37,6 +37,8 @@ test("new writes are unreviewed and never posted as expenses", () => {
   const write = candidateWrite(candidate, false, "staff@example.com", new Date("2026-09-17T00:00:00Z"));
   assert.equal(write.reviewStatus, "unreviewed");
   assert.equal(write.reviewRequired, true);
+  assert.equal(write.expenseScope, "unassigned");
+  assert.equal(write.eventId, null);
   assert.equal(write.expensePosted, false);
   assert.equal(write.amount, null);
 });
@@ -44,7 +46,7 @@ test("new writes are unreviewed and never posted as expenses", () => {
 test("rescans do not overwrite review or accounting fields", () => {
   const candidate = normalizePreviewCandidate(raw, account, "2026-09");
   const write = candidateWrite(candidate, true, "staff@example.com", new Date("2026-09-17T00:00:00Z"));
-  for (const field of ["reviewStatus", "reviewRequired", "amount", "currency", "paymentConfirmed", "expensePosted", "createdAt"]) {
+  for (const field of ["reviewStatus", "reviewRequired", "expenseScope", "eventId", "eventName", "amount", "currency", "paymentConfirmed", "expensePosted", "createdAt"]) {
     assert.equal(Object.hasOwn(write, field), false);
   }
 });
