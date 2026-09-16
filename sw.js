@@ -1,5 +1,5 @@
 const CACHE_NAME =
-  "icelolly-sales-shell-20260916-pending-inventory-1";
+  "icelolly-sales-shell-20260916-daily-close-1";
 
 const CORE_ASSETS = [
   "./",
@@ -21,6 +21,7 @@ const CORE_ASSETS = [
   "./js/auth.js",
   "./js/views/dashboardView.js",
   "./js/inventoryFlowPanel.js",
+  "./js/eventDailyCloseUi.js",
   "./js/inventoryFlowAccessoryUi.js",
   "./js/inventoryFlowAccessoryCleanup.js",
   "./js/eventUnregisteredItemsUi.js",
@@ -50,6 +51,7 @@ const CORE_ASSETS = [
   "./js/services/accessoryEventCatalogService.js",
   "./js/services/eventCheckpointReuseService.js",
   "./js/services/eventCheckpointReuseServiceV2.js",
+  "./js/services/eventDailyCloseService.js",
   "./js/services/eventUnregisteredItemService.js",
   "./js/services/eventLateSkuResolutionService.js",
   "./js/services/eventLateSkuResolutionSessionService.js",
