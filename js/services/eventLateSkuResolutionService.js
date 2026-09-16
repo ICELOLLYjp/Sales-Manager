@@ -247,7 +247,11 @@ export async function loadFormalCandidates(db) {
       label: text(candidate?.label || existing.label || candidate?.design || existing.design || variantId),
       detail: text(candidate?.detail || existing.detail),
       bodyId: text(candidate?.bodyId || existing.bodyId),
+      designId: text(candidate?.designId || existing.designId),
+      colorId: text(candidate?.colorId || existing.colorId),
+      sizeId: text(candidate?.sizeId || existing.sizeId),
       body: text(candidate?.body || existing.body),
+      design: text(candidate?.design || existing.design),
       color: text(candidate?.color || existing.color),
       size: text(candidate?.size || existing.size),
       currentStockQty: Number.isFinite(Number(candidate?.currentStockQty))
@@ -269,7 +273,11 @@ export async function loadFormalCandidates(db) {
       label: text(value?.displayName || value?.design || value?.label || value?.variantId || snapshot.id),
       detail: [value?.body, value?.color, value?.size].map(text).filter(Boolean).join(" / "),
       bodyId: text(value?.bodyId),
+      designId: text(value?.designId),
+      colorId: text(value?.colorId),
+      sizeId: text(value?.sizeId),
       body: text(value?.body),
+      design: text(value?.design),
       color: text(value?.color),
       size: text(value?.size)
     });
@@ -300,7 +308,11 @@ export async function loadFormalCandidates(db) {
               label: design || "Tシャツ",
               detail: [body, color, size].filter(Boolean).join(" / "),
               bodyId,
+              designId,
+              colorId,
+              sizeId,
               body,
+              design,
               color,
               size,
               currentStockQty: int(cell?.qty)

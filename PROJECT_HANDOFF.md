@@ -356,6 +356,8 @@ Wise / PayNow many-to-many reconciliation, Gmail expense candidates, and full fi
 - Fast POS offline state + shared Session selector
 - amount-only history classification to category or one exact SKU
 - one-time canonical stock application when an amount-only sale is classified to SKU
+- normalized T-shirt sales reporting under `category=tshirt`
+- independent T-shirt sales dimensions for Design, Body, Color, and Size
 - cost schedules/snapshots
 - Stripe client/backend foundations
 
@@ -369,11 +371,12 @@ Wise / PayNow many-to-many reconciliation, Gmail expense candidates, and full fi
 - Fast POS Stripe QR on event-day live environment
 - Fast POS shared Session switching when a normal POS cart already has items
 - amount-only later classification, including subsequent sale void and stock restore
+- T-shirt category and four-dimension aggregation against mixed historical and new sales
 
 ## Remaining integration debt
 
 - event close architecture still contains compatibility layers and older/newer models; avoid starting another competing close model
-- T-shirt reporting category aggregation still needs normalization (`category=tshirt`, Design/Body/Color/Size as dimensions)
+- T-shirt reporting now normalizes `category=tshirt`; continue field-testing historical aliases and unresolved Quick rows
 - current event stock vs physical excess reasons can be presented more clearly
 - overall event UI can still be simplified after field test
 
@@ -385,7 +388,7 @@ Wise / PayNow many-to-many reconciliation, Gmail expense candidates, and full fi
 
 1. Fix defects found by the real-event end-to-end test.
 2. Field-test later allocation of amount-only sales to category or one exact SKU, including duplicate-tap protection and subsequent void.
-3. Normalize T-shirt sales aggregation by category/design/body/color/size.
+3. Field-test normalized T-shirt sales aggregation across exact SKU, Quick, and category-only sales.
 4. Analytics: popular size/design/color, sell-through, SOLD OUT, Restock effect, event/city/country comparison.
 5. Lost-opportunity capture; do not infer lost sales only from negative stock.
 
@@ -436,6 +439,8 @@ POS:
 - `js/services/fastAmountSaleService.js`
 - `js/services/fastAmountAllocationService.js`
 - `js/fastAmountAllocationUi.js`
+- `js/services/salesAggregationService.js`
+- `js/tshirtSalesAggregationUi.js`
 
 Event inventory / close:
 
@@ -492,4 +497,4 @@ Security/config:
 
 # Next implementation focus
 
-Do not add another large inventory-close model before the next real-event field test. The amount-only later-allocation feature is now implemented for category-only classification or a single exact SKU plus quantity. The next focus should normally be field-testing this flow, especially duplicate taps, negative stock, and void-after-classification, unless a higher-priority defect is found.
+Do not add another large inventory-close model before the next real-event field test. Amount-only later allocation and normalized T-shirt sales aggregation are implemented. The next focus should normally be field-testing these flows, especially duplicate taps, negative stock, void-after-classification, and mixed exact/Quick T-shirt reporting, unless a higher-priority defect is found.
