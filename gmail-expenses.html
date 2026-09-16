@@ -59,7 +59,7 @@
     if(busy || !signedIn || connected.get(account) !== true) return;
     const selectedMonth = month.value;
     if(!/^20\d{2}-(0[1-9]|1[0-2])$/.test(selectedMonth)) { message("対象月を選択してください。", true); return; }
-    currentPreview = null; saveArea.hidden = true;
+    currentPreview = null; saveArea.hidden = true; saveCandidates.textContent = "表示中の候補を保存";
     busy = true; update(); message(`${account} の候補を取得中です…`);
     try {
       const data = await callable("gmailExpensePreview", { account, month: selectedMonth });
