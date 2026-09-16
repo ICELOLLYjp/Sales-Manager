@@ -169,3 +169,8 @@ exports.gmailExpenseCandidateReview = require("./candidateReview").createCandida
 exports.gmailExpenseCandidateAssignEvent = require("./candidateReview").createCandidateEventAssignment({
   requireStaff, db, staffEmails: STAFF_EMAILS
 });
+
+exports.gmailExpenseInspectEvidence = require("./evidenceInspection").createEvidenceInspection({
+  requireStaff, db, clientId: CLIENT_ID, clientSecret: CLIENT_SECRET,
+  tokenKey: TOKEN_KEY, staffEmails: STAFF_EMAILS
+});
