@@ -47,7 +47,9 @@
     login.disabled = busy;
     month.disabled = busy;
     load.disabled = busy || !signedIn;
-    for(const button of results.querySelectorAll("button")) button.disabled = busy;
+    for(const button of results.querySelectorAll("button[data-status]")) {
+      button.disabled = busy || button.dataset.status === button.closest(".item")?.dataset.status;
+    }
   }
   async function callable(name, data = {}) {
     if(!functions || !signedIn) throw new Error("Sales Managerにログインしてください。");
@@ -68,7 +70,7 @@
       const empty = document.createElement("p"); empty.textContent = "保存済み候補はありません。"; results.append(empty); return;
     }
     for(const item of candidates) {
-      const article = document.createElement("article"); article.className = "item"; article.dataset.id = item.id;
+      const article = document.createElement("article"); article.className = "item"; article.dataset.id = item.id; article.dataset.status = item.reviewStatus;
       const title = document.createElement("strong"); title.textContent = item.subject || "（件名なし）";
       const meta = document.createElement("div"); meta.textContent = `${item.date || "日付不明"} · ${item.sender || "差出人不明"} · ${item.account}`;
       const status = document.createElement("span"); status.className = `tag ${item.reviewStatus}`; status.textContent = statusLabel(item.reviewStatus);
