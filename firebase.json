@@ -8,5 +8,8 @@
       "source": "functions-gmail",
       "codebase": "gmail-expenses"
     }
-  ]
+  ],
+  "firestore": {
+    "rules": "firestore.rules"
+  }
 }
