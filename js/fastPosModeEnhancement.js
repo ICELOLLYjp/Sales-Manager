@@ -15,7 +15,7 @@ function installStyles() {
       display:grid!important;
       grid-template-columns:repeat(3,minmax(0,1fr))!important;
       gap:8px!important;
-      width:calc(100% - 20px)!important;
+      width:calc(100vw - 32px)!important;
       max-width:480px!important;
       margin:10px auto 0!important;
       padding:0!important;
