@@ -2,7 +2,7 @@
 
 Last reconciled: 2026-09-17
 Repository: `ICELOLLYjp/Sales-Manager`
-Reference `main` at reconciliation: `36dcc70595d30d1a282324457ba8e4539b945502`
+Reference `main` at reconciliation: `899ebc68779dd894ef560a9c78686c0911c51627`
 
 This is the canonical handoff for future development chats. Inspect latest `main` before editing; this file describes the intended invariants, what is already implemented, and what still needs work.
 
@@ -324,7 +324,7 @@ Sale-time cost snapshots preserve historical accounting.
 
 FX is still partial. Manual Session FX exists; sale-date/payment-date/current/actual-provider rate handling is not fully implemented.
 
-Wise / PayNow many-to-many reconciliation and full final-profit reconciliation remain future work. Gmail preview, explicit candidate storage, saved-candidate review, bounded evidence inspection, PDF extraction, evidence drafts and explicit event-expense posting are live-tested. Mori Market orders `11333138` and `11339404` were posted separately for a combined `16,950 TWD`. Event expense detail and safe void are the next release target. Explicit assignment to an existing sales Session, general business, or unassigned remains required.
+Wise / PayNow many-to-many reconciliation and full final-profit reconciliation remain future work. Gmail preview, explicit candidate storage, saved-candidate review, bounded evidence inspection, PDF extraction, evidence drafts and explicit event-expense posting are live-tested. Mori Market orders `11333138` and `11339404` were posted separately for a combined `16,950 TWD`, and both entries were confirmed separately in the production event detail. Safe void is implemented and unit-tested but must be live-tested only with dedicated test data. Explicit assignment to an existing sales Session, general business, or unassigned remains required.
 
 ---
 
@@ -364,6 +364,9 @@ Wise / PayNow many-to-many reconciliation and full final-profit reconciliation r
 - staff-only manual Gmail metadata preview, live-tested for both accounts
 - metadata preview does not save candidates or post expenses automatically
 - explicit candidate save, live-tested with 25 new records and a repeat save producing 0 new / 25 existing
+- explicit event-expense posting, live-tested with two Mori Market entries totaling `16,950 TWD`
+- event expense detail, live-tested with orders `11333138` and `11339404` shown separately
+- safe single-entry void with idempotency and audit protection, unit-tested only
 
 ## Needs field test
 
@@ -402,7 +405,6 @@ Wise / PayNow many-to-many reconciliation and full final-profit reconciliation r
 - Wise / PayNow many-to-many reconciliation
 - Gmail candidate pagination and per-account partial failures
 - general business expense ledger and reviewed posting
-- HTML entity normalization in temporary evidence display
 - sale-date/payment-date/current/actual-provider FX stack
 - final event financial reconciliation
 - Session notes / event review
@@ -503,6 +505,6 @@ Security/config:
 
 # Next implementation focus
 
-For Gmail expenses, preserve this sequence: manual metadata preview -> explicit candidate save -> event/general classification -> human review and duplicate warning -> explicit bounded body/attachment inspection -> human-reviewed evidence draft -> PDF extraction when present -> separate user-approved expense posting. Body and PDF inspection is allowed only for candidates marked kept, and raw body/attachment bytes and extracted PDF text are not persisted during inspection. Posting is event-only, requires paid evidence, matching event currency, a configured exchange rate for non-JPY events, a separate confirmation dialog and a transactional current-amount check. It is idempotent and locks the candidate after posting. Event detail may list active Gmail-posted entries through a staff callable. Voiding one entry requires a second confirmation and one transaction that subtracts only that amount, records an audit and unlocks the candidate for correction; retrying must not subtract twice. Fetching, parsing, classifying or saving a candidate must never post an expense. Mori Market orders `11333138` and `11339404` are the first production postings and total `16,950 TWD`; order `11333130` for `8,550 TWD` belongs to a separate 20 to 22 November event and must remain unassigned until that event is created. A PDF invoice is not payment proof. Deploy only `functions:gmail-expenses`; never deploy the tracked Firestore rules with this work.
+For Gmail expenses, preserve this sequence: manual metadata preview -> explicit candidate save -> event/general classification -> human review and duplicate warning -> explicit bounded body/attachment inspection -> human-reviewed evidence draft -> PDF extraction when present -> separate user-approved expense posting. Body and PDF inspection is allowed only for candidates marked kept, and raw body/attachment bytes and extracted PDF text are not persisted during inspection. Temporary HTML evidence display decodes bounded named and numeric character references for readability. Posting is event-only, requires paid evidence, matching event currency, a configured exchange rate for non-JPY events, a separate confirmation dialog and a transactional current-amount check. It is idempotent and locks the candidate after posting. Event detail lists active Gmail-posted entries through a staff callable; Mori Market orders `11333138` and `11339404` were confirmed separately in production under the total of `16,950 TWD`. Voiding one entry requires a second confirmation and one transaction that subtracts only that amount, records an audit and unlocks the candidate for correction; retrying must not subtract twice. Live-test void only with a dedicated test candidate and test event, never with the two production Mori Market entries. Fetching, parsing, classifying or saving a candidate must never post an expense. Order `11333130` for `8,550 TWD` belongs to a separate 20 to 22 November event and must remain unassigned until that event is created. A PDF invoice is not payment proof. Deploy only `functions:gmail-expenses`; never deploy the tracked Firestore rules with this work.
 
 Do not add another large inventory-close model before the next real-event field test. Amount-only later allocation and normalized T-shirt sales aggregation are implemented.

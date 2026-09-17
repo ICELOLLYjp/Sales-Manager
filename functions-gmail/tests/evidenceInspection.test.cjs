@@ -2,7 +2,7 @@
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const {
-  decodeBase64Url, htmlToText, inspectPayload, collectPdfAttachmentRefs,
+  decodeBase64Url, decodeHtmlEntities, htmlToText, inspectPayload, collectPdfAttachmentRefs,
   parsePdfData, findMoneyHints
 } = require("../evidenceInspection");
 
@@ -42,6 +42,17 @@ test("HTML is reduced to readable text without script content", () => {
   assert.match(text, /Total: S\$ 18.50/);
   assert.ok(!text.includes("private"));
   assert.ok(!text.includes("secret"));
+});
+
+test("named and numeric HTML entities are decoded for temporary display", () => {
+  assert.equal(
+    decodeHtmlEntities("Fee&#xA0;NT$3,900 &#160; &amp; tax &quot;paid&quot;"),
+    "Fee NT$3,900   & tax \"paid\""
+  );
+  assert.equal(
+    htmlToText("<p>Fee&#xA0;NT$3,900</p><p>Paid&#58; yes</p>"),
+    "Fee NT$3,900\nPaid: yes"
+  );
 });
 
 test("payload inspection lists attachments but does not include attachment bytes", () => {

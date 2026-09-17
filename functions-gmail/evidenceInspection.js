@@ -84,20 +84,39 @@ function decodeBase64Url(value, limit = MAX_TEXT_BYTES) {
   }
 }
 
+function decodeHtmlEntities(value) {
+  const named = {
+    nbsp: " ",
+    amp: "&",
+    lt: "<",
+    gt: ">",
+    quot: "\"",
+    apos: "'"
+  };
+  return String(value || "").replace(
+    /&(?:#x[0-9a-f]+|#[0-9]+|[a-z][a-z0-9]+);/gi,
+    entity => {
+      const token = entity.slice(1, -1);
+      if (token[0] !== "#") return named[token.toLowerCase()] ?? entity;
+      const hex = token[1]?.toLowerCase() === "x";
+      const codePoint = Number.parseInt(token.slice(hex ? 2 : 1), hex ? 16 : 10);
+      if (!Number.isInteger(codePoint) || codePoint < 1 || codePoint > 0x10FFFF ||
+          (codePoint >= 0xD800 && codePoint <= 0xDFFF)) return entity;
+      return codePoint === 0xA0 ? " " : String.fromCodePoint(codePoint);
+    }
+  );
+}
+
 function htmlToText(value) {
-  return String(value || "")
+  const withoutMarkup = String(value || "")
     .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, " ")
     .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, " ")
     .replace(/<br\s*\/?\s*>/gi, "\n")
     .replace(/<\/p\s*>/gi, "\n")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&nbsp;/gi, " ")
-    .replace(/&amp;/gi, "&")
-    .replace(/&lt;/gi, "<")
-    .replace(/&gt;/gi, ">")
-    .replace(/&quot;/gi, "\"")
-    .replace(/&#39;/gi, "'")
-    .replace(/[ \t]+/g, " ")
+    .replace(/<[^>]+>/g, " ");
+  return decodeHtmlEntities(withoutMarkup)
+    .replace(/[\u00A0 \t]+/g, " ")
+    .replace(/[ \t]*\n[ \t]*/g, "\n")
     .replace(/\n\s*\n\s*\n+/g, "\n\n")
     .trim();
 }
@@ -315,6 +334,7 @@ module.exports = {
   MAX_PDF_PAGES,
   MAX_PDF_EXCERPT,
   decodeBase64Url,
+  decodeHtmlEntities,
   htmlToText,
   inspectPayload,
   collectPdfAttachmentRefs,
