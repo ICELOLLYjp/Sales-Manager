@@ -6,14 +6,14 @@
   <meta name="referrer" content="no-referrer">
   <title>保存済みGmail経費候補 | ICELOLLY Sales Manager</title>
   <style>
-    :root{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:#203043;background:#f6f8fb}body{margin:0}main{max-width:860px;margin:auto;padding:22px 16px 56px}a{color:#225b96}h1{font-size:1.65rem;margin:20px 0 8px}h2{font-size:1.2rem}p{line-height:1.65}.muted{color:#526274;font-size:.94rem}.card{background:#fff;border:1px solid #dce3eb;border-radius:14px;padding:18px;margin:16px 0}.item{border-top:1px solid #e5ebf1;padding:16px 0;overflow-wrap:anywhere}.item:first-child{border-top:0}.item strong{display:block;margin:5px 0}.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}.classification{display:grid;gap:5px;margin-top:10px;max-width:100%}button,input,select{font:inherit}button{padding:10px 14px;min-height:44px;border:1px solid #245783;border-radius:10px;background:#245b90;color:#fff;font-weight:650}button.secondary{background:#fff;color:#245783}button.exclude{background:#fff;color:#9a2430;border-color:#9a2430}button:disabled{opacity:.5}input,select{padding:10px;border:1px solid #9eabba;border-radius:8px;background:#fff;max-width:100%}.tag{display:inline-block;padding:3px 8px;border-radius:8px;font-size:.83rem;margin:4px 6px 0 0}.unreviewed{background:#fff2d5;color:#705000}.kept{background:#e1f4e8;color:#17643a}.excluded{background:#f0f2f4;color:#526274}.duplicate{background:#ffe4e4;color:#8c1d28}.scope{background:#e8eff8;color:#244f78}.evidence{margin-top:12px;padding:12px;border:1px solid #dce3eb;border-radius:10px;background:#f8fafc}.evidence pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;font-size:.9rem;max-height:320px;overflow:auto}.evidence ul{padding-left:20px}.review-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:14px}.review-form label{display:grid;gap:5px}.review-form .wide{grid-column:1/-1}@media(max-width:600px){.review-form{grid-template-columns:1fr}}#notice{white-space:pre-wrap;overflow-wrap:anywhere}#notice[role=alert]{color:#a21f30}
+    :root{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:#203043;background:#f6f8fb}body{margin:0}main{max-width:860px;margin:auto;padding:22px 16px 56px}a{color:#225b96}h1{font-size:1.65rem;margin:20px 0 8px}h2{font-size:1.2rem}p{line-height:1.65}.muted{color:#526274;font-size:.94rem}.card{background:#fff;border:1px solid #dce3eb;border-radius:14px;padding:18px;margin:16px 0}.item{border-top:1px solid #e5ebf1;padding:16px 0;overflow-wrap:anywhere}.item:first-child{border-top:0}.item strong{display:block;margin:5px 0}.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}.classification{display:grid;gap:5px;margin-top:10px;max-width:100%}button,input,select{font:inherit}button{padding:10px 14px;min-height:44px;border:1px solid #245783;border-radius:10px;background:#245b90;color:#fff;font-weight:650}button.secondary{background:#fff;color:#245783}button.exclude{background:#fff;color:#9a2430;border-color:#9a2430}button.post{background:#17643a;border-color:#17643a}button:disabled{opacity:.5}input,select{padding:10px;border:1px solid #9eabba;border-radius:8px;background:#fff;max-width:100%}.tag{display:inline-block;padding:3px 8px;border-radius:8px;font-size:.83rem;margin:4px 6px 0 0}.unreviewed{background:#fff2d5;color:#705000}.kept{background:#e1f4e8;color:#17643a}.excluded{background:#f0f2f4;color:#526274}.duplicate{background:#ffe4e4;color:#8c1d28}.scope{background:#e8eff8;color:#244f78}.posted{background:#d9f0e2;color:#0d5630}.evidence{margin-top:12px;padding:12px;border:1px solid #dce3eb;border-radius:10px;background:#f8fafc}.evidence pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;font-size:.9rem;max-height:320px;overflow:auto}.evidence ul{padding-left:20px}.review-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:14px}.review-form label{display:grid;gap:5px}.review-form .wide{grid-column:1/-1}@media(max-width:600px){.review-form{grid-template-columns:1fr}}#notice{white-space:pre-wrap;overflow-wrap:anywhere}#notice[role=alert]{color:#a21f30}
   </style>
 </head>
 <body>
 <main>
   <a href="./">← Sales Manager</a> · <a href="./gmail-expenses.html">Gmail候補の取得</a>
   <h1>保存済みGmail経費候補</h1>
-  <p class="muted">保存済み候補へ対象イベントを割り当て、候補に残すか除外するかを選びます。本文とPDFの確認は明示操作時だけ行い、この画面から経費台帳へは登録しません。</p>
+  <p class="muted">保存済み候補を人が確認し、支払証拠、金額、通貨、分類を下書き保存します。条件が揃った候補だけ、別の確認操作で1件ずつ経費台帳へ登録できます。</p>
   <section class="card">
     <h2>表示条件</h2>
     <p id="staff">ログイン状態を確認しています…</p>
@@ -54,8 +54,11 @@
     month.disabled = busy;
     load.disabled = busy || !signedIn;
     eventFilter.disabled = busy || !state;
-    for(const control of results.querySelectorAll("button[data-status], button[data-evidence], button[data-save-evidence], select[data-scope], .review-form input, .review-form select")) {
-      if(control.matches("button[data-status]")) control.disabled = busy || control.dataset.status === control.closest(".item")?.dataset.status;
+    for(const control of results.querySelectorAll("button[data-status], button[data-evidence], button[data-save-evidence], button[data-post-expense], select[data-scope], .review-form input, .review-form select")) {
+      const article = control.closest(".item");
+      const posted = article?.dataset.posted === "true";
+      if(control.matches("button[data-status]")) control.disabled = busy || posted || control.dataset.status === article?.dataset.status;
+      else if(control.matches("select[data-scope], button[data-save-evidence], .review-form input, .review-form select")) control.disabled = busy || posted;
       else control.disabled = busy;
     }
   }
@@ -74,6 +77,14 @@
     const place = [item.city, item.country].filter(Boolean).join(", ");
     const date = [item.startDate, item.endDate && item.endDate !== item.startDate ? item.endDate : ""].filter(Boolean).join("〜");
     return [item.eventName, place, date].filter(Boolean).join(" ／ ");
+  }
+  const categoryLabels = { boothFee: "出店料", flight: "航空券", hotel: "宿泊", shipping: "発送", transport: "現地交通", interpreter: "通訳", other: "その他" };
+  function postingSession(item) {
+    return item.expenseScope === "event" && item.eventId ? (state?.sessions || []).find(session => session.id === item.eventId) : null;
+  }
+  function canPost(item) {
+    const review = item.evidenceReview;
+    return state?.expensePostingAvailable === true && item.reviewStatus === "kept" && !item.expensePosted && Boolean(postingSession(item)) && review?.paymentStatus === "paid_evidence" && Number(review.amount) > 0 && Boolean(review.currency) && Boolean(categoryLabels[review.category]);
   }
   function populateFilter() {
     const selected = eventFilter.value || "all";
@@ -98,7 +109,7 @@
       const empty = document.createElement("p"); empty.textContent = "この条件の保存済み候補はありません。"; results.append(empty); return;
     }
     for(const item of candidates) {
-      const article = document.createElement("article"); article.className = "item"; article.dataset.id = item.id; article.dataset.status = item.reviewStatus;
+      const article = document.createElement("article"); article.className = "item"; article.dataset.id = item.id; article.dataset.status = item.reviewStatus; article.dataset.posted = item.expensePosted ? "true" : "false";
       const title = document.createElement("strong"); title.textContent = item.subject || "（件名なし）";
       const meta = document.createElement("div"); meta.textContent = `${item.date || "日付不明"} · ${item.sender || "差出人不明"} · ${item.account}`;
       const status = document.createElement("span"); status.className = `tag ${item.reviewStatus}`; status.textContent = statusLabel(item.reviewStatus);
@@ -108,6 +119,9 @@
       if(item.evidenceReview) {
         const reviewed = document.createElement("span"); reviewed.className = "tag kept"; reviewed.textContent = "解析下書きあり"; article.append(reviewed);
       }
+      if(item.expensePosted) {
+        const posted = document.createElement("span"); posted.className = "tag posted"; posted.textContent = "経費登録済み"; article.append(posted);
+      }
       if(duplicateIds.has(item.id)) {
         const duplicate = document.createElement("span"); duplicate.className = "tag duplicate"; duplicate.textContent = "重複の可能性あり"; article.append(duplicate);
       }
@@ -116,17 +130,21 @@
       select.add(new Option("未分類", "unassigned"));
       select.add(new Option("イベント共通／一般経費", "general"));
       for(const session of state.sessions || []) select.add(new Option(sessionLabel(session), `event:${session.id}`));
-      select.value = scopeValue(item); classification.append(select); article.append(classification);
+      select.value = scopeValue(item); select.disabled = busy || item.expensePosted; classification.append(select); article.append(classification);
       const actions = document.createElement("div"); actions.className = "actions";
       for(const option of [["kept", "候補に残す", "secondary"], ["excluded", "除外", "exclude"], ["unreviewed", "未確認に戻す", "secondary"]]) {
         const button = document.createElement("button"); button.type = "button"; button.dataset.status = option[0];
-        button.textContent = option[1]; button.className = option[2]; button.disabled = busy || item.reviewStatus === option[0]; actions.append(button);
+        button.textContent = option[1]; button.className = option[2]; button.disabled = busy || item.expensePosted || item.reviewStatus === option[0]; actions.append(button);
       }
       article.append(actions);
       if(item.reviewStatus === "kept") {
         const inspect = document.createElement("button"); inspect.type = "button"; inspect.className = "secondary"; inspect.dataset.evidence = "true";
         inspect.textContent = evidenceById.has(item.id) ? "本文と添付を再確認" : "本文と添付を確認";
         actions.append(inspect);
+      }
+      if(canPost(item)) {
+        const post = document.createElement("button"); post.type = "button"; post.className = "post"; post.dataset.postExpense = "true";
+        post.textContent = "この1件を経費台帳へ登録"; actions.append(post);
       }
       const evidence = evidenceById.get(item.id);
       if(evidence && item.reviewStatus === "kept") {
@@ -191,7 +209,7 @@
         const descriptionLabel = document.createElement("label"); descriptionLabel.className = "wide"; descriptionLabel.textContent = "内容";
         const description = document.createElement("input"); description.type = "text"; description.maxLength = 500; description.dataset.field = "description";
         description.value = saved.description || item.subject || ""; descriptionLabel.append(description);
-        const saveDraft = document.createElement("button"); saveDraft.type = "button"; saveDraft.dataset.saveEvidence = "true"; saveDraft.textContent = "解析結果を下書き保存";
+        const saveDraft = document.createElement("button"); saveDraft.type = "button"; saveDraft.dataset.saveEvidence = "true"; saveDraft.textContent = "解析結果を下書き保存"; saveDraft.disabled = busy || item.expensePosted;
         form.append(amountLabel, currencyLabel, paymentLabel, categoryLabel, descriptionLabel, saveDraft);
         panel.append(form);
         article.append(panel);
@@ -271,12 +289,51 @@
     } catch(e) { message(`対象イベントを保存できませんでした: ${e.message || e}`, true); render(); }
     finally { busy = false; update(); }
   }
+  async function postExpense(candidateId) {
+    if(busy || !state) return;
+    const item = state.candidates.find(row => row.id === candidateId);
+    const session = item ? postingSession(item) : null;
+    const review = item?.evidenceReview;
+    if(!item || !session || !canPost(item)) { message("登録条件が揃っていません。候補を再読み込みしてください。", true); return; }
+    const current = Number(session.expenses?.[review.category]?.amount || 0);
+    const amount = Number(review.amount);
+    const next = current + amount;
+    const label = categoryLabels[review.category] || review.category;
+    const confirmed = window.confirm([
+      "次の1件だけを経費台帳へ登録します。",
+      "",
+      `イベント: ${sessionLabel(session)}`,
+      `分類: ${label}`,
+      `今回: ${amount.toLocaleString("ja-JP")} ${review.currency}`,
+      `現在: ${current.toLocaleString("ja-JP")} ${review.currency}`,
+      `登録後: ${next.toLocaleString("ja-JP")} ${review.currency}`,
+      "",
+      "登録後はこの候補のイベント、確認状態、解析下書きを変更できません。"
+    ].join("\n"));
+    if(!confirmed) { message("経費登録を中止しました。候補の下書きは変更していません。"); return; }
+    busy = true; update(); message("確認した1件を経費台帳へ登録しています…");
+    try {
+      const data = await callable("gmailExpensePostReviewedCandidate", {
+        candidateId,
+        confirmation: "post_reviewed_expense",
+        expectedCurrentAmount: current
+      });
+      item.expensePosted = true;
+      item.expensePost = data.expensePost;
+      if(data.categoryEntry) session.expenses[review.category] = data.categoryEntry;
+      render();
+      message(data.duplicate ? "この候補はすでに経費登録済みです。重複登録はしていません。" : `${amount.toLocaleString("ja-JP")} ${review.currency}を${session.eventName}の${label}へ登録しました。`);
+    } catch(e) { message(`経費台帳へ登録できませんでした: ${e.message || e}`, true); }
+    finally { busy = false; update(); }
+  }
   results.addEventListener("click", event => {
     const article = event.target.closest(".item[data-id]");
     const evidenceButton = event.target.closest("button[data-evidence]");
     if(evidenceButton && article) { inspectEvidence(article.dataset.id); return; }
     const saveEvidenceButton = event.target.closest("button[data-save-evidence]");
     if(saveEvidenceButton && article) { saveEvidenceReview(article.dataset.id, article); return; }
+    const postExpenseButton = event.target.closest("button[data-post-expense]");
+    if(postExpenseButton && article) { postExpense(article.dataset.id); return; }
     const button = event.target.closest("button[data-status]");
     if(button && article) review(article.dataset.id, button.dataset.status);
   });
