@@ -190,3 +190,8 @@ exports.gmailExpenseListEventEntries = require("./expensePosting").createEventEx
 exports.gmailExpenseVoidReviewedCandidate = require("./expensePosting").createExpenseVoider({
   requireStaff, db, staffEmails: STAFF_EMAILS
 });
+
+exports.gmailExpenseSourceUrl = require("./sourceLink").createExpenseSourceLink({
+  requireStaff, db, clientId: CLIENT_ID, clientSecret: CLIENT_SECRET,
+  tokenKey: TOKEN_KEY, staffEmails: STAFF_EMAILS
+});

@@ -1,5 +1,5 @@
 const CACHE_NAME =
-  "icelolly-sales-shell-20260917-expense-search-1";
+  "icelolly-sales-shell-20260917-gmail-source-1";
 
 const CORE_ASSETS = [
   "./",
@@ -40,6 +40,7 @@ const CORE_ASSETS = [
   "./js/tshirtSalesAggregationUi.js",
   "./js/fastAmountAllocationUi.js",
   "./js/expenseManagementNavigation.js",
+  "./js/gmailExpenseSourceLinkUi.js",
 
   "./js/inventoryAdapters/tshirtAdapter.js",
   "./js/inventoryAdapters/accessoryAdapter.js",
