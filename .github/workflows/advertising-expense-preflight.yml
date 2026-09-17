@@ -1,0 +1,19 @@
+name: Advertising expense preflight
+on:
+  pull_request:
+    paths:
+      - 'scripts/enable_advertising_expenses.cjs'
+      - '.github/workflows/advertising-expense-preflight.yml'
+  workflow_dispatch:
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --check scripts/enable_advertising_expenses.cjs
+      - run: node scripts/enable_advertising_expenses.cjs --check
