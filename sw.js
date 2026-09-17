@@ -1,5 +1,5 @@
 const CACHE_NAME =
-  "icelolly-sales-shell-20260917-gmail-navigation-1";
+  "icelolly-sales-shell-20260917-header-links-1";
 
 const CORE_ASSETS = [
   "./",
