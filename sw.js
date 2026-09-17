@@ -1,9 +1,12 @@
 const CACHE_NAME =
-  "icelolly-sales-shell-20260917-event-expense-details-1";
+  "icelolly-sales-shell-20260917-gmail-navigation-1";
 
 const CORE_ASSETS = [
   "./",
   "./index.html",
+  "./gmail-connect.html",
+  "./gmail-expenses.html",
+  "./gmail-expense-review.html",
   "./css/app.css",
   "./css/responsive.css",
   "./css/iphoneInventoryControls.css",
