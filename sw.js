@@ -1,5 +1,5 @@
 const CACHE_NAME =
-  "icelolly-sales-shell-20260917-expense-overview-1";
+  "icelolly-sales-shell-20260917-expense-event-overview-1";
 
 const CORE_ASSETS = [
   "./",
@@ -43,6 +43,7 @@ const CORE_ASSETS = [
   "./js/gmailExpenseSourceLinkUi.js",
   "./js/expenseManagementOverview.js",
   "./js/expenseOverviewModel.js",
+  "./js/expenseEventOverviewModel.js",
 
   "./js/inventoryAdapters/tshirtAdapter.js",
   "./js/inventoryAdapters/accessoryAdapter.js",
@@ -56,11 +57,11 @@ const CORE_ASSETS = [
   "./js/services/transactionService.js",
   "./js/services/salesHistoryService.js",
   "./js/services/costHistoryService.js",
-  "./js/services/pinkoiCatalogService.js",
-  "./js/services/sessionLifecycleService.js",
   "./js/services/inventoryCountService.js",
   "./js/services/inventoryFlowService.js",
   "./js/services/inventoryFlowFinalizeService.js",
+  "./js/services/pinkoiCatalogService.js",
+  "./js/services/sessionLifecycleService.js",
   "./js/services/eventFlowAccountingService.js",
   "./js/services/accessoryEventCatalogService.js",
   "./js/services/eventCheckpointReuseService.js",
