@@ -1,13 +1,28 @@
 "use strict";
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
-const { monthQuery, previewMessage, MAX_MESSAGES } = require("../expensePreview");
+const { monthQuery, normalizeKeyword, previewMessage, MAX_MESSAGES } = require("../expensePreview");
 
 test("month query is bounded to selected month, including December", () => {
   assert.match(monthQuery("2026-09"), /after:2026\/09\/01 before:2026\/10\/01/);
   assert.match(monthQuery("2026-12"), /after:2026\/12\/01 before:2027\/01\/01/);
   for (const input of ["2026-00", "2026-13", "2026-9", "1999-09", "2031-01", "", null]) {
     assert.throws(() => monthQuery(input));
+  }
+});
+
+test("month query uses general expense terms and an optional bounded keyword", () => {
+  const general = monthQuery("2026-09");
+  assert.match(general, /invoice/);
+  assert.match(general, /領収書/);
+  assert.doesNotMatch(general, /Singapore|Public Garden/);
+
+  const filtered = monthQuery("2026-09", "  森之市   珈琲與花物語  ");
+  assert.match(filtered, /"森之市 珈琲與花物語"$/);
+  assert.equal(normalizeKeyword(" Public   Garden "), "Public Garden");
+
+  for (const input of [123, "a".repeat(81), 'Public "Garden"', "event{test}"]) {
+    assert.throws(() => normalizeKeyword(input));
   }
 });
 
