@@ -18,17 +18,19 @@
     .card strong{display:block;font-size:1.08rem;margin-bottom:6px;color:#174d80}
     .card span{display:block;line-height:1.55;color:#526274}
     .overview-controls{display:flex;flex-wrap:wrap;align-items:end;gap:12px;margin:14px 0}
-    .overview-controls label{display:grid;gap:5px;font-weight:650}
-    .overview-controls input{font:inherit;border:1px solid #9eabba;border-radius:8px;padding:10px;min-height:44px;box-sizing:border-box}
+    .overview-controls label{display:grid;gap:5px;font-weight:650;flex:1 1 180px}
+    .overview-controls input,.overview-controls select{font:inherit;border:1px solid #9eabba;border-radius:8px;padding:10px;min-height:44px;box-sizing:border-box;max-width:100%}
     .overview-controls button,#overviewLogin{font:inherit;font-weight:650;padding:10px 14px;min-height:44px;border:1px solid #245783;border-radius:10px;background:#245b90;color:#fff}
     .overview-controls button:disabled{opacity:.5}
-    #overviewNotice[role=alert],.overview-warning{color:#a21f30}
-    #overviewNotice{white-space:pre-wrap;overflow-wrap:anywhere}
+    #overviewNotice[role=alert],#eventNotice[role=alert],.overview-warning{color:#a21f30}
+    #overviewNotice,#eventNotice{white-space:pre-wrap;overflow-wrap:anywhere}
     .overview-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
     .overview-stat{border:1px solid #dce3eb;border-radius:10px;padding:10px;text-align:center}
     .overview-stat strong{font-size:1.5rem;margin:0;color:#203043}
     .overview-stat span{font-size:.82rem}
     #overviewReviewLink{display:inline-block;margin-top:10px}
+    .expense-row{border-top:1px solid #e5ebf1;padding:12px 0;overflow-wrap:anywhere}
+    .expense-row strong{display:block;margin-bottom:4px}
     @media(max-width:520px){.overview-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
   </style>
 </head>
@@ -40,16 +42,27 @@
 
     <section class="card" aria-labelledby="overviewTitle">
       <h2 id="overviewTitle">月別の保存済み候補</h2>
-      <p class="muted">すでに保存した候補の確認状況を表示します。メールを新しく取得せず、経費の登録や変更も行いません。</p>
+      <p class="muted">Gmailを検索した対象月ごとの候補数です。イベント開催月や経費登録月ではありません。メールの再取得や経費の登録は行いません。</p>
       <p id="overviewStaff" class="muted">ログイン状態を確認しています…</p>
       <button id="overviewLogin" type="button" hidden>Sales Managerにログイン</button>
       <div class="overview-controls">
-        <label for="overviewMonth">対象月<input id="overviewMonth" type="month" min="2025-01" max="2030-12"></label>
+        <label for="overviewMonth">メールの検索対象月<input id="overviewMonth" type="month" min="2025-01" max="2030-12"></label>
         <button id="overviewLoad" type="button" disabled>候補の件数を確認</button>
       </div>
       <p id="overviewNotice" class="muted" aria-live="polite"></p>
       <div id="overviewSummary" class="overview-grid" aria-live="polite">まだ取得していません。</div>
       <a id="overviewReviewLink" href="./gmail-expense-review.html">この月の保存済み候補を開く</a>
+    </section>
+
+    <section class="card" aria-labelledby="eventOverviewTitle">
+      <h2 id="eventOverviewTitle">イベント別の登録済みGmail経費</h2>
+      <p class="muted">メールの検索対象月に関係なく、選んだイベントに登録されたGmail経費だけを表示します。手入力した経費やその他の支出は含みません。</p>
+      <div class="overview-controls">
+        <label for="eventOverviewSelect">イベント<select id="eventOverviewSelect" disabled><option value="">上で候補件数を確認すると選べます</option></select></label>
+        <button id="eventOverviewLoad" type="button" disabled>このイベントの経費を確認</button>
+      </div>
+      <p id="eventNotice" class="muted" aria-live="polite"></p>
+      <div id="eventSummary" aria-live="polite">まだ取得していません。</div>
     </section>
 
     <a class="card" href="./gmail-expense-review.html">
@@ -67,6 +80,6 @@
       <span>2つのGmailアカウントの接続状態を確認し、必要に応じて再接続します。</span>
     </a>
   </main>
-  <script type="module" src="./js/expenseManagementOverview.js?v=20260917-monthly-summary-1"></script>
+  <script type="module" src="./js/expenseManagementOverview.js?v=20260917-event-entries-1"></script>
 </body>
 </html>
