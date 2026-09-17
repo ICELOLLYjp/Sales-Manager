@@ -41,3 +41,10 @@ test("unsupported status and category are rejected", () => {
   assert.throws(() => normalizeEvidenceReview({ paymentStatus: "posted", category: "other" }), /支払状態/);
   assert.throws(() => normalizeEvidenceReview({ paymentStatus: "unverified", category: "unknown" }), /経費分類/);
 });
+
+
+test("advertising is an independent supported category", () => {
+  const item = normalizeEvidenceReview({ amount: 969, currency: "JPY", paymentStatus: "paid_evidence", category: "advertising", description: "Instagram advertising" });
+  assert.equal(item.category, "advertising");
+  assert.equal(item.amount, 969);
+});

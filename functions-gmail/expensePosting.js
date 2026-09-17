@@ -7,7 +7,7 @@ const { AUDIT_COLLECTION } = require("./candidateReview");
 const SESSION_COLLECTION = "salesSessions";
 const CONFIRMATION = "post_reviewed_expense";
 const VOID_CONFIRMATION = "void_reviewed_expense";
-const EXPENSE_CATEGORIES = new Set(["boothFee", "flight", "hotel", "shipping", "transport", "interpreter", "other"]);
+const EXPENSE_CATEGORIES = new Set(["boothFee", "flight", "hotel", "shipping", "transport", "interpreter", "advertising", "other"]);
 
 function validCandidateId(value) {
   const id = String(value || "").trim();
@@ -90,7 +90,7 @@ function postingPlan({ candidate, session, expectedCurrentAmount }) {
   }
   if (!session) throw new HttpsError("not-found", "対象イベントが見つかりません。");
   const sessionCurrency = String(session.currency || "JPY").toUpperCase();
-  if (currency !== sessionCurrency) {
+  if (currency !== sessionCurrency && currency !== "JPY") {
     throw new HttpsError("failed-precondition", `候補の通貨${currency}とイベントの通貨${sessionCurrency}が一致しません。`);
   }
   const rate = currency === "JPY" ? 1 : number(session.fxRateToJPY);

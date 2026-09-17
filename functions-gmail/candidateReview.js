@@ -7,7 +7,7 @@ const AUDIT_COLLECTION = "gmailExpenseCandidateAudit";
 const SESSION_COLLECTION = "salesSessions";
 const REVIEW_STATUSES = new Set(["unreviewed", "kept", "excluded"]);
 const EXPENSE_SCOPES = new Set(["unassigned", "general", "event"]);
-const EXPENSE_CATEGORIES = ["boothFee", "flight", "hotel", "shipping", "transport", "interpreter", "other"];
+const EXPENSE_CATEGORIES = ["boothFee", "flight", "hotel", "shipping", "transport", "interpreter", "advertising", "other"];
 const MAX_LIST = 100;
 
 function validMonth(month) {

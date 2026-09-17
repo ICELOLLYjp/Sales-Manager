@@ -4768,6 +4768,8 @@ const EVENT_EXPENSE_LABELS = {
     "交通費",
   interpreter:
     "通訳費",
+  advertising:
+    "広告費",
   other:
     "その他"
 };
@@ -4779,6 +4781,7 @@ const EVENT_EXPENSE_ORDER = [
   "shipping",
   "transport",
   "interpreter",
+  "advertising",
   "other"
 ];
 
