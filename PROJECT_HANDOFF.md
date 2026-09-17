@@ -1,8 +1,8 @@
 # ICELOLLY Sales Manager — PROJECT HANDOFF
 
-Last reconciled: 2026-09-16
+Last reconciled: 2026-09-17
 Repository: `ICELOLLYjp/Sales-Manager`
-Reference `main` at reconciliation: `5de9d2ec653c78597254500f68591340f847e2d7`
+Reference `main` at reconciliation: `36dcc70595d30d1a282324457ba8e4539b945502`
 
 This is the canonical handoff for future development chats. Inspect latest `main` before editing; this file describes the intended invariants, what is already implemented, and what still needs work.
 
@@ -324,7 +324,7 @@ Sale-time cost snapshots preserve historical accounting.
 
 FX is still partial. Manual Session FX exists; sale-date/payment-date/current/actual-provider rate handling is not fully implemented.
 
-Wise / PayNow many-to-many reconciliation and full final-profit reconciliation remain future work. Gmail metadata preview and explicit idempotent candidate storage are live-tested. Saved-candidate review is live, and production data showed multiple events mixed within one month. Explicit assignment to an existing sales Session, general business, or unassigned is required before later extraction and posting work.
+Wise / PayNow many-to-many reconciliation and full final-profit reconciliation remain future work. Gmail preview, explicit candidate storage, saved-candidate review, bounded evidence inspection, PDF extraction, evidence drafts and explicit event-expense posting are live-tested. Mori Market orders `11333138` and `11339404` were posted separately for a combined `16,950 TWD`. Event expense detail and safe void are the next release target. Explicit assignment to an existing sales Session, general business, or unassigned remains required.
 
 ---
 
@@ -400,9 +400,9 @@ Wise / PayNow many-to-many reconciliation and full final-profit reconciliation r
 
 - generic promotion builder
 - Wise / PayNow many-to-many reconciliation
-- Gmail saved-candidate review and duplicate warnings
-- Gmail expense candidate extraction including attachments/PDFs
-- explicit reviewed-candidate to expense posting
+- Gmail candidate pagination and per-account partial failures
+- general business expense ledger and reviewed posting
+- HTML entity normalization in temporary evidence display
 - sale-date/payment-date/current/actual-provider FX stack
 - final event financial reconciliation
 - Session notes / event review
@@ -503,6 +503,6 @@ Security/config:
 
 # Next implementation focus
 
-For Gmail expenses, preserve this sequence: manual metadata preview -> explicit candidate save -> event/general classification -> human review and duplicate warning -> explicit bounded body/attachment inspection -> human-reviewed evidence draft -> PDF extraction when present -> separate user-approved expense posting. Body and PDF inspection is allowed only for candidates marked kept, and raw body/attachment bytes and extracted PDF text are not persisted during inspection. Posting is event-only, requires paid evidence, matching event currency, a configured exchange rate for non-JPY events, a separate confirmation dialog and a transactional current-amount check. It is idempotent and locks the candidate after posting. Fetching, parsing, classifying or saving a candidate must never post an expense. The first production target is Mori Market order `11333138` for `13,050 TWD`; order `11333130` for `8,550 TWD` belongs to a separate 20 to 22 November event and must remain unassigned until that event is identified. A PDF invoice is not payment proof. Deploy only `functions:gmail-expenses`; never deploy the tracked Firestore rules with this work.
+For Gmail expenses, preserve this sequence: manual metadata preview -> explicit candidate save -> event/general classification -> human review and duplicate warning -> explicit bounded body/attachment inspection -> human-reviewed evidence draft -> PDF extraction when present -> separate user-approved expense posting. Body and PDF inspection is allowed only for candidates marked kept, and raw body/attachment bytes and extracted PDF text are not persisted during inspection. Posting is event-only, requires paid evidence, matching event currency, a configured exchange rate for non-JPY events, a separate confirmation dialog and a transactional current-amount check. It is idempotent and locks the candidate after posting. Event detail may list active Gmail-posted entries through a staff callable. Voiding one entry requires a second confirmation and one transaction that subtracts only that amount, records an audit and unlocks the candidate for correction; retrying must not subtract twice. Fetching, parsing, classifying or saving a candidate must never post an expense. Mori Market orders `11333138` and `11339404` are the first production postings and total `16,950 TWD`; order `11333130` for `8,550 TWD` belongs to a separate 20 to 22 November event and must remain unassigned until that event is created. A PDF invoice is not payment proof. Deploy only `functions:gmail-expenses`; never deploy the tracked Firestore rules with this work.
 
 Do not add another large inventory-close model before the next real-event field test. Amount-only later allocation and normalized T-shirt sales aggregation are implemented.

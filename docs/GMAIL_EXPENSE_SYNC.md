@@ -86,11 +86,24 @@ Updated: 2026-09-17 (Japan time). Repo: `ICELOLLYjp/Sales-Manager`.
 - Preview, candidate save, review, assignment, Gmail inspection, PDF extraction and evidence-draft save never call the posting action.
 - General and unassigned candidates cannot be posted through this event-only action.
 
+## Phase 8 in development: event expense detail and safe void
+
+- Sales Manager event detail can list active expenses posted from reviewed Gmail candidates without direct browser access to `gmailExpenseCandidates`.
+- Existing posted candidates appear without a data migration because the callable reads their saved `expensePost` metadata.
+- A separate explicit confirmation is required to void one Gmail-posted expense entry.
+- The server checks the displayed category total, candidate state, event, category, amount and currency again inside one Firestore transaction.
+- A successful void subtracts only that candidate amount, recalculates the event expense total, unlocks the candidate for correction and writes an audit record.
+- Repeating the same void is idempotent and never subtracts twice.
+- Manual expense totals and Gmail-posted detail remain distinct. Sales, inventory and payment records are not changed.
+- No new Firestore collection or browser rule access is required.
+
 ## Remaining work before full expense management
 
-1. Review, merge and deploy the explicit reviewed-candidate posting action. Deploy only the Gmail Functions codebase and never the tracked Firestore rules.
-2. Live-test only Mori Market order `11333138`, amount `13,050 TWD`, after confirming the event's current booth-fee amount in the dialog.
-3. Keep order `11333130`, amount `8,550 TWD`, unassigned until its 20 to 22 November event is identified.
-4. Refine probable duplicate warnings after candidates are separated by event.
-5. Add per-account partial failures and weekly server sync only after the manual workflow is stable.
-6. ChatGPT's own weekly reminders/summaries do not automatically populate Sales Manager.
+1. Review, merge and deploy event expense detail and safe void. Deploy only the Gmail Functions codebase and never the tracked Firestore rules.
+2. Confirm that Mori Market orders `11333138` and `11339404` appear separately under the event total of `16,950 TWD`. Do not void either item during the display test.
+3. Keep order `11333130`, amount `8,550 TWD`, unassigned until the Tainan event for 20 to 22 November is created.
+4. Normalize HTML entities such as `&#xA0;` in temporary evidence display.
+5. Refine probable duplicate warnings after candidates are separated by event.
+6. Add bounded pagination and per-account partial failures before considering weekly server sync.
+7. Add a separate reviewed workflow for general business expenses. Do not reuse the event-only posting action.
+8. ChatGPT's own weekly reminders/summaries do not automatically populate Sales Manager.
