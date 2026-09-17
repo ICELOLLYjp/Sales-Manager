@@ -14,6 +14,7 @@ import { saveCategoryCost, loadAllCategoryCostHistories, resolveCategoryUnitCost
 import { loadPinkoiTshirtCatalog, syncPinkoiTshirtCatalog } from "./services/pinkoiCatalogService.js";
 import { loadOfflineSalesQueue, getOfflineSalesQueueForSession, enqueueOfflineSale, removeOfflineSale, updateOfflineSaleError, pendingVariantQuantities, savePosOfflineSnapshot, loadPosOfflineSnapshot } from "./services/offlineQueueService.js?v=20260911-offline-resilience-1";
 import { createStripeCheckout, getStripeCheckoutStatus, expireStripeCheckout, markStripeSaleCommitted, refundStripePayment, listRecoverableStripePayments, renderStripeQr } from "./services/stripePaymentService.js?v=20260912-stripe-live-short-ui-1";
+import { listEventGmailExpenses, voidEventGmailExpense } from "./services/gmailExpensePostingService.js?v=20260917-event-expense-details-1";
 let sessionLifecycleModulePromise =
   null;
 
@@ -6538,6 +6539,29 @@ async function renderSessions(
           )
         : [];
 
+    let eventGmailExpenseEntries = [];
+    let eventGmailExpenseError = "";
+
+    if (selectedDetailSession) {
+      try {
+        const result =
+          await listEventGmailExpenses(
+            selectedDetailSession.sessionId
+          );
+
+        eventGmailExpenseEntries =
+          Array.isArray(
+            result?.entries
+          )
+            ? result.entries
+            : [];
+      } catch (error) {
+        eventGmailExpenseError =
+          error?.message ||
+          String(error);
+      }
+    }
+
     const activeSessionTransactions =
       sessionTransactions.filter(
         transaction =>
@@ -10752,6 +10776,111 @@ async function renderSessions(
                     ).join("")}
 
                     <div
+                      style="
+                        margin-top:14px;
+                        padding-top:12px;
+                        border-top:1px solid #ecece7;
+                      "
+                    >
+                      <div
+                        class="card-title"
+                        style="margin-bottom:6px;"
+                      >
+                        Gmailから登録した経費明細
+                      </div>
+
+                      ${
+                        eventGmailExpenseError
+                          ? `
+                            <div class="warning">
+                              経費明細を取得できませんでした。Gmail経費機能のデプロイ状態を確認してください。
+                            </div>
+                          `
+                          : eventGmailExpenseEntries.length
+                            ? eventGmailExpenseEntries.map(
+                                entry => `
+                                  <div
+                                    style="
+                                      padding:12px 0;
+                                      border-bottom:1px solid #ecece7;
+                                    "
+                                  >
+                                    <div
+                                      style="
+                                        display:flex;
+                                        justify-content:space-between;
+                                        gap:12px;
+                                        align-items:flex-start;
+                                      "
+                                    >
+                                      <div style="min-width:0;">
+                                        <strong>
+                                          ${escapeHtml(
+                                            entry.description ||
+                                            entry.subject ||
+                                            "Gmail経費"
+                                          )}
+                                        </strong>
+
+                                        <div
+                                          class="muted"
+                                          style="margin-top:4px;"
+                                        >
+                                          ${escapeHtml(
+                                            [
+                                              entry.date,
+                                              EVENT_EXPENSE_LABELS[
+                                                entry.category
+                                              ] || entry.category,
+                                              entry.account
+                                            ]
+                                              .filter(Boolean)
+                                              .join(" ／ ")
+                                          )}
+                                        </div>
+                                      </div>
+
+                                      <strong style="white-space:nowrap;">
+                                        ${formatMoney(
+                                          Number(
+                                            entry.amount || 0
+                                          ),
+                                          entry.currency || "JPY"
+                                        )}
+                                      </strong>
+                                    </div>
+
+                                    <button
+                                      type="button"
+                                      class="voidGmailExpenseEntryButton"
+                                      data-candidate-id="${escapeHtml(
+                                        entry.candidateId
+                                      )}"
+                                      style="
+                                        width:100%;
+                                        min-height:42px;
+                                        margin-top:10px;
+                                        border:1px solid #b3261e;
+                                        border-radius:12px;
+                                        background:#fff;
+                                        color:#8f1d17;
+                                        font-weight:700;
+                                      "
+                                    >
+                                      この明細を取消
+                                    </button>
+                                  </div>
+                                `
+                              ).join("")
+                            : `
+                              <div class="muted">
+                                Gmailから登録した経費明細はありません。
+                              </div>
+                            `
+                      }
+                    </div>
+
+                    <div
                       class="list-row"
                       style="
                         margin-top:8px;
@@ -14885,6 +15014,117 @@ async function renderSessions(
                 String(error);
             }
           }
+        }
+      );
+
+
+    document
+      .querySelectorAll(
+        ".voidGmailExpenseEntryButton"
+      )
+      .forEach(
+        button => {
+          button.addEventListener(
+            "click",
+            async () => {
+              const candidateId =
+                button.dataset.candidateId ||
+                "";
+
+              const target =
+                eventGmailExpenseEntries.find(
+                  item =>
+                    item.candidateId ===
+                    candidateId
+                );
+
+              if (
+                !target ||
+                !selectedDetailSession
+              ) {
+                return;
+              }
+
+              const currentEntry =
+                selectedDetailSession
+                  ?.expenses
+                  ?.[target.category] || {
+                    amount: 0,
+                    currency:
+                      target.currency ||
+                      "JPY"
+                  };
+
+              const currentAmount =
+                Number(
+                  currentEntry.amount || 0
+                );
+
+              const nextAmount =
+                Math.max(
+                  0,
+                  currentAmount -
+                  Number(
+                    target.amount || 0
+                  )
+                );
+
+              const confirmed =
+                window.confirm(
+                  `この経費明細を取り消しますか？\n\n内容: ${target.description || target.subject || "Gmail経費"}\n分類: ${EVENT_EXPENSE_LABELS[target.category] || target.category}\n現在: ${formatMoney(currentAmount, target.currency)}\n取消額: ${formatMoney(Number(target.amount || 0), target.currency)}\n取消後: ${formatMoney(nextAmount, target.currency)}\n\nGmail候補は再編集できる状態に戻ります。`
+                );
+
+              if (!confirmed) {
+                return;
+              }
+
+              button.disabled =
+                true;
+
+              button.textContent =
+                "取消処理中";
+
+              try {
+                await voidEventGmailExpense({
+                  candidateId,
+                  expectedCurrentAmount:
+                    currentAmount
+                });
+
+                await renderSessions(
+                  ++renderSequence
+                );
+
+                setTimeout(
+                  () => {
+                    document
+                      .querySelector(
+                        "#sessionSalesDetail"
+                      )
+                      ?.scrollIntoView({
+                        behavior:
+                          "smooth",
+                        block:
+                          "start"
+                      });
+                  },
+                  100
+                );
+              } catch (error) {
+                button.disabled =
+                  false;
+
+                button.textContent =
+                  "この明細を取消";
+
+                window.alert(
+                  error.code ||
+                  error.message ||
+                  String(error)
+                );
+              }
+            }
+          );
         }
       );
 
