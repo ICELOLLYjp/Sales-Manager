@@ -89,6 +89,7 @@ Updated: 2026-09-17 (Japan time). Repo: `ICELOLLYjp/Sales-Manager`.
 ## Phase 8 in development: event expense detail and safe void
 
 - Sales Manager event detail can list active expenses posted from reviewed Gmail candidates without direct browser access to `gmailExpenseCandidates`.
+- Production display was confirmed for Mori Market orders `11333138` and `11339404`, shown separately under the event total of `16,950 TWD`.
 - Existing posted candidates appear without a data migration because the callable reads their saved `expensePost` metadata.
 - A separate explicit confirmation is required to void one Gmail-posted expense entry.
 - The server checks the displayed category total, candidate state, event, category, amount and currency again inside one Firestore transaction.
@@ -99,11 +100,9 @@ Updated: 2026-09-17 (Japan time). Repo: `ICELOLLYjp/Sales-Manager`.
 
 ## Remaining work before full expense management
 
-1. Review, merge and deploy event expense detail and safe void. Deploy only the Gmail Functions codebase and never the tracked Firestore rules.
-2. Confirm that Mori Market orders `11333138` and `11339404` appear separately under the event total of `16,950 TWD`. Do not void either item during the display test.
-3. Keep order `11333130`, amount `8,550 TWD`, unassigned until the Tainan event for 20 to 22 November is created.
-4. Normalize HTML entities such as `&#xA0;` in temporary evidence display.
-5. Refine probable duplicate warnings after candidates are separated by event.
-6. Add bounded pagination and per-account partial failures before considering weekly server sync.
-7. Add a separate reviewed workflow for general business expenses. Do not reuse the event-only posting action.
-8. ChatGPT's own weekly reminders/summaries do not automatically populate Sales Manager.
+1. Live-test safe void only with a dedicated test candidate and test event. Never use Mori Market orders `11333138` or `11339404` for the test.
+2. Keep order `11333130`, amount `8,550 TWD`, unassigned until the Tainan event for 20 to 22 November is created.
+3. Refine probable duplicate warnings after candidates are separated by event.
+4. Add bounded pagination and per-account partial failures before considering weekly server sync.
+5. Add a separate reviewed workflow for general business expenses. Do not reuse the event-only posting action.
+6. ChatGPT's own weekly reminders/summaries do not automatically populate Sales Manager.
