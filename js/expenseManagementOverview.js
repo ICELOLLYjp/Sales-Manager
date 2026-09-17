@@ -3,6 +3,7 @@ import { initAuth, loginWithGoogle } from "./auth.js";
 import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-functions.js";
 import { summarizeExpenseCandidates } from "./expenseOverviewModel.js";
 import { summarizeEventExpenseEntries } from "./expenseEventOverviewModel.js";
+import { isValidExpenseCandidateId, sessionExpenseDetailHref, validatedGmailSourceUrl } from "./expenseSourceNavigationModel.js";
 
 const month = document.querySelector("#overviewMonth");
 const load = document.querySelector("#overviewLoad");
@@ -23,6 +24,7 @@ let busy = false;
 let requestVersion = 0;
 let eventRequestVersion = 0;
 let sessions = [];
+const pendingGmailButtons = new WeakSet();
 
 function validMonth(value) {
   return /^20\d{2}-(0[1-9]|1[0-2])$/.test(value) && Number(value.slice(0, 4)) >= 2025 && Number(value.slice(0, 4)) <= 2030;
@@ -152,6 +154,40 @@ function formatMoney(amount, currency) {
   return `${Number(amount).toLocaleString("ja-JP", { maximumFractionDigits: 2 })} ${currency}`;
 }
 
+async function openGmailSource(button, candidateId) {
+  if (!signedIn || pendingGmailButtons.has(button) || !isValidExpenseCandidateId(candidateId)) return;
+  const tab = window.open("about:blank", "_blank");
+  if (tab) {
+    tab.opener = null;
+    tab.document.title = "Gmailを確認しています";
+    tab.document.body.textContent = "元メールを検索しています…";
+  }
+  pendingGmailButtons.add(button);
+  button.disabled = true;
+  button.textContent = "元メールを確認中…";
+  try {
+    const response = await httpsCallable(functions, "gmailExpenseSourceUrl")({ candidateId });
+    const url = validatedGmailSourceUrl(response.data?.url || "");
+    if (tab && !tab.closed) {
+      tab.location.replace(url);
+    } else {
+      const fallback = document.createElement("a");
+      fallback.href = url;
+      fallback.target = "_blank";
+      fallback.rel = "noopener noreferrer";
+      fallback.textContent = "Gmailの検索結果を開く";
+      button.after(fallback);
+    }
+  } catch (error) {
+    if (tab && !tab.closed) tab.close();
+    setEventNotice(`元メールを検索できませんでした: ${error?.message || error}`, true);
+  } finally {
+    pendingGmailButtons.delete(button);
+    button.disabled = false;
+    button.textContent = "Gmailで元メールを検索";
+  }
+}
+
 async function loadEventExpenses() {
   if (busy || !signedIn) return;
   const sessionId = eventSelect.value;
@@ -172,6 +208,14 @@ async function loadEventExpenses() {
     const sumText = result.totals.map(item => formatMoney(item.amount, item.currency)).join(" ／ ");
     total.textContent = `登録済みGmail経費 ${result.count}件${sumText ? ` ／ ${sumText}` : ""}`;
     eventSummary.replaceChildren(total);
+    const sessionHref = sessionExpenseDetailHref(sessionId);
+    if (sessionHref) {
+      const sessionLink = document.createElement("a");
+      sessionLink.className = "expense-nav-link";
+      sessionLink.href = sessionHref;
+      sessionLink.textContent = "Sessionの売上詳細を開く";
+      eventSummary.append(sessionLink);
+    }
     if (!result.count) {
       const empty = document.createElement("p");
       empty.className = "muted";
@@ -186,6 +230,14 @@ async function loadEventExpenses() {
       const detail = document.createElement("div");
       detail.textContent = `${entry.date || "日付不明"} ／ ${categoryLabels[entry.category] || "その他"} ／ ${formatMoney(entry.amount, entry.currency)}`;
       row.append(title, detail);
+      if (isValidExpenseCandidateId(entry.candidateId)) {
+        const gmail = document.createElement("button");
+        gmail.type = "button";
+        gmail.className = "expense-source-button";
+        gmail.textContent = "Gmailで元メールを検索";
+        gmail.addEventListener("click", () => openGmailSource(gmail, entry.candidateId));
+        row.append(gmail);
+      }
       eventSummary.append(row);
     }
     setEventNotice("表示したのは登録済みGmail経費のみです。金額や登録内容は変更していません。");

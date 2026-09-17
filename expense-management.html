@@ -31,6 +31,9 @@
     #overviewReviewLink{display:inline-block;margin-top:10px}
     .expense-row{border-top:1px solid #e5ebf1;padding:12px 0;overflow-wrap:anywhere}
     .expense-row strong{display:block;margin-bottom:4px}
+    .expense-nav-link{display:inline-block;margin:4px 0 14px;font-weight:650}
+    .expense-source-button{display:inline-block;margin-top:8px;min-height:40px;padding:8px 12px;border:1px solid #245783;border-radius:9px;background:#fff;color:#245783;font:650 .92rem system-ui,sans-serif;cursor:pointer}
+    .expense-source-button:disabled{opacity:.55;cursor:wait}
     @media(max-width:520px){.overview-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
   </style>
 </head>
@@ -80,6 +83,6 @@
       <span>2つのGmailアカウントの接続状態を確認し、必要に応じて再接続します。</span>
     </a>
   </main>
-  <script type="module" src="./js/expenseManagementOverview.js?v=20260917-event-entries-1"></script>
+  <script type="module" src="./js/expenseManagementOverview.js?v=20260917-source-session-links-1"></script>
 </body>
 </html>
