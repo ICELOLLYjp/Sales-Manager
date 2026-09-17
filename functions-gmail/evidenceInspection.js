@@ -164,7 +164,9 @@ function collectPdfAttachmentRefs(payload) {
 }
 
 async function parsePdfData(data, filename, pdfTools) {
-  const bytes = data instanceof Uint8Array ? data : new Uint8Array(data || []);
+  // pdf.js rejects Node.js Buffer even though Buffer extends Uint8Array.
+  // Copy into a plain Uint8Array before handing Gmail attachment bytes to unpdf.
+  const bytes = data instanceof Uint8Array ? Uint8Array.from(data) : new Uint8Array(data || []);
   if (!bytes.length || bytes.byteLength > MAX_PDF_BYTES) {
     return { filename, status: "too_large", pages: null, excerpt: "", excerptTruncated: false, moneyHints: [] };
   }
