@@ -6,6 +6,7 @@
   "scripts": { "test": "node --test tests/*.test.cjs" },
   "dependencies": {
     "firebase-admin": "^14.4.0",
-    "firebase-functions": "^7.3.2"
+    "firebase-functions": "^7.3.2",
+    "unpdf": "^1.8.1"
   }
 }
