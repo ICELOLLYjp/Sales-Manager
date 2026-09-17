@@ -76,6 +76,7 @@ const CORE_ASSETS = [
   "./js/services/eventCloseFlowCompatService.js",
   "./js/services/unidentifiedQuickService.js",
   "./js/services/closeWithUnidentifiedService.js",
+  "./js/services/closeWithUnidentifiedFlowCompatService.js",
   "./js/services/provisionalWithoutCountService.js",
   "./js/services/offlineQueueService.js",
   "./js/services/stripePaymentService.js",
