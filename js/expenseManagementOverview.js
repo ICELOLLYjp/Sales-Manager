@@ -149,7 +149,7 @@ async function loadOverview() {
   }
 }
 
-const categoryLabels = { boothFee: "出店料", flight: "航空券", hotel: "宿泊", shipping: "発送", transport: "現地交通", interpreter: "通訳", other: "その他" };
+const categoryLabels = { boothFee: "出店料", flight: "航空券", hotel: "宿泊", shipping: "発送", transport: "現地交通", interpreter: "通訳", advertising: "広告費", other: "その他" };
 function formatMoney(amount, currency) {
   return `${Number(amount).toLocaleString("ja-JP", { maximumFractionDigits: 2 })} ${currency}`;
 }

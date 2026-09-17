@@ -309,3 +309,13 @@ test("posting cannot run without the explicit confirmation value", async () => {
     actorEmail: "staff@example.com"
   }), /確認操作/);
 });
+
+
+test("JPY advertising in an SGD event is separately categorized and counted in JPY", () => {
+  const advertisement = candidate({ evidenceReview: { amount: 969, currency: "JPY", paymentStatus: "paid_evidence", category: "advertising", description: "Instagram advertising" } });
+  const event = session({ currency: "SGD", fxRateToJPY: 112, expenses: { boothFee: { amount: 3, currency: "SGD", fxRateToJPY: 112, amountJPY: 336 } } });
+  const plan = postingPlan({ candidate: advertisement, session: event, expectedCurrentAmount: 0 });
+  assert.equal(plan.category, "advertising");
+  assert.deepEqual(plan.categoryEntry, { amount: 969, currency: "JPY", fxRateToJPY: 1, amountJPY: 969 });
+  assert.equal(plan.expenseTotalJPY, 1305);
+});

@@ -6,7 +6,7 @@ const { COLLECTION } = require("./candidateStorage");
 const AUDIT_COLLECTION = "gmailExpenseCandidateAudit";
 const CURRENCIES = new Set(["JPY", "SGD", "TWD", "HKD", "THB", "USD"]);
 const PAYMENT_STATUSES = new Set(["unverified", "invoiced", "paid_evidence"]);
-const EXPENSE_CATEGORIES = new Set(["boothFee", "flight", "hotel", "shipping", "transport", "interpreter", "other"]);
+const EXPENSE_CATEGORIES = new Set(["boothFee", "flight", "hotel", "shipping", "transport", "interpreter", "advertising", "other"]);
 
 function validCandidateId(value) {
   const id = String(value || "").trim();

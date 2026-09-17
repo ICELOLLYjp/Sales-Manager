@@ -64,7 +64,7 @@ const EXPENSE_KEYS = [
   "shipping",
   "transport",
   "interpreter",
-  "other"
+  "advertising", "other"
 ];
 
 function normalizeExpenseEntry(
@@ -541,6 +541,12 @@ export async function createEventSession({
         amountJPY: 0
       },
       interpreter: {
+        amount: 0,
+        currency: "JPY",
+        fxRateToJPY: 1,
+        amountJPY: 0
+      },
+      advertising: {
         amount: 0,
         currency: "JPY",
         fxRateToJPY: 1,

@@ -84,7 +84,7 @@
     const date = [item.startDate, item.endDate && item.endDate !== item.startDate ? item.endDate : ""].filter(Boolean).join("〜");
     return [item.eventName, place, date].filter(Boolean).join(" ／ ");
   }
-  const categoryLabels = { boothFee: "出店料", flight: "航空券", hotel: "宿泊", shipping: "発送", transport: "現地交通", interpreter: "通訳", other: "その他" };
+  const categoryLabels = { boothFee: "出店料", flight: "航空券", hotel: "宿泊", shipping: "発送", transport: "現地交通", interpreter: "通訳", advertising: "広告費", other: "その他" };
   function postingSession(item) {
     return item.expenseScope === "event" && item.eventId ? (state?.sessions || []).find(session => session.id === item.eventId) : null;
   }
@@ -212,7 +212,7 @@
         payment.value = saved.paymentStatus || "unverified"; paymentLabel.append(payment);
         const categoryLabel = document.createElement("label"); categoryLabel.textContent = "経費分類";
         const category = document.createElement("select"); category.dataset.field = "category";
-        for(const option of [["boothFee","出店料"],["flight","航空券"],["hotel","宿泊"],["shipping","発送"],["transport","現地交通"],["interpreter","通訳"],["other","その他"]]) category.add(new Option(option[1], option[0]));
+        for(const option of [["boothFee","出店料"],["flight","航空券"],["hotel","宿泊"],["shipping","発送"],["transport","現地交通"],["interpreter","通訳"],["advertising","広告費"],["other","その他"]]) category.add(new Option(option[1], option[0]));
         category.value = saved.category || "other"; categoryLabel.append(category);
         const descriptionLabel = document.createElement("label"); descriptionLabel.className = "wide"; descriptionLabel.textContent = "内容";
         const description = document.createElement("input"); description.type = "text"; description.maxLength = 500; description.dataset.field = "description";
