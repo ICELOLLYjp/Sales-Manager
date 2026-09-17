@@ -178,3 +178,7 @@ exports.gmailExpenseInspectEvidence = require("./evidenceInspection").createEvid
 exports.gmailExpenseSaveEvidenceReview = require("./evidenceReview").createEvidenceReviewSaver({
   requireStaff, db, staffEmails: STAFF_EMAILS
 });
+
+exports.gmailExpensePostReviewedCandidate = require("./expensePosting").createExpensePoster({
+  requireStaff, db, staffEmails: STAFF_EMAILS
+});

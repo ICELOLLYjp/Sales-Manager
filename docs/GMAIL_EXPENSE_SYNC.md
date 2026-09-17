@@ -30,7 +30,7 @@ Updated: 2026-09-17 (Japan time). Repo: `ICELOLLYjp/Sales-Manager`.
 ## Phase 2 in development: explicit candidate storage
 
 - Candidate storage is a separate, explicit action after preview. Merely fetching Gmail continues to write nothing.
-- The server writes only to `gmailExpenseCandidates`. It does not update expense totals, `salesSessions`, sales, inventory or payment records.
+- Candidate-save actions write only to `gmailExpenseCandidates`. They do not update expense totals, `salesSessions`, sales, inventory or payment records.
 - The document ID is a deterministic hash of Gmail account plus message ID. Rescanning the same email updates source metadata without creating another candidate.
 - A rescan must not overwrite human review state, extracted amount/currency, payment assessment or expense-posting state.
 - Stored records still contain metadata only. Email body and PDF parsing remain out of scope for this phase.
@@ -62,7 +62,7 @@ Updated: 2026-09-17 (Japan time). Repo: `ICELOLLYjp/Sales-Manager`.
 - Saving the draft requires the candidate to be kept and assigned to an event or general business.
 - Draft changes are audited. Raw body text and attachment bytes are not stored.
 - Candidate amount and currency may be updated from the reviewed draft, but `expensePosted` remains false and no `salesSessions.expenses` value changes.
-- A separate future action is still required to post an approved expense.
+- A separate explicit action is required to post an approved expense.
 
 ## Phase 6 in development: bounded PDF text extraction
 
@@ -74,11 +74,23 @@ Updated: 2026-09-17 (Japan time). Repo: `ICELOLLYjp/Sales-Manager`.
 - Scanned image-only PDFs may return no text. OCR is not part of this phase.
 - The production candidate for Mori Market included one 105 KB PDF named `森之市｜2026 珈琲と花物語｜未払い項目確認.pdf`; metadata inspection succeeded before parser deployment.
 
+## Phase 7 in development: explicit reviewed-candidate posting
+
+- Only a kept event candidate with a `paid_evidence` draft, positive amount, supported currency and expense category can be posted.
+- The browser displays the event, category, candidate amount, current category amount and resulting category amount in a separate confirmation dialog.
+- The server requires the explicit confirmation value and checks that the current category amount has not changed since the dialog was shown.
+- Candidate currency must match the event currency. A non-JPY event must already have an exchange rate.
+- Posting updates the matching `salesSessions.expenses` category and marks the candidate `expensePosted` in one Firestore transaction.
+- Retrying the same candidate is idempotent and never adds the amount twice. The posting creates an audit record.
+- After posting, event assignment, review status and evidence draft are locked for that candidate.
+- Preview, candidate save, review, assignment, Gmail inspection, PDF extraction and evidence-draft save never call the posting action.
+- General and unassigned candidates cannot be posted through this event-only action.
+
 ## Remaining work before full expense management
 
-1. Review, merge, deploy and live-test bounded PDF extraction on the confirmed Mori Market attachment. Deploy only the Gmail Functions codebase and never the tracked Firestore rules.
-2. Confirm the extracted PDF amount and wording manually. Keep invoice evidence distinct from payment evidence.
-3. Refine probable duplicate warnings after candidates are separated by event.
-4. Add a separate, user-approved expense-posting action only after review. Never post during fetch, scan or candidate save.
+1. Review, merge and deploy the explicit reviewed-candidate posting action. Deploy only the Gmail Functions codebase and never the tracked Firestore rules.
+2. Live-test only Mori Market order `11333138`, amount `13,050 TWD`, after confirming the event's current booth-fee amount in the dialog.
+3. Keep order `11333130`, amount `8,550 TWD`, unassigned until its 20 to 22 November event is identified.
+4. Refine probable duplicate warnings after candidates are separated by event.
 5. Add per-account partial failures and weekly server sync only after the manual workflow is stable.
 6. ChatGPT's own weekly reminders/summaries do not automatically populate Sales Manager.

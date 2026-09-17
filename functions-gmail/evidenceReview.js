@@ -55,6 +55,9 @@ async function saveEvidenceReview({ db, candidateId, review, actorEmail, now = n
     const snapshot = await transaction.get(candidateRef);
     if (!snapshot.exists) throw new HttpsError("not-found", "候補が見つかりません。");
     const candidate = snapshot.data() || {};
+    if (candidate.expensePosted === true) {
+      throw new HttpsError("failed-precondition", "経費登録済みの候補は解析下書きを変更できません。");
+    }
     if (candidate.reviewStatus !== "kept") {
       throw new HttpsError("failed-precondition", "先に「候補に残す」を選択してください。");
     }

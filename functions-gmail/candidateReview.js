@@ -7,6 +7,7 @@ const AUDIT_COLLECTION = "gmailExpenseCandidateAudit";
 const SESSION_COLLECTION = "salesSessions";
 const REVIEW_STATUSES = new Set(["unreviewed", "kept", "excluded"]);
 const EXPENSE_SCOPES = new Set(["unassigned", "general", "event"]);
+const EXPENSE_CATEGORIES = ["boothFee", "flight", "hotel", "shipping", "transport", "interpreter", "other"];
 const MAX_LIST = 100;
 
 function validMonth(month) {
@@ -91,12 +92,32 @@ function publicCandidate(snapshot) {
       category: typeof data.evidenceReview.category === "string" ? data.evidenceReview.category : "other",
       description: typeof data.evidenceReview.description === "string" ? data.evidenceReview.description.slice(0, 500) : null
     } : null,
-    expensePosted: data.expensePosted === true
+    expensePosted: data.expensePosted === true,
+    expensePost: data.expensePosted === true && data.expensePost && typeof data.expensePost === "object" ? {
+      eventId: String(data.expensePost.eventId || ""),
+      eventName: String(data.expensePost.eventName || "").slice(0, 200),
+      amount: typeof data.expensePost.amount === "number" ? data.expensePost.amount : null,
+      currency: String(data.expensePost.currency || "").slice(0, 3),
+      category: String(data.expensePost.category || "").slice(0, 30),
+      description: String(data.expensePost.description || "").slice(0, 500)
+    } : null
   };
 }
 
 function publicSession(snapshot) {
   const data = snapshot.data() || {};
+  const expenses = {};
+  for (const category of EXPENSE_CATEGORIES) {
+    const value = data.expenses?.[category];
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+      expenses[category] = {
+        amount: typeof value.amount === "number" ? value.amount : 0,
+        currency: String(value.currency || "JPY").slice(0, 3)
+      };
+    } else {
+      expenses[category] = { amount: typeof value === "number" ? value : 0, currency: "JPY" };
+    }
+  }
   return {
     id: snapshot.id,
     eventName: String(data.eventName || "名称未設定").slice(0, 200),
@@ -104,7 +125,10 @@ function publicSession(snapshot) {
     city: String(data.city || "").slice(0, 100),
     startDate: String(data.startDate || "").slice(0, 10),
     endDate: String(data.endDate || "").slice(0, 10),
-    status: String(data.status || "open").slice(0, 40)
+    status: String(data.status || "open").slice(0, 40),
+    currency: String(data.currency || "JPY").slice(0, 3),
+    fxRateToJPY: typeof data.fxRateToJPY === "number" ? data.fxRateToJPY : null,
+    expenses
   };
 }
 
@@ -138,6 +162,9 @@ async function setReviewStatus({ db, candidateId, status, actorEmail, now = new 
   return db.runTransaction(async transaction => {
     const snapshot = await transaction.get(ref);
     if (!snapshot.exists) throw new HttpsError("not-found", "候補が見つかりません。");
+    if (snapshot.data()?.expensePosted === true) {
+      throw new HttpsError("failed-precondition", "経費登録済みの候補は確認状態を変更できません。");
+    }
     const previous = REVIEW_STATUSES.has(snapshot.data()?.reviewStatus)
       ? snapshot.data().reviewStatus
       : "unreviewed";
@@ -173,6 +200,9 @@ async function setExpenseScope({ db, candidateId, expenseScope, eventId, actorEm
   return db.runTransaction(async transaction => {
     const candidateSnapshot = await transaction.get(candidateRef);
     if (!candidateSnapshot.exists) throw new HttpsError("not-found", "候補が見つかりません。");
+    if (candidateSnapshot.data()?.expensePosted === true) {
+      throw new HttpsError("failed-precondition", "経費登録済みの候補は対象イベントを変更できません。");
+    }
     const sessionSnapshot = sessionRef ? await transaction.get(sessionRef) : null;
     if (sessionRef && !sessionSnapshot.exists) throw new HttpsError("not-found", "対象イベントが見つかりません。");
     const previousScope = EXPENSE_SCOPES.has(candidateSnapshot.data()?.expenseScope)
@@ -215,7 +245,7 @@ function createCandidateList({ requireStaff, db, staffEmails }) {
   }, async request => {
     requireStaff(request);
     const result = await listCandidates(db, request.data?.month);
-    return { ...result, expensePostingAvailable: false };
+    return { ...result, expensePostingAvailable: true };
   });
 }
 

@@ -50,16 +50,21 @@ test("candidate expense scope is explicit and defaults safely", () => {
   assert.equal(event.eventName, "Public Garden");
 });
 
-test("session options expose only classification metadata", () => {
+test("session options expose classification and bounded expense posting metadata", () => {
   const item = publicSession(snapshot("session1", {
     eventName: "Public Garden",
     country: "Singapore",
     city: "Singapore",
     startDate: "2026-09-12",
     endDate: "2026-09-13",
+    currency: "SGD",
+    fxRateToJPY: 115,
+    expenses: { boothFee: { amount: 500, currency: "SGD", privateNote: "PRIVATE" } },
     secret: "PRIVATE"
   }));
   assert.equal(item.id, "session1");
   assert.equal(item.eventName, "Public Garden");
+  assert.equal(item.currency, "SGD");
+  assert.equal(item.expenses.boothFee.amount, 500);
   assert.ok(!JSON.stringify(item).includes("PRIVATE"));
 });
