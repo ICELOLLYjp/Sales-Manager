@@ -7,6 +7,10 @@ const { COLLECTION } = require("./candidateStorage");
 const MAX_TEXT_BYTES = 200000;
 const MAX_EXCERPT = 6000;
 const MAX_ATTACHMENTS = 20;
+const MAX_PDF_ATTACHMENTS = 3;
+const MAX_PDF_BYTES = 5 * 1024 * 1024;
+const MAX_PDF_PAGES = 20;
+const MAX_PDF_EXCERPT = 12000;
 
 function validCandidateId(value) {
   const id = String(value || "").trim();
@@ -29,6 +33,44 @@ async function fetchGoogleJson(url, options = {}) {
   }
   try { return await response.json(); }
   catch { throw new HttpsError("unavailable", "Googleの応答を読み取れませんでした。"); }
+}
+
+async function fetchGoogleAttachment(url, options = {}) {
+  let response;
+  try {
+    response = await fetch(url, { ...options, signal: AbortSignal.timeout(30000) });
+  } catch {
+    throw new HttpsError("unavailable", "GmailのPDF添付を取得できませんでした。");
+  }
+  if (!response.ok) {
+    if (response.status === 401 || response.status === 403) {
+      throw new HttpsError("failed-precondition", "Gmailの認可を確認できません。接続画面で状態を確認してください。");
+    }
+    throw new HttpsError("unavailable", "GmailのPDF添付を取得できませんでした。");
+  }
+  const contentLength = Number(response.headers.get("content-length"));
+  const maxResponseBytes = Math.ceil(MAX_PDF_BYTES * 4 / 3) + 65536;
+  if (Number.isFinite(contentLength) && contentLength > maxResponseBytes) return { tooLarge: true };
+  const reader = response.body?.getReader();
+  if (!reader) throw new HttpsError("unavailable", "GmailのPDF添付を読み取れませんでした。");
+  const chunks = [];
+  let total = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > maxResponseBytes) {
+      await reader.cancel();
+      return { tooLarge: true };
+    }
+    chunks.push(value);
+  }
+  try {
+    const raw = Buffer.concat(chunks.map(chunk => Buffer.from(chunk)), total).toString("utf8");
+    return { json: JSON.parse(raw), tooLarge: false };
+  } catch {
+    throw new HttpsError("unavailable", "GmailのPDF添付を読み取れませんでした。");
+  }
 }
 
 function decodeBase64Url(value, limit = MAX_TEXT_BYTES) {
@@ -100,6 +142,58 @@ function inspectPayload(payload) {
   };
 }
 
+function collectPdfAttachmentRefs(payload) {
+  const refs = [];
+  function visit(part) {
+    if (!part || typeof part !== "object" || refs.length >= MAX_PDF_ATTACHMENTS) return;
+    const mimeType = String(part.mimeType || "").toLowerCase();
+    const filename = String(part.filename || "").trim().slice(0, 240);
+    const body = part.body || {};
+    const isPdf = mimeType === "application/pdf" || /\.pdf$/i.test(filename);
+    if (isPdf && typeof body.attachmentId === "string" && body.attachmentId) {
+      refs.push({
+        attachmentId: body.attachmentId,
+        filename: filename || "（ファイル名なし）",
+        declaredSize: Number.isFinite(Number(body.size)) ? Number(body.size) : null
+      });
+    }
+    for (const child of Array.isArray(part.parts) ? part.parts : []) visit(child);
+  }
+  visit(payload);
+  return refs;
+}
+
+async function parsePdfData(data, filename, pdfTools) {
+  const bytes = data instanceof Uint8Array ? data : new Uint8Array(data || []);
+  if (!bytes.length || bytes.byteLength > MAX_PDF_BYTES) {
+    return { filename, status: "too_large", pages: null, excerpt: "", excerptTruncated: false, moneyHints: [] };
+  }
+  let document;
+  try {
+    const tools = pdfTools || await import("unpdf");
+    document = await tools.getDocumentProxy(bytes);
+    const pages = Number(document.numPages) || 0;
+    if (pages > MAX_PDF_PAGES) {
+      return { filename, status: "too_many_pages", pages, excerpt: "", excerptTruncated: false, moneyHints: [] };
+    }
+    const extracted = await tools.extractText(document, { mergePages: true });
+    const text = String(extracted.text || "").replace(/\u0000/g, "").trim();
+    const excerpt = text.slice(0, MAX_PDF_EXCERPT);
+    return {
+      filename,
+      status: text ? "parsed" : "no_text",
+      pages: Number(extracted.totalPages) || pages || null,
+      excerpt,
+      excerptTruncated: text.length > MAX_PDF_EXCERPT,
+      moneyHints: findMoneyHints(excerpt)
+    };
+  } catch {
+    return { filename, status: "failed", pages: null, excerpt: "", excerptTruncated: false, moneyHints: [] };
+  } finally {
+    try { await document?.destroy?.(); } catch { /* Temporary parser resources only. */ }
+  }
+}
+
 function findMoneyHints(text) {
   const source = String(text || "").slice(0, MAX_TEXT_BYTES);
   const patterns = [
@@ -169,6 +263,31 @@ function createEvidenceInspection({ requireStaff, db, clientId, clientSecret, to
     url.searchParams.set("format", "full");
     const message = await fetchGoogleJson(url, { headers: { Authorization: `Bearer ${token.access_token}` } });
     const evidence = inspectPayload(message.payload);
+    const pdfResults = [];
+    for (const ref of collectPdfAttachmentRefs(message.payload)) {
+      if (ref.declaredSize !== null && ref.declaredSize > MAX_PDF_BYTES) {
+        pdfResults.push({ filename: ref.filename, status: "too_large", pages: null, excerpt: "", excerptTruncated: false, moneyHints: [] });
+        continue;
+      }
+      const attachmentUrl = new URL(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${encodeURIComponent(messageId)}/attachments/${encodeURIComponent(ref.attachmentId)}`);
+      const attachment = await fetchGoogleAttachment(attachmentUrl, { headers: { Authorization: `Bearer ${token.access_token}` } });
+      if (attachment.tooLarge) {
+        pdfResults.push({ filename: ref.filename, status: "too_large", pages: null, excerpt: "", excerptTruncated: false, moneyHints: [] });
+        continue;
+      }
+      const encoded = attachment.json?.data;
+      const estimated = typeof encoded === "string" ? Math.floor(encoded.length * 0.75) : 0;
+      if (!encoded || estimated > MAX_PDF_BYTES) {
+        pdfResults.push({ filename: ref.filename, status: "too_large", pages: null, excerpt: "", excerptTruncated: false, moneyHints: [] });
+        continue;
+      }
+      const bytes = Buffer.from(encoded.replace(/-/g, "+").replace(/_/g, "/"), "base64");
+      pdfResults.push(await parsePdfData(bytes, ref.filename));
+    }
+    const moneyHints = [...findMoneyHints(evidence.excerpt)];
+    for (const result of pdfResults) {
+      for (const hint of result.moneyHints) if (!moneyHints.includes(hint) && moneyHints.length < 20) moneyHints.push(hint);
+    }
     return {
       candidateId: id,
       account,
@@ -176,12 +295,13 @@ function createEvidenceInspection({ requireStaff, db, clientId, clientSecret, to
       excerpt: evidence.excerpt,
       excerptTruncated: evidence.excerptTruncated,
       attachments: evidence.attachments,
-      moneyHints: findMoneyHints(evidence.excerpt),
+      moneyHints,
       eventCurrency,
       pdfCount: evidence.attachments.filter(item => item.isPdf).length,
+      pdfResults,
       persisted: false,
       expensePosted: false,
-      pdfParsed: false
+      pdfParsed: pdfResults.some(item => item.status === "parsed" || item.status === "no_text")
     };
   });
 }
@@ -189,9 +309,14 @@ function createEvidenceInspection({ requireStaff, db, clientId, clientSecret, to
 module.exports = {
   MAX_TEXT_BYTES,
   MAX_EXCERPT,
+  MAX_PDF_BYTES,
+  MAX_PDF_PAGES,
+  MAX_PDF_EXCERPT,
   decodeBase64Url,
   htmlToText,
   inspectPayload,
+  collectPdfAttachmentRefs,
+  parsePdfData,
   findMoneyHints,
   createEvidenceInspection
 };
