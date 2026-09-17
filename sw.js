@@ -1,5 +1,5 @@
 const CACHE_NAME =
-  "icelolly-sales-shell-20260917-expense-event-overview-1";
+  "icelolly-sales-shell-20260917-source-session-links-1";
 
 const CORE_ASSETS = [
   "./",
@@ -44,6 +44,8 @@ const CORE_ASSETS = [
   "./js/expenseManagementOverview.js",
   "./js/expenseOverviewModel.js",
   "./js/expenseEventOverviewModel.js",
+  "./js/expenseSourceNavigationModel.js",
+  "./js/sessionExpenseDeepLink.js",
 
   "./js/inventoryAdapters/tshirtAdapter.js",
   "./js/inventoryAdapters/accessoryAdapter.js",
