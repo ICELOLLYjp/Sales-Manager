@@ -18,8 +18,8 @@
     .card strong{display:block;font-size:1.08rem;margin-bottom:6px;color:#174d80}
     .card span{display:block;line-height:1.55;color:#526274}
     .overview-controls{display:flex;flex-wrap:wrap;align-items:end;gap:12px;margin:14px 0}
-    .overview-controls label{display:grid;gap:5px;font-weight:650;flex:1 1 180px}
-    .overview-controls input,.overview-controls select{font:inherit;border:1px solid #9eabba;border-radius:8px;padding:10px;min-height:44px;box-sizing:border-box;max-width:100%}
+    .overview-controls label{display:grid;gap:5px;font-weight:650;flex:1 1 180px;min-width:0}
+    .overview-controls input,.overview-controls select{font:inherit;border:1px solid #9eabba;border-radius:8px;padding:10px;min-height:44px;box-sizing:border-box;width:100%;min-width:0;max-width:100%}
     .overview-controls button,#overviewLogin{font:inherit;font-weight:650;padding:10px 14px;min-height:44px;border:1px solid #245783;border-radius:10px;background:#245b90;color:#fff}
     .overview-controls button:disabled{opacity:.5}
     #overviewNotice[role=alert],#eventNotice[role=alert],.overview-warning{color:#a21f30}
@@ -34,7 +34,11 @@
     .expense-nav-link{display:inline-block;margin:4px 0 14px;font-weight:650}
     .expense-source-button{display:inline-block;margin-top:8px;min-height:40px;padding:8px 12px;border:1px solid #245783;border-radius:9px;background:#fff;color:#245783;font:650 .92rem system-ui,sans-serif;cursor:pointer}
     .expense-source-button:disabled{opacity:.55;cursor:wait}
-    @media(max-width:520px){.overview-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media(max-width:520px){
+      .overview-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+      .event-overview-controls label{flex-basis:100%}
+      .event-overview-controls button{width:100%;max-width:100%;box-sizing:border-box}
+    }
   </style>
 </head>
 <body>
@@ -60,7 +64,7 @@
     <section class="card" aria-labelledby="eventOverviewTitle">
       <h2 id="eventOverviewTitle">イベント別の登録済みGmail経費</h2>
       <p class="muted">メールの検索対象月に関係なく、選んだイベントに登録されたGmail経費だけを表示します。手入力した経費やその他の支出は含みません。</p>
-      <div class="overview-controls">
+      <div class="overview-controls event-overview-controls">
         <label for="eventOverviewSelect">イベント<select id="eventOverviewSelect" disabled><option value="">上で候補件数を確認すると選べます</option></select></label>
         <button id="eventOverviewLoad" type="button" disabled>このイベントの経費を確認</button>
       </div>
