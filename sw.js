@@ -1,5 +1,5 @@
 const CACHE_NAME =
-  "icelolly-sales-shell-20260917-source-session-links-1";
+  "icelolly-sales-shell-20260917-gmail-bulk-triage-1";
 
 const CORE_ASSETS = [
   "./",
@@ -7,6 +7,7 @@ const CORE_ASSETS = [
   "./gmail-connect.html",
   "./gmail-expenses.html",
   "./gmail-expense-review.html",
+  "./gmail-expense-bulk.html",
   "./expense-management.html",
   "./css/app.css",
   "./css/responsive.css",
@@ -46,6 +47,8 @@ const CORE_ASSETS = [
   "./js/expenseEventOverviewModel.js",
   "./js/expenseSourceNavigationModel.js",
   "./js/sessionExpenseDeepLink.js",
+  "./js/gmailExpenseBulkReview.js",
+  "./js/gmailExpenseBulkModel.js",
 
   "./js/inventoryAdapters/tshirtAdapter.js",
   "./js/inventoryAdapters/accessoryAdapter.js",

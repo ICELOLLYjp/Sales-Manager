@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>Gmail経費候補のまとめて確認 | ICELOLLY Sales Manager</title>
+  <style>
+    :root{font-family:system-ui,"Segoe UI",sans-serif;color:#203043;background:#f6f8fb}
+    body{margin:0}main{max-width:900px;margin:auto;padding:20px 16px 60px}
+    a{color:#225b96}h1{font-size:1.6rem}h2{font-size:1.14rem;margin:0 0 10px}
+    p{line-height:1.6}.muted{color:#526274}.card{background:#fff;border:1px solid #dce3eb;border-radius:14px;padding:16px;margin:14px 0}
+    .controls{display:flex;flex-wrap:wrap;align-items:end;gap:10px}.controls label{display:grid;gap:4px;flex:1 1 155px}
+    button,input,select{font:inherit}button{background:#245b90;color:#fff;border:1px solid #245783;border-radius:9px;padding:10px;min-height:44px;font-weight:650}
+    button.secondary{background:#fff;color:#245783}button.danger{background:#fff;border-color:#9a2430;color:#9a2430}button:disabled{opacity:.45}
+    input[type=month],select{padding:10px;min-height:44px;border:1px solid #9eabba;border-radius:8px;max-width:100%;box-sizing:border-box}
+    .item{border-top:1px solid #e5ebf1;padding:13px 0;display:flex;gap:10px;overflow-wrap:anywhere}.item:first-child{border-top:0}
+    .item input{width:20px;height:20px;flex:none}.item strong{display:block;margin:0 0 5px}.item p{margin:4px 0}.tag{display:inline-block;background:#fff2d5;padding:3px 7px;border-radius:7px;margin:4px 5px 0 0;font-size:.86rem}
+    .warning{color:#91212b}#notice{white-space:pre-wrap;overflow-wrap:anywhere}#notice[role=alert]{color:#a21f30}
+    #selectionSummary{font-weight:650;margin:12px 0}.actions{gap:8px}.actions button{flex:1 1 155px}
+    @media(max-width:500px){.actions button{flex:1 1 100%}}
+  </style>
+</head>
+<body>
+<main>
+  <a href="./expense-management.html">← 経費管理に戻る</a> ・ <a id="detailLink" href="./gmail-expense-review.html">候補を1件ずつ詳しく確認</a>
+  <h1>Gmail経費候補のまとめて確認</h1>
+  <p class="muted">保存済みの件名と差出人を見ながら、選んだ候補の確認状態や対象イベントをまとめて変更します。本文やPDFの確認と経費台帳への登録は、詳細画面で1件ずつ行ってください。</p>
+  <section class="card">
+    <h2>対象を表示</h2>
+    <p id="staff" class="muted">ログインを確認しています…</p>
+    <button id="login" type="button" hidden>Sales Managerにログイン</button>
+    <div class="controls">
+      <label>メールの検索対象月<input id="month" type="month" min="2025-01" max="2030-12"></label>
+      <button id="load" type="button" disabled>保存済み候補を表示</button>
+    </div>
+    <div class="controls" style="margin-top:12px">
+      <label>確認状態<select id="statusFilter"><option value="all">すべて</option><option value="unreviewed">未確認</option><option value="kept">候補に残す</option><option value="excluded">除外</option><option value="posted">経費登録済み</option></select></label>
+      <label>Gmailアカウント<select id="accountFilter"><option value="all">すべて</option></select></label>
+      <label>重複の可能性<select id="duplicateFilter"><option value="all">すべて</option><option value="duplicate">重複の可能性がある候補のみ</option></select></label>
+    </div>
+    <p class="muted">重複の判定は同じ日付、差出人、件名の一致による目安です。返信や同額の別注文が混ざる可能性があるため自動除外はしません。</p>
+    <p id="notice" aria-live="polite"></p>
+    <p id="summary" class="muted">まだ取得していません。</p>
+  </section>
+  <section class="card">
+    <h2>選んだ候補を処理</h2>
+    <div class="controls"><button id="selectVisible" class="secondary" type="button" disabled>表示中の未登録候補を選択</button><button id="clearSelection" class="secondary" type="button" disabled>選択解除</button></div>
+    <p id="selectionSummary" aria-live="polite">0件を選択中</p>
+    <div class="controls actions"><button id="keep" type="button" disabled>選択を候補に残す</button><button id="exclude" class="danger" type="button" disabled>選択を除外</button></div>
+    <div class="controls" style="margin-top:12px"><label>割り当て先<select id="targetEvent" disabled><option value="">イベントを選択してください</option></select></label><button id="assign" type="button" disabled>選択をイベントに割り当て</button></div>
+    <p class="muted">1回の処理は最大20件です。実行前に対象を確認します。途中で失敗した場合はそこで停止し、成功した件数を表示します。経費の登録、金額や在庫の変更は行いません。</p>
+  </section>
+  <section class="card"><h2>候補一覧</h2><div id="results" aria-live="polite">対象月を読み込んでください。</div></section>
+</main>
+<script type="module" src="./js/gmailExpenseBulkReview.js?v=20260917-bulk-triage-1"></script>
+</body>
+</html>
