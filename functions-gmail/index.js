@@ -182,3 +182,11 @@ exports.gmailExpenseSaveEvidenceReview = require("./evidenceReview").createEvide
 exports.gmailExpensePostReviewedCandidate = require("./expensePosting").createExpensePoster({
   requireStaff, db, staffEmails: STAFF_EMAILS
 });
+
+exports.gmailExpenseListEventEntries = require("./expensePosting").createEventExpenseEntryLister({
+  requireStaff, db, staffEmails: STAFF_EMAILS
+});
+
+exports.gmailExpenseVoidReviewedCandidate = require("./expensePosting").createExpenseVoider({
+  requireStaff, db, staffEmails: STAFF_EMAILS
+});
