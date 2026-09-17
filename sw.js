@@ -39,6 +39,7 @@ const CORE_ASSETS = [
   "./js/transactionHistorySearch.js",
   "./js/tshirtSalesAggregationUi.js",
   "./js/fastAmountAllocationUi.js",
+  "./js/expenseManagementNavigation.js",
 
   "./js/inventoryAdapters/tshirtAdapter.js",
   "./js/inventoryAdapters/accessoryAdapter.js",
