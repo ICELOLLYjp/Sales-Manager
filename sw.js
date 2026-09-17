@@ -1,5 +1,5 @@
 const CACHE_NAME =
-  "icelolly-sales-shell-20260916-tshirt-sales-aggregation-1";
+  "icelolly-sales-shell-20260917-event-expense-details-1";
 
 const CORE_ASSETS = [
   "./",
@@ -75,6 +75,7 @@ const CORE_ASSETS = [
   "./js/services/fastAmountSaleService.js",
   "./js/services/fastAmountAllocationService.js",
   "./js/services/salesAggregationService.js",
+  "./js/services/gmailExpensePostingService.js",
   "./stripe-result.html"
 ];
 
