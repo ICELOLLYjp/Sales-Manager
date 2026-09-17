@@ -203,10 +203,20 @@ function applyBadge(row, sessionId, meta) {
     row.insertAdjacentElement("afterbegin", line);
   }
 
-  line.innerHTML = `
-    <span class="session-status-badge ${meta.className}">${meta.label}</span>
-    <span class="session-status-note">${meta.note}</span>
-  `;
+  const badge = line.querySelector(":scope > .session-status-badge");
+  const note = line.querySelector(":scope > .session-status-note");
+  const badgeClass = `session-status-badge ${meta.className}`;
+  const displayIsCurrent =
+    badge?.className === badgeClass &&
+    badge.textContent === meta.label &&
+    note?.textContent === meta.note;
+
+  if (!displayIsCurrent) {
+    line.innerHTML = `
+      <span class="${badgeClass}">${meta.label}</span>
+      <span class="session-status-note">${meta.note}</span>
+    `;
+  }
   row.dataset.sessionStatusRank = String(meta.rank);
   row.dataset.sessionStatus = meta.className;
 }
@@ -227,6 +237,11 @@ function sortActiveRows(rows, rawById) {
     .map((item, index) => ({ ...item, index }))
     .sort((a, b) => a.rank - b.rank || a.index - b.index);
 
+  const alreadyOrdered = ordered.every(
+    (item, index) => item.row === active[index].row
+  );
+  if (alreadyOrdered) return;
+
   const anchor = document.createComment("session-status-order");
   parent.insertBefore(anchor, active[0].row);
   let cursor = anchor;
@@ -242,7 +257,9 @@ function updateOpenHeader(rawById) {
     .find(element => text(element.textContent) === "Open Sessions" || text(element.textContent) === "進行中・処理待ち");
   if (!title) return;
 
-  title.textContent = "進行中・処理待ち";
+  if (text(title.textContent) !== "進行中・処理待ち") {
+    title.textContent = "進行中・処理待ち";
+  }
 
   const active = Array.from(rawById.values())
     .filter(session => ["open", "pending_allocation"].includes(text(session.status)));
@@ -258,7 +275,10 @@ function updateOpenHeader(rawById) {
     summary.id = "sessionStatusSummary";
     header.insertAdjacentElement("afterend", summary);
   }
-  summary.textContent = `処理待ち ${waiting}件 / 販売中 ${live}件`;
+  const nextSummary = `処理待ち ${waiting}件 / 販売中 ${live}件`;
+  if (summary.textContent !== nextSummary) {
+    summary.textContent = nextSummary;
+  }
 }
 
 let loading = false;
