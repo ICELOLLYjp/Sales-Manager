@@ -64,14 +64,21 @@ Updated: 2026-09-17 (Japan time). Repo: `ICELOLLYjp/Sales-Manager`.
 - Candidate amount and currency may be updated from the reviewed draft, but `expensePosted` remains false and no `salesSessions.expenses` value changes.
 - A separate future action is still required to post an approved expense.
 
+## Phase 6 in development: bounded PDF text extraction
+
+- PDF bytes are fetched only after the staff member explicitly inspects a kept candidate.
+- At most 3 PDF attachments are considered. Each PDF is limited to 5 MiB and 20 pages.
+- PDF text and attachment bytes are returned only in the callable response and are not written to Firestore or logs.
+- Amount-looking strings from the PDF are suggestions only. A person must enter or confirm the amount, currency and evidence status before saving an evidence draft.
+- A PDF invoice is not payment proof. PDF extraction does not set `paid_evidence` and never posts an expense.
+- Scanned image-only PDFs may return no text. OCR is not part of this phase.
+- The production candidate for Mori Market included one 105 KB PDF named `森之市｜2026 珈琲と花物語｜未払い項目確認.pdf`; metadata inspection succeeded before parser deployment.
+
 ## Remaining work before full expense management
 
-1. Review, merge, deploy and live-test candidate event assignment and event filtering. Deploy only the Gmail Functions codebase and never the tracked Firestore rules.
-2. Confirm that event assignment and review-state changes persist using production candidate data.
+1. Review, merge, deploy and live-test bounded PDF extraction on the confirmed Mori Market attachment. Deploy only the Gmail Functions codebase and never the tracked Firestore rules.
+2. Confirm the extracted PDF amount and wording manually. Keep invoice evidence distinct from payment evidence.
 3. Refine probable duplicate warnings after candidates are separated by event.
-4. Live-test bounded body and attachment inspection on a kept production candidate.
-5. Live-test manual evidence review storage using the confirmed Public Garden clothing-rack payment.
-6. If a PDF attachment exists, add PDF-byte retrieval and parsing as a separate isolated phase. Preserve unknown amounts and distinguish invoice from payment evidence.
 4. Add a separate, user-approved expense-posting action only after review. Never post during fetch, scan or candidate save.
 5. Add per-account partial failures and weekly server sync only after the manual workflow is stable.
 6. ChatGPT's own weekly reminders/summaries do not automatically populate Sales Manager.
