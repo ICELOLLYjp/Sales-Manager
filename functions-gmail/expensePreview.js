@@ -4,9 +4,22 @@ const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { ACCOUNTS, assertAccount, accountId, decryptRefreshToken } = require("./oauthCore");
 
 const MAX_MESSAGES = 25;
-const SEARCH_TERMS = '{Singapore シンガポール SGD "Public Garden" invoice receipt 領収書 請求書 支払い 明細}';
+const SEARCH_TERMS = '{invoice receipt payment paid 領収書 請求書 支払い 決済 出店料 交通費 宿泊費 送料 明細}';
 
-function monthQuery(month) {
+function normalizeKeyword(value) {
+  if (value == null || value === "") return "";
+  if (typeof value !== "string") {
+    throw new HttpsError("invalid-argument", "絞り込みキーワードを確認してください。");
+  }
+  const keyword = value.replace(/\s+/g, " ").trim();
+  if (!keyword) return "";
+  if (keyword.length > 80 || /[\u0000-\u001f\u007f"{}()]/.test(keyword)) {
+    throw new HttpsError("invalid-argument", "絞り込みキーワードは80文字以内の文字列で指定してください。");
+  }
+  return keyword;
+}
+
+function monthQuery(month, keyword = "") {
   if (typeof month !== "string" || !/^20\d{2}-(0[1-9]|1[0-2])$/.test(month)) {
     throw new HttpsError("invalid-argument", "月はYYYY-MM形式で指定してください。");
   }
@@ -16,7 +29,8 @@ function monthQuery(month) {
   const nextMonth = number === 12 ? 1 : number + 1;
   const start = `${year}/${String(number).padStart(2, "0")}/01`;
   const end = `${nextYear}/${String(nextMonth).padStart(2, "0")}/01`;
-  return `after:${start} before:${end} ${SEARCH_TERMS}`;
+  const eventFilter = normalizeKeyword(keyword);
+  return `after:${start} before:${end} ${SEARCH_TERMS}${eventFilter ? ` "${eventFilter}"` : ""}`;
 }
 
 function safeHeader(payload, name, limit) {
@@ -70,7 +84,8 @@ function createExpensePreview({ requireStaff, db, clientId, clientSecret, tokenK
     try { account = assertAccount(request.data?.account); }
     catch { throw new HttpsError("invalid-argument", "接続済みのGmailを選択してください。"); }
     const month = request.data?.month;
-    const query = monthQuery(month);
+    const keyword = normalizeKeyword(request.data?.keyword);
+    const query = monthQuery(month, keyword);
     const snapshot = await db.collection("gmailOAuthConnections").doc(accountId(account)).get();
     if (!snapshot.exists || !snapshot.data()?.encryptedRefreshToken) {
       throw new HttpsError("failed-precondition", "対象のGmailが未接続です。");
@@ -117,6 +132,7 @@ function createExpensePreview({ requireStaff, db, clientId, clientSecret, tokenK
     return {
       account,
       month,
+      keyword,
       messages,
       skipped,
       hasMore: Boolean(list.nextPageToken),
@@ -127,4 +143,4 @@ function createExpensePreview({ requireStaff, db, clientId, clientSecret, tokenK
   });
 }
 
-module.exports = { createExpensePreview, monthQuery, previewMessage, MAX_MESSAGES, ACCOUNTS };
+module.exports = { createExpensePreview, monthQuery, normalizeKeyword, previewMessage, MAX_MESSAGES, ACCOUNTS };
