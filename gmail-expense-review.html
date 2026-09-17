@@ -13,7 +13,7 @@
 <main>
   <a href="./">← Sales Manager</a> · <a href="./gmail-expenses.html">Gmail候補の取得</a>
   <h1>保存済みGmail経費候補</h1>
-  <p class="muted">保存済み候補へ対象イベントを割り当て、候補に残すか除外するかを選びます。この画面では経費台帳への登録、本文取得、PDF解析は行いません。</p>
+  <p class="muted">保存済み候補へ対象イベントを割り当て、候補に残すか除外するかを選びます。本文とPDFの確認は明示操作時だけ行い、この画面から経費台帳へは登録しません。</p>
   <section class="card">
     <h2>表示条件</h2>
     <p id="staff">ログイン状態を確認しています…</p>
@@ -132,7 +132,7 @@
       if(evidence && item.reviewStatus === "kept") {
         const panel = document.createElement("section"); panel.className = "evidence";
         const heading = document.createElement("strong"); heading.textContent = "メール本文と添付の一時確認";
-        const note = document.createElement("p"); note.className = "muted"; note.textContent = "この内容は候補レコードへ保存していません。PDF本文はまだ解析していません。";
+        const note = document.createElement("p"); note.className = "muted"; note.textContent = "本文とPDF解析結果は候補レコードへ保存していません。金額候補は必ず人が確認してください。";
         panel.append(heading, note);
         if(evidence.excerpt) {
           const excerpt = document.createElement("pre"); excerpt.textContent = evidence.excerpt; panel.append(excerpt);
@@ -151,6 +151,26 @@
             row.textContent = `${file.filename} ／ ${file.mimeType}${size}${file.isPdf ? " ／ PDF" : ""}`; list.append(row);
           }
           panel.append(list);
+        }
+        if((evidence.pdfResults || []).length) {
+          const pdfHeading = document.createElement("strong"); pdfHeading.textContent = "PDF本文の一時解析"; panel.append(pdfHeading);
+          const statusText = {
+            parsed: "テキストを抽出しました",
+            no_text: "抽出できるテキストがありません",
+            too_large: "容量上限を超えたため解析していません",
+            too_many_pages: "ページ数上限を超えたため解析していません",
+            failed: "解析できませんでした"
+          };
+          for(const pdf of evidence.pdfResults) {
+            const row = document.createElement("div"); row.className = "pdf-result";
+            const label = document.createElement("p");
+            label.textContent = `${pdf.filename}${pdf.pages ? ` ／ ${pdf.pages}ページ` : ""} ／ ${statusText[pdf.status] || "未解析"}`;
+            row.append(label);
+            if(pdf.excerpt) {
+              const text = document.createElement("pre"); text.textContent = pdf.excerpt; row.append(text);
+            }
+            panel.append(row);
+          }
         }
         const saved = item.evidenceReview || {};
         const form = document.createElement("div"); form.className = "review-form";
@@ -209,7 +229,7 @@
       const data = await callable("gmailExpenseInspectEvidence", { candidateId });
       evidenceById.set(candidateId, data);
       render();
-      message(`本文情報を一時表示しました。添付${(data.attachments || []).length}件、PDF${data.pdfCount || 0}件です。経費登録とPDF解析は行っていません。`);
+      message(`本文情報を一時表示しました。添付${(data.attachments || []).length}件、PDF${data.pdfCount || 0}件です。経費台帳には登録していません。`);
     } catch(e) { message(`本文と添付情報を取得できませんでした: ${e.message || e}`, true); }
     finally { busy = false; update(); }
   }
