@@ -6,21 +6,23 @@
   <meta name="referrer" content="no-referrer">
   <title>Gmail経費候補 | ICELOLLY Sales Manager</title>
   <style>
-    :root{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:#203043;background:#f6f8fb}body{margin:0}main{max-width:700px;margin:auto;padding:22px 16px 56px}a{color:#225b96}h1{font-size:1.65rem;margin:20px 0 8px}p{line-height:1.65}.muted{color:#526274;font-size:.94rem}.card{background:white;border:1px solid #dce3eb;border-radius:14px;padding:18px;margin:16px 0}.row{padding:14px 0;border-top:1px solid #e8edf2}.row:first-of-type{border-top:0}button,input{font:inherit}button{padding:10px 14px;min-height:44px;border:1px solid #245783;border-radius:10px;background:#245b90;color:white;font-weight:650}button.secondary{color:#245783;background:white}button:disabled{opacity:.5}input{padding:10px;border:1px solid #9eabba;border-radius:8px;max-width:100%}label{display:block;font-weight:650;margin:10px 0 6px}.email{font-weight:700;overflow-wrap:anywhere}.status{color:#526274;margin:6px 0 12px}#notice{white-space:pre-wrap;overflow-wrap:anywhere}#notice[role=alert]{color:#a21f30}.item{border-top:1px solid #e5ebf1;padding:14px 0;overflow-wrap:anywhere}.item strong{display:block;margin:5px 0}.tag{display:inline-block;background:#fff2d5;padding:3px 8px;border-radius:8px;font-size:.83rem;color:#705000}.candidate-choice{display:flex;align-items:center;gap:8px;margin:10px 0 0;font-weight:650}.candidate-choice input{width:20px;height:20px;margin:0;padding:0}
+    :root{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:#203043;background:#f6f8fb}body{margin:0}main{max-width:700px;margin:auto;padding:22px 16px 56px}a{color:#225b96}h1{font-size:1.65rem;margin:20px 0 8px}p{line-height:1.65}.muted{color:#526274;font-size:.94rem}.card{background:white;border:1px solid #dce3eb;border-radius:14px;padding:18px;margin:16px 0}.row{padding:14px 0;border-top:1px solid #e8edf2}.row:first-of-type{border-top:0}button,input{font:inherit}button{padding:10px 14px;min-height:44px;border:1px solid #245783;border-radius:10px;background:#245b90;color:white;font-weight:650}button.secondary{color:#245783;background:white}button:disabled{opacity:.5}input{box-sizing:border-box;padding:10px;border:1px solid #9eabba;border-radius:8px;max-width:100%}#keyword{width:100%}label{display:block;font-weight:650;margin:10px 0 6px}.email{font-weight:700;overflow-wrap:anywhere}.status{color:#526274;margin:6px 0 12px}#notice{white-space:pre-wrap;overflow-wrap:anywhere}#notice[role=alert]{color:#a21f30}.item{border-top:1px solid #e5ebf1;padding:14px 0;overflow-wrap:anywhere}.item strong{display:block;margin:5px 0}.tag{display:inline-block;background:#fff2d5;padding:3px 8px;border-radius:8px;font-size:.83rem;color:#705000}.candidate-choice{display:flex;align-items:center;gap:8px;margin:10px 0 0;font-weight:650}.candidate-choice input{width:20px;height:20px;margin:0;padding:0}
   </style>
 </head>
 <body>
 <main>
   <a href="./">← Sales Manager</a> · <a href="./gmail-connect.html">Gmail接続の確認</a> · <a href="./gmail-expense-review.html">保存済み候補の確認</a>
   <h1>Gmail経費候補の一次確認</h1>
-  <p class="muted">まずは2026年9月のシンガポール関連メールなどを、Gmailの検索結果から確認します。表示するのは日付・差出人・件名のみです。関連しないメールが混ざる場合があります。</p>
+  <p class="muted">対象月と必要に応じたキーワードで、Gmailの検索結果から経費候補を確認します。表示するのは日付、差出人、件名のみです。関連しないメールが混ざる場合があります。</p>
   <section class="card">
     <h2>取得条件</h2>
     <p id="staff">ログイン状態を確認しています…</p>
     <button id="login" class="secondary" type="button" hidden>Sales Managerにログイン</button>
     <label for="month">対象月</label>
-    <input type="month" id="month" value="2026-09" min="2025-01" max="2030-12">
-    <p class="muted">シンガポール・SGD・Public Garden・請求書・領収書などに一致するメールのうち、各アカウント最大25件を一時表示します。本文・PDF・金額はまだ解析しません。</p>
+    <input type="month" id="month" min="2025-01" max="2030-12">
+    <label for="keyword">イベント名や地域などで絞り込み（任意）</label>
+    <input type="text" id="keyword" maxlength="80" placeholder="例：森之市、Public Garden、台北">
+    <p class="muted">請求書、領収書、支払い、決済などに一致するメールを、各アカウント最大25件まで一時表示します。キーワードを入力した場合は、その語句を含むメールだけに絞ります。本文、PDF、金額はまだ解析しません。</p>
     <div class="row" data-account="fjmthrs@gmail.com"><div class="email">fjmthrs@gmail.com</div><p class="status">状態を確認しています…</p><button type="button" disabled>このGmailの候補を見る</button></div>
     <div class="row" data-account="icelolly.zakka@gmail.com"><div class="email">icelolly.zakka@gmail.com</div><p class="status">状態を確認しています…</p><button type="button" disabled>このGmailの候補を見る</button></div>
     <p id="notice" aria-live="polite"></p>
@@ -37,11 +39,11 @@
   import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-functions.js";
   const accounts = ["fjmthrs@gmail.com", "icelolly.zakka@gmail.com"];
   const rows = new Map(accounts.map(a => [a, document.querySelector(`.row[data-account="${a}"]`)]));
-  const staff = document.getElementById("staff"), login = document.getElementById("login"), notice = document.getElementById("notice"), results = document.getElementById("results"), month = document.getElementById("month");
+  const staff = document.getElementById("staff"), login = document.getElementById("login"), notice = document.getElementById("notice"), results = document.getElementById("results"), month = document.getElementById("month"), keyword = document.getElementById("keyword");
   const saveArea = document.getElementById("saveArea"), saveCandidates = document.getElementById("saveCandidates");
   let connected = new Map(), signedIn = false, busy = false, functions = null, version = 0, currentPreview = null, selectedMessageIds = new Set();
   function message(value, error = false) { notice.textContent = value; if(error) notice.setAttribute("role", "alert"); else notice.removeAttribute("role"); }
-  function update() { login.disabled = busy; month.disabled = busy; saveCandidates.disabled = busy || !currentPreview || selectedMessageIds.size === 0; for(const account of accounts) rows.get(account).querySelector("button").disabled = busy || !signedIn || connected.get(account) !== true; }
+  function update() { login.disabled = busy; month.disabled = busy; keyword.disabled = busy; saveCandidates.disabled = busy || !currentPreview || selectedMessageIds.size === 0; for(const account of accounts) rows.get(account).querySelector("button").disabled = busy || !signedIn || connected.get(account) !== true; }
   async function callable(name, data = {}) { if(!functions || !signedIn) throw new Error("Sales Managerにログインしてください。"); const response = await httpsCallable(functions, name)(data); return response.data; }
   async function refresh() {
     if(!signedIn || busy) return;
@@ -62,10 +64,11 @@
     currentPreview = null; selectedMessageIds = new Set(); saveArea.hidden = true; saveCandidates.textContent = "選択した候補を保存";
     busy = true; update(); message(`${account} の候補を取得中です…`);
     try {
-      const data = await callable("gmailExpensePreview", { account, month: selectedMonth });
+      const selectedKeyword = keyword.value.replace(/\s+/g, " ").trim();
+      const data = await callable("gmailExpensePreview", { account, month: selectedMonth, keyword: selectedKeyword });
       results.replaceChildren();
       const summary = document.createElement("p");
-      summary.textContent = `${account} / ${selectedMonth}：${(data.messages || []).length}件を表示${data.hasMore ? "（検索結果の続きがあります）" : ""}${data.skipped ? `・${data.skipped}件の詳細取得を省略` : ""}`;
+      summary.textContent = `${account} / ${selectedMonth}${data.keyword ? ` / ${data.keyword}` : ""}：${(data.messages || []).length}件を表示${data.hasMore ? "（検索結果の続きがあります）" : ""}${data.skipped ? `・${data.skipped}件の詳細取得を省略` : ""}`;
       results.append(summary);
       if(!(data.messages || []).length) { const empty = document.createElement("p"); empty.textContent = "該当するメールは見つかりませんでした。"; results.append(empty); }
       for(const item of data.messages || []) {
@@ -105,6 +108,8 @@
   for(const account of accounts) rows.get(account).querySelector("button").addEventListener("click", () => preview(account));
   saveCandidates.addEventListener("click", savePreview);
   login.addEventListener("click", async () => { try { await loginWithGoogle(); } catch(e) { message(`ログインできませんでした: ${e.message || e}`, true); } });
+  const now = new Date();
+  month.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   try {
     await initFirebase(); const { app, enabled } = getFirebaseState();
     if(!enabled || !app) throw new Error("Firebaseを初期化できませんでした。");
