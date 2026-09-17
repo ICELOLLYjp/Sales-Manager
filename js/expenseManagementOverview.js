@@ -75,11 +75,13 @@ async function loadOverview() {
     );
     const total = document.createElement("p");
     total.className = "muted";
+    total.style.gridColumn = "1 / -1";
     total.textContent = `${selected}に取得した保存済み候補 ${counts.total}件を集計しました。Gmailへの再検索や経費登録は行っていません。`;
     summary.append(total);
     if (counts.truncated) {
       const warning = document.createElement("p");
       warning.className = "overview-warning";
+      warning.style.gridColumn = "1 / -1";
       warning.textContent = `表示上限の${counts.maxResults}件に達しています。全件数ではない可能性があります。`;
       summary.append(warning);
     }
