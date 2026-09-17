@@ -4,7 +4,11 @@ on:
     paths:
       - 'functions-gmail/**'
       - 'js/services/gmailExpenseCandidateService.js'
+      - 'js/expenseOverviewModel.js'
+      - 'js/expenseManagementOverview.js'
+      - 'expense-management.html'
       - 'tests/gmailExpenseCandidateService.test.mjs'
+      - 'tests/expenseOverviewModel.test.mjs'
       - 'firestore.rules'
       - 'firebase.json'
       - '.github/workflows/gmail-expense-tests.yml'
@@ -29,3 +33,6 @@ jobs:
       - run: node --check functions-gmail/evidenceReview.js
       - run: node --test functions-gmail/tests/*.test.cjs
       - run: node --experimental-default-type=module tests/gmailExpenseCandidateService.test.mjs
+      - run: node --experimental-default-type=module --check js/expenseOverviewModel.js
+      - run: node --experimental-default-type=module --check js/expenseManagementOverview.js
+      - run: node --experimental-default-type=module --test tests/expenseOverviewModel.test.mjs
