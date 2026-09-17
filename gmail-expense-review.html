@@ -36,6 +36,7 @@
 <script type="module">
   import { initFirebase, getFirebaseState } from "./js/firebase.js";
   import { initAuth, loginWithGoogle } from "./js/auth.js";
+  import { sessionExpenseDetailHref } from "./js/expenseSourceNavigationModel.js";
   import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-functions.js";
 
   const staff = document.getElementById("staff"), login = document.getElementById("login");
@@ -88,6 +89,18 @@
   function postingSession(item) {
     return item.expenseScope === "event" && item.eventId ? (state?.sessions || []).find(session => session.id === item.eventId) : null;
   }
+  function addSessionDetailLink(container, item) {
+    const session = postingSession(item);
+    const href = sessionExpenseDetailHref(session?.id);
+    if(!href) return;
+    const link = document.createElement("a");
+    link.href = href;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.textContent = "このイベントの売上詳細を別タブで開く";
+    link.style.cssText = "display:inline-block;margin-top:10px;grid-column:1/-1;";
+    container.append(link);
+  }
   function canPost(item) {
     const review = item.evidenceReview;
     return state?.expensePostingAvailable === true && item.reviewStatus === "kept" && !item.expensePosted && Boolean(postingSession(item)) && review?.paymentStatus === "paid_evidence" && Number(review.amount) > 0 && Boolean(review.currency) && Boolean(categoryLabels[review.category]);
@@ -139,6 +152,7 @@
       select.add(new Option("イベント共通／一般経費", "general"));
       for(const session of state.sessions || []) select.add(new Option(sessionLabel(session), `event:${session.id}`));
       select.value = scopeValue(item); select.disabled = busy || item.expensePosted; classification.append(select); article.append(classification);
+      addSessionDetailLink(article, item);
       const actions = document.createElement("div"); actions.className = "actions";
       for(const option of [["kept", "候補に残す", "secondary"], ["excluded", "除外", "exclude"], ["unreviewed", "未確認に戻す", "secondary"]]) {
         const button = document.createElement("button"); button.type = "button"; button.dataset.status = option[0];
@@ -219,6 +233,7 @@
         description.value = saved.description || item.subject || ""; descriptionLabel.append(description);
         const saveDraft = document.createElement("button"); saveDraft.type = "button"; saveDraft.dataset.saveEvidence = "true"; saveDraft.textContent = "解析結果を下書き保存"; saveDraft.disabled = busy || item.expensePosted;
         form.append(amountLabel, currencyLabel, paymentLabel, categoryLabel, descriptionLabel, saveDraft);
+        addSessionDetailLink(form, item);
         panel.append(form);
         article.append(panel);
       }
