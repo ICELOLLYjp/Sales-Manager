@@ -101,6 +101,14 @@ test("installed PDF library extracts text without network access", async () => {
   assert.deepEqual(result.moneyHints, ["TWD 8000"]);
 });
 
+test("installed PDF library accepts Gmail attachment bytes held in a Node.js Buffer", async () => {
+  const result = await parsePdfData(Buffer.from(simplePdf("Invoice TWD 3900")), "gmail.pdf");
+  assert.equal(result.status, "parsed");
+  assert.equal(result.pages, 1);
+  assert.match(result.excerpt, /Invoice TWD 3900/);
+  assert.deepEqual(result.moneyHints, ["TWD 3900"]);
+});
+
 test("money hints are suggestions only", () => {
   assert.deepEqual(findMoneyHints("Payment received $100. Total SGD 120.00 and tax 8.40 SGD"), ["SGD 120.00", "8.40 SGD", "$100"]);
 });
