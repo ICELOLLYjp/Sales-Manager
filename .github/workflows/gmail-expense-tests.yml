@@ -9,12 +9,16 @@ on:
       - 'js/expenseManagementOverview.js'
       - 'js/expenseSourceNavigationModel.js'
       - 'js/sessionExpenseDeepLink.js'
+      - 'js/gmailExpenseBulkModel.js'
+      - 'js/gmailExpenseBulkReview.js'
+      - 'gmail-expense-bulk.html'
       - 'index.html'
       - 'expense-management.html'
       - 'tests/gmailExpenseCandidateService.test.mjs'
       - 'tests/expenseOverviewModel.test.mjs'
       - 'tests/expenseEventOverviewModel.test.mjs'
       - 'tests/expenseSourceNavigationModel.test.mjs'
+      - 'tests/gmailExpenseBulkModel.test.mjs'
       - 'firestore.rules'
       - 'firebase.json'
       - '.github/workflows/gmail-expense-tests.yml'
@@ -44,6 +48,9 @@ jobs:
       - run: node --experimental-default-type=module --check js/expenseSourceNavigationModel.js
       - run: node --experimental-default-type=module --check js/sessionExpenseDeepLink.js
       - run: node --experimental-default-type=module --check js/expenseManagementOverview.js
+      - run: node --experimental-default-type=module --check js/gmailExpenseBulkModel.js
+      - run: node --experimental-default-type=module --check js/gmailExpenseBulkReview.js
       - run: node --experimental-default-type=module --test tests/expenseOverviewModel.test.mjs
       - run: node --experimental-default-type=module --test tests/expenseEventOverviewModel.test.mjs
       - run: node --experimental-default-type=module --test tests/expenseSourceNavigationModel.test.mjs
+      - run: node --experimental-default-type=module --test tests/gmailExpenseBulkModel.test.mjs
