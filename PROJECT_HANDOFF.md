@@ -2,7 +2,7 @@
 
 Last reconciled: 2026-09-17
 Repository: `ICELOLLYjp/Sales-Manager`
-Reference `main` at reconciliation: `899ebc68779dd894ef560a9c78686c0911c51627`
+Reference `main` at reconciliation: `5380f97268b95b3b6c04cad0db6e3028f5034a1b`
 
 This is the canonical handoff for future development chats. Inspect latest `main` before editing; this file describes the intended invariants, what is already implemented, and what still needs work.
 
@@ -367,6 +367,7 @@ Wise / PayNow many-to-many reconciliation and full final-profit reconciliation r
 - explicit event-expense posting, live-tested with two Mori Market entries totaling `16,950 TWD`
 - event expense detail, live-tested with orders `11333138` and `11339404` shown separately
 - safe single-entry void with idempotency and audit protection, unit-tested only
+- direct navigation between Sales Manager, Gmail connection, candidate acquisition and saved-candidate review
 
 ## Needs field test
 
