@@ -42,7 +42,13 @@
   const month = document.getElementById("month"), load = document.getElementById("load");
   const filterArea = document.getElementById("filterArea"), eventFilter = document.getElementById("eventFilter");
   const notice = document.getElementById("notice"), summary = document.getElementById("summary"), results = document.getElementById("results");
+  const requestedParams = new URLSearchParams(window.location.search);
+  const requestedEventId = requestedParams.get("eventId") || "";
+  const requestedMonth = requestedParams.get("month") || "";
+  if(/^20\d{2}-(0[1-9]|1[0-2])$/.test(requestedMonth)) month.value = requestedMonth;
   let signedIn = false, busy = false, functions = null, state = null;
+  let requestedFilterPending = Boolean(requestedEventId);
+  let autoLoadPending = Boolean(requestedEventId);
   const evidenceById = new Map();
 
   function message(value, error = false) {
@@ -87,10 +93,12 @@
     return state?.expensePostingAvailable === true && item.reviewStatus === "kept" && !item.expensePosted && Boolean(postingSession(item)) && review?.paymentStatus === "paid_evidence" && Number(review.amount) > 0 && Boolean(review.currency) && Boolean(categoryLabels[review.category]);
   }
   function populateFilter() {
-    const selected = eventFilter.value || "all";
+    const requested = requestedEventId ? `event:${requestedEventId}` : "";
+    const selected = requestedFilterPending ? requested : (eventFilter.value || "all");
     eventFilter.replaceChildren(new Option("すべてのイベントと未分類", "all"), new Option("未分類", "unassigned"), new Option("イベント共通／一般経費", "general"));
     for(const session of state?.sessions || []) eventFilter.add(new Option(sessionLabel(session), `event:${session.id}`));
     eventFilter.value = [...eventFilter.options].some(option => option.value === selected) ? selected : "all";
+    requestedFilterPending = false;
     filterArea.hidden = false;
   }
   function visibleCandidates() {
@@ -354,6 +362,10 @@
       staff.textContent = user ? `ログイン中: ${user.email}` : "Sales Managerへのログインが必要です。";
       login.hidden = Boolean(user); update();
       if(error) message(error.message || "操作が許可されていません。", true);
+      if(signedIn && autoLoadPending) {
+        autoLoadPending = false;
+        setTimeout(loadCandidates, 0);
+      }
     });
   } catch(e) { message(e.message || String(e), true); }
 </script>

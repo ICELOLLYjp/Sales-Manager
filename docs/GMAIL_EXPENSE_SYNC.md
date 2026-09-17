@@ -106,3 +106,10 @@ Updated: 2026-09-17 (Japan time). Repo: `ICELOLLYjp/Sales-Manager`.
 4. Add bounded pagination and per-account partial failures before considering weekly server sync.
 5. Add a separate reviewed workflow for general business expenses. Do not reuse the event-only posting action.
 6. ChatGPT's own weekly reminders/summaries do not automatically populate Sales Manager.
+
+## Expense management navigation
+
+- Global Gmail expense work starts from `More -> 経費管理`.
+- The independent expense-management hub links to candidate acquisition, saved-candidate review and Gmail connection.
+- Event detail provides `このイベントの経費を管理`, opening saved candidates prefiltered to that Session and month.
+- The main Sales Manager navigation, including `Inventory`, remains unchanged.
