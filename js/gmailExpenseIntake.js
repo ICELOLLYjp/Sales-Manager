@@ -2,6 +2,7 @@ import { initFirebase, getFirebaseState } from "./firebase.js";
 import { initAuth, loginWithGoogle } from "./auth.js";
 import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-functions.js";
 import { GMAIL_INTAKE_ACCOUNTS, intakeKey, groupIntakeSelection, planIntakeAssignments } from "./gmailExpenseIntakeModel.js";
+import { createInlineExpenseReview } from "./gmailExpenseInlineReview.js";
 
 const $ = selector => document.querySelector(selector);
 const staff = $("#staff"), login = $("#login"), eventSelect = $("#eventSelect");
@@ -46,6 +47,11 @@ async function callable(name, data = {}) {
   if (!signedIn || !functions) throw new Error("Sales Managerにログインしてください。");
   return (await httpsCallable(functions, name)(data)).data;
 }
+const inlineReview = createInlineExpenseReview({
+  call: callable,
+  getContext: () => ({ eventId: signedIn ? eventSelect.value : "", month: month.value }),
+  setIntakeBusy: value => { busy = value; update(); }
+});
 function sessionName(item) {
   const location = [item.city, item.country].filter(Boolean).join(", ");
   return [item.eventName || "名称未設定", location, item.startDate].filter(Boolean).join(" ／ ");
@@ -114,7 +120,10 @@ async function initialize() {
   } catch (error) {
     showMessage(notice, `初期化できませんでした: ${error?.message || error}`, true);
   } finally {
-    if (active === version) { busy = false; update(); }
+    if (active === version) {
+      busy = false; update();
+      if (signedIn && eventSelect.value) inlineReview.load();
+    }
   }
 }
 async function fetchBothAccounts() {
@@ -189,20 +198,31 @@ async function saveAndAssign() {
       ...failures
     ].filter(Boolean);
     const complete = failures.length === 0 && unresolved === 0 && assigned === plan.assign.length;
-    showMessage(notice, notes.join("\n") + (complete ? "\n保存済み候補の確認へ移動します。" : "\n未処理の候補は保存済み候補の一覧で確認してください。"), !complete);
-    if (complete) window.location.assign(reviewHref());
-    else { reviewLink.href = reviewHref(false); saveArea.hidden = false; }
+    showMessage(notice, notes.join("\n") + (complete ? "\nこの画面の下部で本文と金額を確認できます。" : "\n未処理の候補は従来の確認画面でも確認できます。"), !complete);
+    if (assigned + plan.alreadyAssigned.length > 0) {
+      busy = false; update();
+      await inlineReview.load();
+      if (complete) $("#inlineReview").scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+    if (!complete) { reviewLink.href = reviewHref(false); saveArea.hidden = false; }
   } finally { busy = false; update(); }
 }
 
 fetchBoth.addEventListener("click", fetchBothAccounts);
 selectAll.addEventListener("click", () => { selected = new Set(previews.map(intakeKey)); renderResults(); });
 clearSelection.addEventListener("click", () => { selected.clear(); renderResults(); });
-for (const control of [month, keyword]) control.addEventListener("change", () => {
-  ++version; clearPreviews(); showMessage(notice, "条件が変わりました。もう一度検索してください。");
+month.addEventListener("change", () => {
+  ++version; clearPreviews(); inlineReview.reset();
+  showMessage(notice, "月を変更しました。候補を読み込み直してください。");
+  if (signedIn && eventSelect.value) inlineReview.load();
+});
+keyword.addEventListener("change", () => {
+  ++version; clearPreviews(); showMessage(notice, "検索語句が変わりました。もう一度検索してください。");
 });
 eventSelect.addEventListener("change", () => {
-  showMessage(notice, "取り込み先イベントを確認してください。経費台帳への登録は行いません。"); update();
+  inlineReview.reset();
+  showMessage(notice, "取り込み先イベントを確認してください。候補の保存だけでは経費台帳へ登録しません。"); update();
+  if (signedIn && eventSelect.value) inlineReview.load();
 });
 login.addEventListener("click", async () => {
   try { await loginWithGoogle(); }
@@ -218,7 +238,7 @@ try {
     signedIn = Boolean(user); ++version;
     staff.textContent = user ? `ログイン中: ${user.email}` : "Sales Managerへのログインが必要です。";
     login.hidden = signedIn;
-    if (!signedIn) { connected.clear(); sessions = []; clearPreviews(); renderAccounts(); }
+    if (!signedIn) { connected.clear(); sessions = []; clearPreviews(); renderAccounts(); inlineReview.reset(); }
     if (error) showMessage(notice, error.message || String(error), true);
     update();
     if (signedIn) initialize();
