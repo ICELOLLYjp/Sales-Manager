@@ -45,7 +45,20 @@
     .inline-field.full,.inline-actions{grid-column:1/-1}
     .inline-field input,.inline-field select{width:100%;min-width:0;font-size:16px}
     .inline-actions{display:flex;gap:10px;flex-wrap:wrap}
-    @media(max-width:700px){.form,.account-grid,.preview-grid,.inline-review-form{grid-template-columns:minmax(0,1fr)}.actions button,.inline-actions button{width:100%}.card{padding:16px}}
+    .event-picker{grid-column:1/-1;min-width:0}
+    .event-picker-toolbar{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin:8px 0}
+    .event-picker-toolbar #eventSearch{flex:1 1 220px}
+    .closed-toggle{display:inline-flex;align-items:center;gap:8px;font-weight:500;cursor:pointer}
+    .closed-toggle input{width:20px;height:20px;min-height:20px;margin:0}
+    #eventPickerList{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;max-height:320px;overflow-y:auto;overscroll-behavior:contain;padding:2px}
+    .picker-event{display:flex;align-items:flex-start;gap:10px;min-width:0;padding:12px;border:1px solid #dce3eb;border-radius:10px;cursor:pointer;overflow-wrap:anywhere}
+    .picker-event.selected{border-color:#245b90;background:#eef5ff;box-shadow:inset 0 0 0 1px #245b90}
+    .picker-event input{width:20px;height:20px;min-height:20px;flex:none;margin:2px 0 0;padding:0}
+    .picker-event-text{min-width:0}.picker-event-text strong,.picker-event-text small{display:block}.picker-event-text small{margin-top:4px;color:#526274;line-height:1.5}
+    .picker-empty{grid-column:1/-1}.chosen-event{padding:10px 12px;border-radius:9px;background:#f2f5f9;overflow-wrap:anywhere}
+    .chosen-event.has-choice{background:#e9f4ec;color:#17643a}
+    #eventSelect{position:absolute;width:1px;height:1px;min-height:0;padding:0;opacity:0;pointer-events:none}
+    @media(max-width:700px){.form,.account-grid,.preview-grid,.inline-review-form,#eventPickerList{grid-template-columns:minmax(0,1fr)}.actions button,.inline-actions button{width:100%}.card{padding:16px}}
   </style>
 </head>
 <body>
@@ -58,9 +71,19 @@
     <p id="staff" class="muted">ログイン状態を確認しています…</p>
     <button id="login" type="button" class="secondary" hidden>Sales Managerにログイン</button>
     <div class="form">
-      <label class="field" for="eventSelect">登録先イベント<select id="eventSelect" disabled><option value="">イベントを読み込み中…</option></select></label>
+      <div class="event-picker" role="group" aria-labelledby="eventPickerLabel">
+        <strong id="eventPickerLabel">登録先イベント</strong>
+        <select id="eventSelect" disabled aria-label="選択中の登録先イベント"><option value="">イベントを読み込み中…</option></select>
+        <div class="event-picker-toolbar">
+          <input id="eventSearch" type="search" placeholder="イベント名・都市・開催日で検索" aria-label="イベントを検索" disabled>
+          <label class="closed-toggle"><input id="showClosedEvents" type="checkbox" disabled>終了済みも表示</label>
+        </div>
+        <p id="chosenEvent" class="chosen-event" aria-live="polite">登録先イベントを選択してください。</p>
+        <div id="eventPickerList" role="radiogroup" aria-label="登録先イベント一覧"></div>
+        <p id="eventPickerSummary" class="muted" aria-live="polite"></p>
+      </div>
       <label class="field" for="month">メールの検索対象月<select id="month" aria-label="メールの検索対象月"></select></label>
-      <label class="field" for="keyword" style="grid-column:1/-1">追加の検索語句（任意）<input id="keyword" maxlength="80" placeholder="未入力なら経費関連メールを幅広く検索"></label>
+      <label class="field" for="keyword">追加の検索語句（任意）<input id="keyword" maxlength="80" placeholder="未入力なら経費関連メールを幅広く検索"></label>
     </div>
     <p class="muted">メールにイベント名が書かれていない領収書もあるため、イベント名では自動的に検索を絞りません。各アカウント最大25件です。続きがある場合は別途取得が必要です。</p>
     <div id="accounts" class="account-grid" aria-live="polite"></div>
@@ -100,6 +123,6 @@
     monthSelect.append(group);
   }
 </script>
-<script type="module" src="./js/gmailExpenseIntake.js?v=20260918-2"></script>
+<script type="module" src="./js/gmailExpenseIntake.js?v=20260918-3"></script>
 </body>
 </html>

@@ -3,6 +3,7 @@ import { initAuth, loginWithGoogle } from "./auth.js";
 import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-functions.js";
 import { GMAIL_INTAKE_ACCOUNTS, intakeKey, groupIntakeSelection, planIntakeAssignments } from "./gmailExpenseIntakeModel.js";
 import { createInlineExpenseReview } from "./gmailExpenseInlineReview.js";
+import { createEventPicker } from "./gmailExpenseEventPicker.js";
 
 const $ = selector => document.querySelector(selector);
 const staff = $("#staff"), login = $("#login"), eventSelect = $("#eventSelect");
@@ -19,6 +20,7 @@ const defaultMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padS
 month.value = validMonth(params.get("month")) ? params.get("month") : defaultMonth;
 let functions = null, signedIn = false, busy = false, version = 0, sessions = [];
 let connected = new Map(), previews = [], selected = new Set(), fetchInfo = new Map();
+const eventPicker = createEventPicker({ select: eventSelect, search: $("#eventSearch"), closedToggle: $("#showClosedEvents"), list: $("#eventPickerList"), summary: $("#eventPickerSummary"), chosen: $("#chosenEvent") });
 
 function showMessage(element, value, error = false) {
   element.textContent = value;
@@ -33,6 +35,7 @@ function reviewHref(scoped = true) {
 function update() {
   login.disabled = busy;
   eventSelect.disabled = busy || !signedIn || !sessions.length;
+  eventPicker.setDisabled(eventSelect.disabled);
   month.disabled = busy;
   keyword.disabled = busy;
   fetchBoth.disabled = busy || !signedIn || !eventSelect.value || !validMonth(month.value) || ![...connected.values()].some(Boolean);
@@ -52,17 +55,10 @@ const inlineReview = createInlineExpenseReview({
   getContext: () => ({ eventId: signedIn ? eventSelect.value : "", month: month.value }),
   setIntakeBusy: value => { busy = value; update(); }
 });
-function sessionName(item) {
-  const location = [item.city, item.country].filter(Boolean).join(", ");
-  return [item.eventName || "名称未設定", location, item.startDate].filter(Boolean).join(" ／ ");
-}
 function populateSessions(items) {
   sessions = (Array.isArray(items) ? items : []).filter(item => item && /^[A-Za-z0-9_-]{1,160}$/.test(item.id || ""));
   const previous = eventSelect.value;
-  eventSelect.replaceChildren(new Option("イベントを選択してください", ""));
-  for (const item of sessions) eventSelect.add(new Option(sessionName(item), item.id));
-  const intended = sessions.some(item => item.id === previous) ? previous : requestedEvent;
-  eventSelect.value = sessions.some(item => item.id === intended) ? intended : "";
+  eventPicker.setSessions(sessions, previous || requestedEvent);
   if (requestedEvent && !eventSelect.value) showMessage(notice, "指定したイベントが一覧にありません。登録先を選択してください。", true);
   update();
 }
@@ -238,7 +234,7 @@ try {
     signedIn = Boolean(user); ++version;
     staff.textContent = user ? `ログイン中: ${user.email}` : "Sales Managerへのログインが必要です。";
     login.hidden = signedIn;
-    if (!signedIn) { connected.clear(); sessions = []; clearPreviews(); renderAccounts(); inlineReview.reset(); }
+    if (!signedIn) { connected.clear(); sessions = []; eventPicker.clear(); clearPreviews(); renderAccounts(); inlineReview.reset(); }
     if (error) showMessage(notice, error.message || String(error), true);
     update();
     if (signedIn) initialize();
