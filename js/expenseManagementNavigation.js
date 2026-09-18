@@ -1,5 +1,6 @@
 const HUB_URL = "./expense-management.html";
 const REVIEW_URL = "./gmail-expense-review.html";
+const INTAKE_URL = "./gmail-expense-intake.html";
 const SESSION_KEY = "icelolly-expense-management-session";
 
 function expenseButton(label, href) {
@@ -71,6 +72,10 @@ function enhanceSessionDetail() {
   link.id = "eventExpenseManagementLink";
   link.style.margin = "4px 0 10px";
   heading.insertAdjacentElement("afterend", link);
+  const intake = expenseButton("2つのGmailから経費候補を取り込む", `${INTAKE_URL}?${params}`);
+  intake.id = "eventExpenseIntakeLink";
+  intake.style.margin = "4px 8px 10px 0";
+  link.insertAdjacentElement("afterend", intake);
 }
 
 document.addEventListener("click", event => {
