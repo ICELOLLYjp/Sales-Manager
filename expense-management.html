@@ -7,25 +7,29 @@
   <title>経費管理 | ICELOLLY Sales Manager</title>
   <style>
     :root{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:#203043;background:#f6f8fb}
+    *,*::before,*::after{box-sizing:border-box}
     body{margin:0}
-    main{max-width:760px;margin:auto;padding:22px 16px 56px;box-sizing:border-box;width:100%}
+    main{width:100%;max-width:960px;margin:auto;padding:28px 24px 60px}
     a{color:#225b96}
     h1{font-size:1.65rem;margin:20px 0 8px}
     h2{font-size:1.18rem;margin:0 0 10px}
-    p{line-height:1.65}
+    p{line-height:1.65;overflow-wrap:anywhere}
     .muted{color:#526274;font-size:.94rem}
-    .card{display:block;background:#fff;border:1px solid #dce3eb;border-radius:14px;padding:18px;margin:16px 0;text-decoration:none;color:#203043}
+    .card{display:block;min-width:0;background:#fff;border:1px solid #dce3eb;border-radius:14px;padding:18px;margin:16px 0;text-decoration:none;color:#203043}
     .card strong{display:block;font-size:1.08rem;margin-bottom:6px;color:#174d80}
     .card span{display:block;line-height:1.55;color:#526274}
-    .overview-controls{display:flex;flex-wrap:wrap;align-items:end;gap:12px;margin:14px 0}
-    .overview-controls label{display:grid;grid-template-columns:minmax(0,1fr);gap:5px;font-weight:650;flex:1 1 180px;min-width:0}
-    .overview-controls input,.overview-controls select{font:inherit;border:1px solid #9eabba;border-radius:8px;padding:10px;min-height:44px;box-sizing:border-box;width:100%;min-width:0;max-width:100%}
-    .overview-controls button,#overviewLogin{font:inherit;font-weight:650;padding:10px 14px;min-height:44px;border:1px solid #245783;border-radius:10px;background:#245b90;color:#fff}
+    .overview-controls{display:grid;grid-template-columns:minmax(0,1fr) max-content;align-items:end;gap:12px;width:100%;min-width:0;margin:14px 0}
+    .month-overview-controls{grid-template-columns:minmax(0,260px) max-content;justify-content:start}
+    .overview-controls label{display:grid;grid-template-columns:minmax(0,1fr);gap:5px;font-weight:650;min-width:0}
+    .overview-controls input,.overview-controls select{display:block;font:inherit;border:1px solid #9eabba;border-radius:8px;padding:10px;min-height:44px;width:100%;min-width:0;max-width:100%}
+    .overview-controls select{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .overview-controls button,#overviewLogin{font:inherit;font-weight:650;padding:10px 14px;min-height:44px;max-width:100%;border:1px solid #245783;border-radius:10px;background:#245b90;color:#fff}
+    .overview-controls button{justify-self:start;white-space:nowrap}
     .overview-controls button:disabled{opacity:.5}
     #overviewNotice[role=alert],#eventNotice[role=alert],.overview-warning{color:#a21f30}
     #overviewNotice,#eventNotice{white-space:pre-wrap;overflow-wrap:anywhere}
     .overview-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
-    .overview-stat{border:1px solid #dce3eb;border-radius:10px;padding:10px;text-align:center}
+    .overview-stat{min-width:0;border:1px solid #dce3eb;border-radius:10px;padding:10px;text-align:center}
     .overview-stat strong{font-size:1.5rem;margin:0;color:#203043}
     .overview-stat span{font-size:.82rem}
     #overviewReviewLink{display:inline-block;margin-top:10px}
@@ -34,12 +38,16 @@
     .expense-nav-link{display:inline-block;margin:4px 0 14px;font-weight:650}
     .expense-source-button{display:inline-block;margin-top:8px;min-height:40px;padding:8px 12px;border:1px solid #245783;border-radius:9px;background:#fff;color:#245783;font:650 .92rem system-ui,sans-serif;cursor:pointer}
     .expense-source-button:disabled{opacity:.55;cursor:wait}
-    @media(max-width:520px){
+    .expense-links{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:16px}
+    .expense-links .card{margin:0}
+    @media(max-width:700px){
+      main{padding:18px 14px 44px}
+      .card{padding:16px}
       .overview-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
-      .event-overview-controls{display:grid;grid-template-columns:minmax(0,1fr);width:100%;min-width:0}
-      .event-overview-controls label{width:100%;min-width:0;max-width:100%;box-sizing:border-box}
-      .event-overview-controls select{display:block;width:100%;min-width:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-      .event-overview-controls button{width:100%;max-width:100%;box-sizing:border-box}
+      .overview-controls,.month-overview-controls{grid-template-columns:minmax(0,1fr)}
+      .overview-controls input,.overview-controls select{min-height:48px;font-size:16px}
+      .overview-controls button{width:100%;min-height:48px;justify-self:stretch;white-space:normal}
+      .expense-links{grid-template-columns:minmax(0,1fr)}
     }
   </style>
 </head>
@@ -54,7 +62,7 @@
       <p class="muted">Gmailを検索した対象月ごとの候補数です。イベント開催月や経費登録月ではありません。メールの再取得や経費の登録は行いません。</p>
       <p id="overviewStaff" class="muted">ログイン状態を確認しています…</p>
       <button id="overviewLogin" type="button" hidden>Sales Managerにログイン</button>
-      <div class="overview-controls">
+      <div class="overview-controls month-overview-controls">
         <label for="overviewMonth">メールの検索対象月<input id="overviewMonth" type="month" min="2025-01" max="2030-12"></label>
         <button id="overviewLoad" type="button" disabled>候補の件数を確認</button>
       </div>
@@ -74,25 +82,27 @@
       <div id="eventSummary" aria-live="polite">まだ取得していません。</div>
     </section>
 
-    <a class="card" href="./gmail-expense-bulk.html">
-      <strong>保存済み候補をまとめて確認</strong>
-      <span>月別に候補を絞り込み、選んだものだけ確認状態とイベント割り当てをまとめて変更します。重複の可能性も確認できます。経費台帳への一括登録は行いません。</span>
-    </a>
+    <nav class="expense-links" aria-label="経費管理のその他の機能">
+      <a class="card" href="./gmail-expense-bulk.html">
+        <strong>保存済み候補をまとめて確認</strong>
+        <span>月別に候補を絞り込み、選んだものだけ確認状態とイベント割り当てをまとめて変更します。重複の可能性も確認できます。経費台帳への一括登録は行いません。</span>
+      </a>
 
-    <a class="card" href="./gmail-expense-review.html">
-      <strong>保存済み候補を1件ずつ確認</strong>
-      <span>候補の確認、イベント割り当て、本文とPDFの一時確認、経費登録を行います。</span>
-    </a>
+      <a class="card" href="./gmail-expense-review.html">
+        <strong>保存済み候補を1件ずつ確認</strong>
+        <span>候補の確認、イベント割り当て、本文とPDFの一時確認、経費登録を行います。</span>
+      </a>
 
-    <a class="card" href="./gmail-expenses.html">
-      <strong>Gmailから候補を取得</strong>
-      <span>対象月とGmailアカウントを選び、必要なメールだけを保存済み候補へ追加します。</span>
-    </a>
+      <a class="card" href="./gmail-expenses.html">
+        <strong>Gmailから候補を取得</strong>
+        <span>対象月とGmailアカウントを選び、必要なメールだけを保存済み候補へ追加します。</span>
+      </a>
 
-    <a class="card" href="./gmail-connect.html">
-      <strong>Gmail接続を確認</strong>
-      <span>2つのGmailアカウントの接続状態を確認し、必要に応じて再接続します。</span>
-    </a>
+      <a class="card" href="./gmail-connect.html">
+        <strong>Gmail接続を確認</strong>
+        <span>2つのGmailアカウントの接続状態を確認し、必要に応じて再接続します。</span>
+      </a>
+    </nav>
   </main>
   <script type="module" src="./js/expenseManagementOverview.js?v=20260917-source-session-links-1"></script>
 </body>
