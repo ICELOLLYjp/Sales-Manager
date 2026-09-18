@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>イベントGmail経費の取り込み | ICELOLLY Sales Manager</title>
+  <style>
+    :root{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:#203043;background:#f6f8fb}
+    *,*::before,*::after{box-sizing:border-box}
+    body{margin:0}
+    main{width:100%;max-width:960px;margin:auto;padding:20px 16px 56px}
+    h1{font-size:1.55rem;margin:20px 0 8px}h2{font-size:1.14rem;margin:0 0 12px}
+    p{line-height:1.6}a{color:#225b96}.muted{font-size:.92rem;color:#526274}
+    .card{background:#fff;border:1px solid #dce3eb;border-radius:14px;padding:18px;margin:16px 0;min-width:0}
+    .form{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:12px;align-items:end}
+    label.field{display:grid;gap:6px;font-weight:650;min-width:0}
+    input,select,button{font:inherit;min-width:0;max-width:100%;min-height:48px}
+    input,select{width:100%;padding:10px;border:1px solid #9eabba;border-radius:9px;background:#fff}
+    select{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    button{border:1px solid #245783;border-radius:10px;background:#245b90;color:#fff;padding:10px 14px;font-weight:650;cursor:pointer}
+    button:disabled{opacity:.55;cursor:default}
+    button.secondary{background:#fff;color:#245783}
+    .actions{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:14px}
+    .account-grid,.preview-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+    .account,.message{border:1px solid #dce3eb;border-radius:10px;padding:12px;min-width:0;overflow-wrap:anywhere}
+    .account{background:#f8fafc}.account strong,.message strong{display:block;margin-bottom:6px}
+    .message{display:flex;gap:10px;align-items:flex-start;background:#fff;cursor:pointer}
+    .message input{width:22px;height:22px;min-height:22px;flex:none;margin:2px 0 0;padding:0}
+    .message .text{min-width:0;line-height:1.45}.message small{color:#526274}
+    #notice,#accountNotice{white-space:pre-wrap;overflow-wrap:anywhere}
+    [role=alert]{color:#a21f30}
+    .warning{background:#fff5e3;border-radius:9px;padding:10px;color:#654b12}
+    #reviewLink{display:inline-flex;align-items:center;min-height:48px}
+    @media(max-width:700px){.form,.account-grid,.preview-grid{grid-template-columns:minmax(0,1fr)}.actions button{width:100%}.card{padding:16px}}
+  </style>
+</head>
+<body>
+<main>
+  <a href="./">← Sales Managerに戻る</a> · <a href="./expense-management.html">経費管理</a>
+  <h1>イベントのGmail経費をまとめて取り込む</h1>
+  <p class="muted">2つのGmailをまとめて検索し、選んだメールだけを候補として保存してイベントに割り当てます。経費金額はまだ台帳へ登録しません。</p>
+  <section class="card" aria-labelledby="conditionTitle">
+    <h2 id="conditionTitle">取り込み先と検索条件</h2>
+    <p id="staff" class="muted">ログイン状態を確認しています…</p>
+    <button id="login" type="button" class="secondary" hidden>Sales Managerにログイン</button>
+    <div class="form">
+      <label class="field" for="eventSelect">登録先イベント<select id="eventSelect" disabled><option value="">イベントを読み込み中…</option></select></label>
+      <label class="field" for="month">メールの検索対象月<input id="month" type="month" min="2025-01" max="2030-12"></label>
+      <label class="field" for="keyword" style="grid-column:1/-1">追加の検索語句（任意）<input id="keyword" maxlength="80" placeholder="未入力なら経費関連メールを幅広く検索"></label>
+    </div>
+    <p class="muted">メールにイベント名が書かれていない領収書もあるため、イベント名では自動的に検索を絞りません。各アカウントで最大25件のため、続きがある場合は別途取得が必要です。</p>
+    <div id="accounts" class="account-grid" aria-live="polite"></div>
+    <p id="accountNotice" class="muted" aria-live="polite"></p>
+    <div class="actions"><button id="fetchBoth" type="button" disabled>2つのGmailをまとめて検索</button></div>
+    <p id="notice" class="muted" aria-live="polite"></p>
+  </section>
+  <section class="card" aria-labelledby="resultsTitle">
+    <h2 id="resultsTitle">検索結果から経費候補を選ぶ</h2>
+    <p class="muted">広告や入金通知なども混ざります。関連するメールだけ選択してください。同じメールを再保存しても候補は増えません。</p>
+    <p id="resultSummary" class="muted">まだ検索していません。</p>
+    <div class="actions"><button id="selectAll" class="secondary" type="button" disabled>表示中をすべて選択</button><button id="clearSelection" class="secondary" type="button" disabled>選択を解除</button></div>
+    <div id="results" class="preview-grid" aria-live="polite"></div>
+    <div id="saveArea" hidden>
+      <p class="warning">保存済み候補のイベントが異なる場合や、経費登録済みの候補は上書きしません。未払い請求書などの金額も自動登録しません。</p>
+      <div class="actions"><button id="saveSelected" type="button" disabled>選んだ候補を保存してイベントに割り当てる</button><a id="reviewLink" href="./gmail-expense-review.html">保存済み候補の確認へ</a></div>
+    </div>
+  </section>
+</main>
+<script type="module" src="./js/gmailExpenseIntake.js?v=20260918-1"></script>
+</body>
+</html>
