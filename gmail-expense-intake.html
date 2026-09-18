@@ -22,6 +22,7 @@
     button{border:1px solid #245783;border-radius:10px;background:#245b90;color:#fff;padding:10px 14px;font-weight:650;cursor:pointer}
     button:disabled{opacity:.55;cursor:default}
     button.secondary{background:#fff;color:#245783}
+    button.post{background:#17643a;border-color:#17643a}
     .actions{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:14px}
     .account-grid,.preview-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
     .account,.message{border:1px solid #dce3eb;border-radius:10px;padding:12px;min-width:0;overflow-wrap:anywhere}
@@ -29,18 +30,29 @@
     .message{display:flex;gap:10px;align-items:flex-start;background:#fff;cursor:pointer}
     .message input{width:22px;height:22px;min-height:22px;flex:none;margin:2px 0 0;padding:0}
     .message .text{min-width:0;line-height:1.45}.message small{color:#526274}
-    #notice,#accountNotice{white-space:pre-wrap;overflow-wrap:anywhere}
+    #notice,#accountNotice,#inlineReviewStatus{white-space:pre-wrap;overflow-wrap:anywhere}
     [role=alert]{color:#a21f30}
-    .warning{background:#fff5e3;border-radius:9px;padding:10px;color:#654b12}
+    .warning,.inline-warning{background:#fff5e3;border-radius:9px;padding:10px;color:#654b12}
     #reviewLink{display:inline-flex;align-items:center;min-height:48px}
-    @media(max-width:700px){.form,.account-grid,.preview-grid{grid-template-columns:minmax(0,1fr)}.actions button{width:100%}.card{padding:16px}}
+    .inline-item{border-top:1px solid #dce3eb;padding:18px 0;overflow-wrap:anywhere}
+    .inline-item strong{display:block}.inline-hint{color:#526274;font-size:.92rem}
+    .inline-done{color:#17643a;font-weight:650}
+    .inline-evidence{background:#f8fafc;border:1px solid #dce3eb;border-radius:10px;padding:12px;margin-top:12px;min-width:0}
+    .inline-proof{margin:8px 0}.inline-proof summary{cursor:pointer;color:#225b96}
+    .inline-proof pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:280px;overflow:auto;font:inherit;font-size:.9rem}
+    .inline-review-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:12px}
+    .inline-field{display:grid;grid-template-columns:minmax(0,1fr);gap:6px;min-width:0;font-weight:600}
+    .inline-field.full,.inline-actions{grid-column:1/-1}
+    .inline-field input,.inline-field select{width:100%;min-width:0;font-size:16px}
+    .inline-actions{display:flex;gap:10px;flex-wrap:wrap}
+    @media(max-width:700px){.form,.account-grid,.preview-grid,.inline-review-form{grid-template-columns:minmax(0,1fr)}.actions button,.inline-actions button{width:100%}.card{padding:16px}}
   </style>
 </head>
 <body>
 <main>
   <a href="./">← Sales Managerに戻る</a> · <a href="./expense-management.html">経費管理</a>
   <h1>イベントのGmail経費をまとめて取り込む</h1>
-  <p class="muted">2つのGmailをまとめて検索し、選んだメールだけを候補として保存してイベントに割り当てます。経費金額はまだ台帳へ登録しません。</p>
+  <p class="muted">2つのGmailをまとめて検索し、選んだメールをイベントに割り当てます。本文と支払証拠を確認してから、同じ画面で1件ずつ経費登録できます。</p>
   <section class="card" aria-labelledby="conditionTitle">
     <h2 id="conditionTitle">取り込み先と検索条件</h2>
     <p id="staff" class="muted">ログイン状態を確認しています…</p>
@@ -50,7 +62,7 @@
       <label class="field" for="month">メールの検索対象月<select id="month" aria-label="メールの検索対象月"></select></label>
       <label class="field" for="keyword" style="grid-column:1/-1">追加の検索語句（任意）<input id="keyword" maxlength="80" placeholder="未入力なら経費関連メールを幅広く検索"></label>
     </div>
-    <p class="muted">メールにイベント名が書かれていない領収書もあるため、イベント名では自動的に検索を絞りません。各アカウントで最大25件のため、続きがある場合は別途取得が必要です。</p>
+    <p class="muted">メールにイベント名が書かれていない領収書もあるため、イベント名では自動的に検索を絞りません。各アカウント最大25件です。続きがある場合は別途取得が必要です。</p>
     <div id="accounts" class="account-grid" aria-live="polite"></div>
     <p id="accountNotice" class="muted" aria-live="polite"></p>
     <div class="actions"><button id="fetchBoth" type="button" disabled>2つのGmailをまとめて検索</button></div>
@@ -63,13 +75,20 @@
     <div class="actions"><button id="selectAll" class="secondary" type="button" disabled>表示中をすべて選択</button><button id="clearSelection" class="secondary" type="button" disabled>選択を解除</button></div>
     <div id="results" class="preview-grid" aria-live="polite"></div>
     <div id="saveArea" hidden>
-      <p class="warning">保存済み候補のイベントが異なる場合や、経費登録済みの候補は上書きしません。未払い請求書などの金額も自動登録しません。</p>
-      <div class="actions"><button id="saveSelected" type="button" disabled>選んだ候補を保存してイベントに割り当てる</button><a id="reviewLink" href="./gmail-expense-review.html">保存済み候補の確認へ</a></div>
+      <p class="warning">保存済み候補のイベントが異なる場合や、経費登録済みの候補は上書きしません。未払い請求書の金額も自動登録しません。</p>
+      <div class="actions"><button id="saveSelected" type="button" disabled>選んだ候補を保存してイベントに割り当てる</button><a id="reviewLink" href="./gmail-expense-review.html">従来の詳細確認画面を開く</a></div>
     </div>
+  </section>
+  <section id="inlineReview" class="card" aria-labelledby="inlineReviewTitle" hidden>
+    <h2 id="inlineReviewTitle">このイベントの経費を確認・登録する</h2>
+    <p class="muted">本文とPDFを確認し、支払済みの証拠がある1件だけ登録できます。未払いの請求書は下書き保存してください。</p>
+    <button id="inlineReviewLoad" type="button" class="secondary">保存済み候補を再読み込み</button>
+    <p id="inlineReviewStatus" class="muted" aria-live="polite"></p>
+    <div id="inlineReviewList" aria-live="polite"></div>
   </section>
 </main>
 <script>
-  // The native iOS month input can render beyond its CSS width; a regular select does not.
+  // iOS month input can exceed its CSS width. Use a normal select with the same YYYY-MM values.
   const monthSelect = document.getElementById("month");
   for (let year = 2025; year <= 2030; year++) {
     const group = document.createElement("optgroup");
@@ -81,6 +100,6 @@
     monthSelect.append(group);
   }
 </script>
-<script type="module" src="./js/gmailExpenseIntake.js?v=20260918-1"></script>
+<script type="module" src="./js/gmailExpenseIntake.js?v=20260918-2"></script>
 </body>
 </html>
