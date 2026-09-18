@@ -47,7 +47,7 @@
     <button id="login" type="button" class="secondary" hidden>Sales Managerにログイン</button>
     <div class="form">
       <label class="field" for="eventSelect">登録先イベント<select id="eventSelect" disabled><option value="">イベントを読み込み中…</option></select></label>
-      <label class="field" for="month">メールの検索対象月<input id="month" type="month" min="2025-01" max="2030-12"></label>
+      <label class="field" for="month">メールの検索対象月<select id="month" aria-label="メールの検索対象月"></select></label>
       <label class="field" for="keyword" style="grid-column:1/-1">追加の検索語句（任意）<input id="keyword" maxlength="80" placeholder="未入力なら経費関連メールを幅広く検索"></label>
     </div>
     <p class="muted">メールにイベント名が書かれていない領収書もあるため、イベント名では自動的に検索を絞りません。各アカウントで最大25件のため、続きがある場合は別途取得が必要です。</p>
@@ -68,6 +68,19 @@
     </div>
   </section>
 </main>
+<script>
+  // The native iOS month input can render beyond its CSS width; a regular select does not.
+  const monthSelect = document.getElementById("month");
+  for (let year = 2025; year <= 2030; year++) {
+    const group = document.createElement("optgroup");
+    group.label = `${year}年`;
+    for (let number = 1; number <= 12; number++) {
+      const value = `${year}-${String(number).padStart(2, "0")}`;
+      group.append(new Option(`${year}年${number}月`, value));
+    }
+    monthSelect.append(group);
+  }
+</script>
 <script type="module" src="./js/gmailExpenseIntake.js?v=20260918-1"></script>
 </body>
 </html>
