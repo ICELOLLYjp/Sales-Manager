@@ -37,7 +37,7 @@ export function createInlineExpenseReview({ call, getContext, setIntakeBusy }) {
     for (const node of list.querySelectorAll("button,input,select")) node.disabled = value;
   }
   function reset() {
-    if (busy) return;
+    // Hide private proof text immediately even when sign-out occurs during an in-flight request.
     state = null; context = null; evidence.clear(); section.hidden = true;
     list.replaceChildren(); say("");
   }
