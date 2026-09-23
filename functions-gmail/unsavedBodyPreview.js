@@ -41,21 +41,21 @@ function extractPreviewEvidence(payload, fallbackSnippet = "") {
       truncated ||= prefix.length < encoded.length;
       const raw = decodeBase64Url(prefix, remaining[type]);
       remaining[type] -= Buffer.byteLength(raw, "utf8");
-      const clean = type === "plain" ? raw.replace(/\\u0000/g, "").trim() :
+      const clean = type === "plain" ? raw.replace(/\u0000/g, "").trim() :
         htmlToText(raw
-          .replace(/<\\/\\s*(?:div|tr|li|h[1-6]|table|section|article|header|footer)\\s*>/gi, "\\n")
-          .replace(/<\\/\\s*(?:td|th)\\s*>/gi, " | "));
+          .replace(/<\/\s*(?:div|tr|li|h[1-6]|table|section|article|header|footer)\s*>/gi, "\n")
+          .replace(/<\/\s*(?:td|th)\s*>/gi, " | "));
       if (clean) parts[type].push(clean);
     }
     for (const child of Array.isArray(part.parts) ? part.parts : []) visit(child, depth + 1);
   }
   visit(payload);
-  const plain = parts.plain.join("\\n\\n").trim();
-  const html = parts.html.join("\\n\\n").trim();
+  const plain = parts.plain.join("\n\n").trim();
+  const html = parts.html.join("\n\n").trim();
   // HTML-only receipts have the full content; some short plain-text alternatives
   // contain only "view online", so prefer informative HTML in that case.
   const text = plain && (plain.length > 120 || !html) ? plain : html || plain;
-  const snippet = String(fallbackSnippet || "").replace(/[\\u0000-\\u001f]+/g, " ").trim().slice(0, 500);
+  const snippet = String(fallbackSnippet || "").replace(/[\u0000-\u001f]+/g, " ").trim().slice(0, 500);
   return {
     excerpt: (text || snippet).slice(0, MAX_PREVIEW_EXCERPT),
     excerptTruncated: Boolean(text) && (text.length > MAX_PREVIEW_EXCERPT || truncated),
