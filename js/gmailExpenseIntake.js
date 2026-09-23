@@ -80,7 +80,8 @@ function clearPreviews() {
 }
 async function openBody(item, button, panel) {
   const key = intakeKey(item);
-  if (!panel.hidden) { panel.hidden = true; button.textContent = "本文を確認"; return; }
+  if (!panel.hidden && !panel.hasAttribute("role")) { panel.hidden = true; button.textContent = "本文を確認"; return; }
+  panel.removeAttribute("role");
   panel.hidden = false;
   button.textContent = "本文を閉じる";
   if (bodyCache.has(key)) { panel.replaceChildren(bodyCache.get(key).cloneNode(true)); return; }
