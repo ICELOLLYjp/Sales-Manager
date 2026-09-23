@@ -93,10 +93,16 @@ async function openBody(item, button, panel) {
     if (active !== version || !signedIn || !panel.isConnected) return;
     if (response.account !== item.account || response.messageId !== item.messageId) throw new Error("メールの識別情報が一致しません。");
     const content = document.createElement("div");
-    const body = document.createElement("pre");
+    const body = document.createElement("div");
     body.className = "message-body";
     body.textContent = response.excerpt || "本文のテキストを取得できませんでした。";
     content.append(body);
+    if (response.previewOnly) {
+      const note = document.createElement("p");
+      note.className = "muted";
+      note.textContent = "本文を抽出できなかったため、Gmailの概要のみ表示しています。";
+      content.append(note);
+    }
     if (response.excerptTruncated) {
       const note = document.createElement("p");
       note.className = "muted";

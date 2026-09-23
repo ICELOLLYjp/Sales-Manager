@@ -2,7 +2,7 @@
 
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { assertAccount, accountId, decryptRefreshToken } = require("./oauthCore");
-const { inspectPayload } = require("./evidenceInspection");
+const { inspectPayload, decodeBase64Url, htmlToText } = require("./evidenceInspection");
 
 const MESSAGE_ID = /^[A-Za-z0-9_-]{1,256}$/;
 
@@ -14,6 +14,54 @@ function validatePreviewRequest(data) {
     throw new HttpsError("invalid-argument", "メールIDを確認してください。");
   }
   return { account, messageId: data.messageId };
+}
+
+// Preview-only extraction: large HTML newsletters can exceed the smaller accounting
+// evidence reader's per-message budget. Never return HTML or store fetched bodies.
+const MAX_PREVIEW_MIME_BYTES = 2 * 1024 * 1024;
+const MAX_PREVIEW_EXCERPT = 6000;
+
+function extractPreviewEvidence(payload, fallbackSnippet = "") {
+  const { attachments } = inspectPayload(payload);
+  const parts = { plain: [], html: [] };
+  const remaining = { plain: MAX_PREVIEW_MIME_BYTES, html: MAX_PREVIEW_MIME_BYTES };
+  let truncated = false;
+  let visited = 0;
+
+  function visit(part, depth = 0) {
+    if (!part || typeof part !== "object" || depth > 12 || ++visited > 100) return;
+    const mimeType = String(part.mimeType || "").split(";")[0].toLowerCase();
+    const type = mimeType === "text/plain" ? "plain" : mimeType === "text/html" ? "html" : null;
+    const encoded = part.body?.data;
+    if (type && typeof encoded === "string" && remaining[type] >= 3) {
+      // Only decode a bounded base64 prefix; do not discard the whole HTML email
+      // just because the complete message is larger than the preview limit.
+      const maxEncoded = Math.floor(remaining[type] / 3) * 4;
+      const prefix = encoded.slice(0, maxEncoded);
+      truncated ||= prefix.length < encoded.length;
+      const raw = decodeBase64Url(prefix, remaining[type]);
+      remaining[type] -= Buffer.byteLength(raw, "utf8");
+      const clean = type === "plain" ? raw.replace(/\u0000/g, "").trim() :
+        htmlToText(raw
+          .replace(/<\/\s*(?:div|tr|li|h[1-6]|table|section|article|header|footer)\s*>/gi, "\n")
+          .replace(/<\/\s*(?:td|th)\s*>/gi, " | "));
+      if (clean) parts[type].push(clean);
+    }
+    for (const child of Array.isArray(part.parts) ? part.parts : []) visit(child, depth + 1);
+  }
+  visit(payload);
+  const plain = parts.plain.join("\n\n").trim();
+  const html = parts.html.join("\n\n").trim();
+  // HTML-only receipts have the full content; some short plain-text alternatives
+  // contain only "view online", so prefer informative HTML in that case.
+  const text = plain && (plain.length > 120 || !html) ? plain : html || plain;
+  const snippet = String(fallbackSnippet || "").replace(/[\u0000-\u001f]+/g, " ").trim().slice(0, 500);
+  return {
+    excerpt: (text || snippet).slice(0, MAX_PREVIEW_EXCERPT),
+    excerptTruncated: Boolean(text) && (text.length > MAX_PREVIEW_EXCERPT || truncated),
+    previewOnly: !text && Boolean(snippet),
+    attachments
+  };
 }
 
 async function readJson(url, options) {
@@ -51,16 +99,17 @@ function createUnsavedBodyPreview({ requireStaff, db, clientId, clientSecret, to
     }
     const url = new URL(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${encodeURIComponent(messageId)}`);
     url.searchParams.set("format", "full");
-    url.searchParams.set("fields", "id,payload(mimeType,body,parts,filename)");
+    url.searchParams.set("fields", "id,snippet,payload");
     const message = await readJson(url, { headers: { Authorization: `Bearer ${token.access_token}` } });
     if (message.id !== messageId) throw new HttpsError("unavailable", "メールの識別情報が一致しません。");
-    const evidence = inspectPayload(message.payload);
+    const evidence = extractPreviewEvidence(message.payload, message.snippet);
     return {
       account, messageId, excerpt: evidence.excerpt, excerptTruncated: evidence.excerptTruncated,
+      previewOnly: evidence.previewOnly,
       attachments: evidence.attachments.map(({ filename, isPdf }) => ({ filename, isPdf })),
       persisted: false, expensePosted: false
     };
   });
 }
 
-module.exports = { createUnsavedBodyPreview, validatePreviewRequest };
+module.exports = { createUnsavedBodyPreview, validatePreviewRequest, extractPreviewEvidence };
