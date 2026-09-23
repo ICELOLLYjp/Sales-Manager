@@ -59,3 +59,64 @@ test("preview never includes raw HTML or internal attachment IDs", () => {
   assert.equal(result.attachments[0].filename, "receipt.pdf");
   assert.ok(!JSON.stringify(result).includes("secret-reference"));
 });
+
+const { hydrateReferencedTextParts } = require("../unsavedBodyPreview");
+
+test("Agoda-style large HTML body stored by Gmail attachmentId is previewable without storing", async () => {
+  const html = "<style>" + ".test{color:red}".repeat(14000) + "</style>" +
+    "<div>Agoda confirmed booking</div><p>Amount: JPY 18000</p>";
+  const attachmentId = "opaque-text-part";
+  const payload = {
+    mimeType: "multipart/mixed",
+    parts: [
+      { mimeType: "text/html", body: { attachmentId, size: Buffer.byteLength(html) } },
+      { mimeType: "application/pdf", filename: "booking.pdf",
+        body: { attachmentId: "private-pdf-reference", size: 123456 } }
+    ]
+  };
+  const requested = [];
+  await hydrateReferencedTextParts(payload, async id => {
+    requested.push(id);
+    return { data: encodeBody(html), size: Buffer.byteLength(html) };
+  });
+  const preview = extractPreviewEvidence(payload, "Gmail summary");
+  assert.deepEqual(requested, [attachmentId]);
+  assert.match(preview.excerpt, /Agoda confirmed booking/);
+  assert.match(preview.excerpt, /JPY 18000/);
+  assert.equal(preview.previewOnly, false);
+  assert.ok(!JSON.stringify(preview).includes("private-pdf-reference"));
+});
+
+test("broken or oversized remote HTML part falls back to Gmail snippet", async () => {
+  const payload = {
+    mimeType: "multipart/alternative",
+    parts: [
+      { mimeType: "text/html", body: { attachmentId: "large-text", size: 3000000 } },
+      { mimeType: "text/plain", body: { attachmentId: "unavailable", size: 1234 } }
+    ]
+  };
+  const requested = [];
+  await hydrateReferencedTextParts(payload, async id => {
+    requested.push(id);
+    throw new Error("Gmail attachment unavailable");
+  });
+  const preview = extractPreviewEvidence(payload, "Agoda booking confirmed");
+  assert.deepEqual(requested, ["unavailable"]);
+  assert.equal(preview.excerpt, "Agoda booking confirmed");
+  assert.equal(preview.previewOnly, true);
+});
+
+test("inline text body never triggers extra requests for image or PDF attachments", async () => {
+  const payload = {
+    mimeType: "multipart/mixed",
+    parts: [
+      { mimeType: "text/plain", body: { data: encodeBody("Agoda booking confirmed") } },
+      { mimeType: "application/pdf", filename: "booking.pdf", body: { attachmentId: "pdf123" } },
+      { mimeType: "image/png", filename: "inline.png", body: { attachmentId: "img123" } }
+    ]
+  };
+  await hydrateReferencedTextParts(payload, async () => {
+    throw new Error("unexpected attachment fetch");
+  });
+  assert.match(extractPreviewEvidence(payload).excerpt, /Agoda booking confirmed/);
+});
