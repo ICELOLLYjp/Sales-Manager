@@ -119,10 +119,13 @@
 <script>
   // iOS month input can exceed its CSS width. Use a normal select with the same YYYY-MM values.
   const monthSelect = document.getElementById("month");
-  for (let year = 2025; year <= 2030; year++) {
+  // Show only the current month and past months, newest first.
+  const current = new Date();
+  for (let year = Math.min(current.getFullYear(), 2030); year >= 2025; year--) {
     const group = document.createElement("optgroup");
     group.label = `${year}年`;
-    for (let number = 1; number <= 12; number++) {
+    const lastMonth = year === current.getFullYear() ? current.getMonth() + 1 : 12;
+    for (let number = lastMonth; number >= 1; number--) {
       const value = `${year}-${String(number).padStart(2, "0")}`;
       group.append(new Option(`${year}年${number}月`, value));
     }
