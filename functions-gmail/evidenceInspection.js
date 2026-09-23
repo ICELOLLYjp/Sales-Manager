@@ -292,6 +292,13 @@ function createEvidenceInspection({ requireStaff, db, clientId, clientSecret, to
     const url = new URL(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${encodeURIComponent(messageId)}`);
     url.searchParams.set("format", "full");
     const message = await fetchGoogleJson(url, { headers: { Authorization: `Bearer ${token.access_token}` } });
+    // Large text parts can be referenced rather than embedded in Gmail payload.
+    // PDF and image attachments are never fetched through this path.
+    await hydrateReferencedTextParts(message.payload, attachmentId => {
+      const textUrl = new URL(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${encodeURIComponent(messageId)}/attachments/${encodeURIComponent(attachmentId)}`);
+      textUrl.searchParams.set("fields", "data,size");
+      return fetchGoogleJson(textUrl, { headers: { Authorization: `Bearer ${token.access_token}` } });
+    });
     const evidence = inspectPayload(message.payload);
     const pdfResults = [];
     for (const ref of collectPdfAttachmentRefs(message.payload)) {
