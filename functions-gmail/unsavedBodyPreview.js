@@ -64,6 +64,48 @@ function extractPreviewEvidence(payload, fallbackSnippet = "") {
   };
 }
 
+// Gmail sometimes stores a large text/html or text/plain MIME body as an
+// attachmentId instead of embedding body.data. Retrieve only these body parts;
+// never fetch PDFs, images, or other attachments as part of this preview.
+const MAX_REFERENCED_TEXT_PARTS = 3;
+
+async function hydrateReferencedTextParts(payload, fetchTextPart) {
+  let visited = 0;
+  let requested = 0;
+  async function visit(part, depth = 0) {
+    if (!part || typeof part !== "object" || depth > 12 || ++visited > 100) return;
+    const mimeType = String(part.mimeType || "").split(";")[0].toLowerCase();
+    const isBodyText = mimeType === "text/plain" || mimeType === "text/html";
+    const body = part.body;
+    const attachmentId = body?.attachmentId;
+    const declaredSize = Number(body?.size);
+    if (isBodyText && !part.filename && body && typeof body.data !== "string" &&
+        typeof attachmentId === "string" && attachmentId.length > 0 &&
+        attachmentId.length <= 4096 &&
+        (!Number.isFinite(declaredSize) || declaredSize <= MAX_PREVIEW_MIME_BYTES) &&
+        requested < MAX_REFERENCED_TEXT_PARTS) {
+      requested++;
+      try {
+        const attachment = await fetchTextPart(attachmentId);
+        const encoded = attachment?.data;
+        const reportedSize = Number(attachment?.size);
+        if (typeof encoded === "string" &&
+            (!Number.isFinite(reportedSize) || reportedSize <= MAX_PREVIEW_MIME_BYTES) &&
+            Math.floor(encoded.length * 0.75) <= MAX_PREVIEW_MIME_BYTES) {
+          body.data = encoded;
+        }
+      } catch {
+        // Leave the part unavailable and use the message snippet if needed.
+        // Do not log the attachment ID or any email contents.
+      }
+    }
+    for (const child of Array.isArray(part.parts) ? part.parts : []) {
+      await visit(child, depth + 1);
+    }
+  }
+  await visit(payload);
+}
+
 async function readJson(url, options) {
   let response;
   try { response = await fetch(url, { ...options, signal: AbortSignal.timeout(20000) }); }
@@ -102,6 +144,12 @@ function createUnsavedBodyPreview({ requireStaff, db, clientId, clientSecret, to
     url.searchParams.set("fields", "id,snippet,payload");
     const message = await readJson(url, { headers: { Authorization: `Bearer ${token.access_token}` } });
     if (message.id !== messageId) throw new HttpsError("unavailable", "メールの識別情報が一致しません。");
+    await hydrateReferencedTextParts(message.payload, attachmentId => {
+      const attachmentUrl = new URL("https://gmail.googleapis.com/gmail/v1/users/me/messages/" +
+        encodeURIComponent(messageId) + "/attachments/" + encodeURIComponent(attachmentId));
+      attachmentUrl.searchParams.set("fields", "data,size");
+      return readJson(attachmentUrl, { headers: { Authorization: "Bearer " + token.access_token } });
+    });
     const evidence = extractPreviewEvidence(message.payload, message.snippet);
     return {
       account, messageId, excerpt: evidence.excerpt, excerptTruncated: evidence.excerptTruncated,
@@ -112,4 +160,4 @@ function createUnsavedBodyPreview({ requireStaff, db, clientId, clientSecret, to
   });
 }
 
-module.exports = { createUnsavedBodyPreview, validatePreviewRequest, extractPreviewEvidence };
+module.exports = { createUnsavedBodyPreview, validatePreviewRequest, extractPreviewEvidence, hydrateReferencedTextParts };
