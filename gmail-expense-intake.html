@@ -27,7 +27,13 @@
     .account-grid,.preview-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
     .account,.message{border:1px solid #dce3eb;border-radius:10px;padding:12px;min-width:0;overflow-wrap:anywhere}
     .account{background:#f8fafc}.account strong,.message strong{display:block;margin-bottom:6px}
-    .message{display:flex;flex-direction:column;gap:10px;align-items:stretch;background:#fff}\n    .message-choice{display:flex;gap:10px;align-items:flex-start;cursor:pointer;min-width:0}\n    .message-body-button{align-self:flex-start;min-height:40px}\n    .message-body-panel{background:#f8fafc;border:1px solid #dce3eb;border-radius:8px;padding:10px;max-height:360px;overflow:auto}\n    .message-body-panel[hidden]{display:none}\n    .message-body{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;font-size:.92rem;margin:0}
+    .message{display:flex;flex-direction:column;gap:10px;align-items:stretch;background:#fff}
+    .message-choice{display:flex;gap:10px;align-items:flex-start;cursor:pointer;min-width:0}
+    .message-body-button{align-self:flex-start;min-height:40px}
+    .message-body-panel{min-width:0;width:100%;max-width:100%;background:#f8fafc;border:1px solid #dce3eb;border-radius:8px;padding:10px;max-height:360px;overflow-x:hidden;overflow-y:auto;overflow-wrap:anywhere}
+    .message-body-panel[hidden]{display:none}
+    .message-body-panel>div{min-width:0;max-width:100%}
+    .message-body{display:block;white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;min-width:0;max-width:100%;font:inherit;font-size:.92rem;line-height:1.55;margin:0}
     .message input{width:22px;height:22px;min-height:22px;flex:none;margin:2px 0 0;padding:0}
     .message .text{min-width:0;line-height:1.45}.message small{color:#526274}
     #notice,#accountNotice,#inlineReviewStatus{white-space:pre-wrap;overflow-wrap:anywhere}
@@ -123,6 +129,6 @@
     monthSelect.append(group);
   }
 </script>
-<script type="module" src="./js/gmailExpenseIntake.js?v=20260924-1"></script>
+<script type="module" src="./js/gmailExpenseIntake.js?v=20260924-2"></script>
 </body>
 </html>
