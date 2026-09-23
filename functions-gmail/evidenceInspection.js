@@ -3,6 +3,7 @@
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { accountId, decryptRefreshToken } = require("./oauthCore");
 const { COLLECTION } = require("./candidateStorage");
+const { MAX_TEXT_MIME_BYTES, hydrateReferencedTextParts } = require("./textPartHydration");
 
 const MAX_TEXT_BYTES = 200000;
 const MAX_EXCERPT = 6000;
