@@ -20,6 +20,7 @@ const defaultMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padS
 month.value = validMonth(params.get("month")) ? params.get("month") : defaultMonth;
 let functions = null, signedIn = false, busy = false, version = 0, sessions = [];
 let connected = new Map(), previews = [], selected = new Set(), fetchInfo = new Map();
+const bodyCache = new Map();
 const eventPicker = createEventPicker({ select: eventSelect, search: $("#eventSearch"), closedToggle: $("#showClosedEvents"), list: $("#eventPickerList"), summary: $("#eventPickerSummary"), chosen: $("#chosenEvent") });
 
 function showMessage(element, value, error = false) {
@@ -73,25 +74,70 @@ function renderAccounts() {
   }
 }
 function clearPreviews() {
-  previews = []; selected = new Set(); fetchInfo = new Map();
+  previews = []; selected = new Set(); fetchInfo = new Map(); bodyCache.clear();
   results.replaceChildren(); summary.textContent = "まだ検索していません。"; saveArea.hidden = true;
   update();
+}
+async function openBody(item, button, panel) {
+  const key = intakeKey(item);
+  if (!panel.hidden) { panel.hidden = true; button.textContent = "本文を確認"; return; }
+  panel.hidden = false;
+  button.textContent = "本文を閉じる";
+  if (bodyCache.has(key)) { panel.replaceChildren(bodyCache.get(key).cloneNode(true)); return; }
+  const active = version;
+  button.disabled = true;
+  panel.textContent = "本文を取得しています…";
+  try {
+    const response = await callable("gmailExpensePreviewBody", { account: item.account, messageId: item.messageId });
+    if (active !== version || !signedIn || !panel.isConnected) return;
+    if (response.account !== item.account || response.messageId !== item.messageId) throw new Error("メールの識別情報が一致しません。");
+    const content = document.createElement("div");
+    const body = document.createElement("pre");
+    body.className = "message-body";
+    body.textContent = response.excerpt || "本文のテキストを取得できませんでした。";
+    content.append(body);
+    if (response.excerptTruncated) {
+      const note = document.createElement("p");
+      note.className = "muted";
+      note.textContent = "本文は先頭6,000文字まで表示しています。";
+      content.append(note);
+    }
+    bodyCache.set(key, content);
+    panel.replaceChildren(content.cloneNode(true));
+  } catch (error) {
+    if (active !== version || !panel.isConnected) return;
+    panel.textContent = `本文を取得できませんでした: ${error?.message || error}。もう一度お試しください。`;
+    panel.setAttribute("role", "alert");
+    button.textContent = "本文を再取得";
+    panel.hidden = false;
+  } finally {
+    if (active === version && panel.isConnected) button.disabled = false;
+  }
 }
 function renderResults() {
   results.replaceChildren();
   for (const item of previews) {
-    const card = document.createElement("label"); card.className = "message";
+    const card = document.createElement("article"); card.className = "message";
+    const choice = document.createElement("label"); choice.className = "message-choice";
     const checkbox = document.createElement("input"); checkbox.type = "checkbox";
     checkbox.checked = selected.has(intakeKey(item));
     const text = document.createElement("span"); text.className = "text";
     const title = document.createElement("strong"); title.textContent = item.subject || "（件名なし）";
     const meta = document.createElement("small"); meta.textContent = `${item.date || "日付不明"} ／ ${item.sender || "差出人不明"} ／ ${item.account}`;
-    text.append(title, meta); card.append(checkbox, text);
+    text.append(title, meta); choice.append(checkbox, text);
     checkbox.addEventListener("change", () => {
       if (checkbox.checked) selected.add(intakeKey(item));
       else selected.delete(intakeKey(item));
       update();
     });
+    const button = document.createElement("button");
+    button.type = "button"; button.className = "secondary message-body-button";
+    button.textContent = "本文を確認";
+    button.setAttribute("aria-label", `${item.subject || "件名なし"}の本文を確認`);
+    const panel = document.createElement("div");
+    panel.className = "message-body-panel"; panel.hidden = true;
+    button.addEventListener("click", () => openBody(item, button, panel));
+    card.append(choice, button, panel);
     results.append(card);
   }
   const partial = [...fetchInfo.values()].some(item => item.hasMore);
