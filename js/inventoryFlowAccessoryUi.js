@@ -1,9 +1,13 @@
 import { getFirebaseState } from "./firebase.js";
 import {
   loadEventInventoryFlow,
-  addEventInventoryAdjustment
-} from "./services/inventoryFlowService.js?v=20260916-accessory-flow-1";
+  addEventInventoryAdjustment,
+  backfillMissingAccessoryStock
+} from "./services/inventoryFlowService.js?v=20260926-accessory-backfill-1";
 import { loadAllAccessoryEventRows } from "./services/accessoryEventCatalogService.js?v=20260916-accessory-flow-1";
+import { planAccessoryEventBackfill } from "./services/accessoryEventBackfill.mjs";
+import { accessoryAdapter } from "./inventoryAdapters/accessoryAdapter.js";
+import { listAllProductVariants, syncAccessoryCatalogRows } from "./services/productAdminService.js";
 
 const PANEL_ID = "inventoryFlowOverlay";
 const CARD_ID = "inventoryFlowAccessoryCard";
@@ -303,7 +307,7 @@ async function renderAccessoryCard(force = false) {
 
   rendering = true;
   try {
-    const [{ state }, catalogRows, transactions] = await Promise.all([
+    const [{ session, state }, catalogRows, transactions] = await Promise.all([
       loadEventInventoryFlow(sessionId),
       loadAllAccessoryEventRows(),
       loadTransactions(sessionId)
@@ -315,6 +319,10 @@ async function renderAccessoryCard(force = false) {
     const reusableCount = rows.filter(row => checkpointById.get(row.variantId)?.reusable).length;
     const recheckCount = rows.filter(row => checkpointById.get(row.variantId)?.item && !checkpointById.get(row.variantId)?.reusable).length;
     const eventSkuCount = rows.filter(row => nonNegativeInt(row.openingQty) > 0 || nonNegativeInt(row.restockQty) > 0 || int(row.openingCorrection) !== 0 || nonNegativeInt(row.skuSales) > 0).length;
+    const backfillPlan = session?.status === "open" && session?.inventoryCount?.opening
+      ? planAccessoryEventBackfill(session, catalogRows)
+      : [];
+    const backfillQuantity = backfillPlan.reduce((sum, row) => sum + row.quantity, 0);
 
     document.querySelector(`#${CARD_ID}`)?.remove();
     installStyles();
@@ -336,6 +344,7 @@ async function renderAccessoryCard(force = false) {
         <button type="button" class="ifa-chip active" data-cat="all">すべて ${rows.length}</button>
         ${CATEGORY_ORDER.map(cat => `<button type="button" class="ifa-chip" data-cat="${cat}">${CATEGORY_LABELS[cat]} ${counts[cat] || 0}</button>`).join("")}
       </div>
+      ${backfillPlan.length ? `<button type="button" class="ifa-backfill" style="width:100%;min-height:48px;margin:10px 0">未登録のアクセサリーを実在庫から一括追加（${backfillPlan.length} SKU、${backfillQuantity}点）</button><div class="if-muted">開始数や補充を登録済みのSKUは変更しません。保存前に対象件数を確認します。</div>` : ""}
       <div class="ifa-list">
         ${rows.map(row => {
           const cp = checkpointById.get(row.variantId);
@@ -368,6 +377,35 @@ async function renderAccessoryCard(force = false) {
 
     if (!placeCard(card)) return;
     hideLegacyAccessoryRows();
+
+    card.querySelector(".ifa-backfill")?.addEventListener("click", async event => {
+      const button = event.currentTarget;
+      if (!window.confirm(`このイベントの未登録アクセサリー ${backfillPlan.length} SKU、${backfillQuantity}点を、現在の実在庫を基に登録しますか？\n既に登録したSKUは変更しません。販売記録や会社全体の実在庫は変更しません。`)) return;
+      button.disabled = true;
+      try {
+        const result = await backfillMissingAccessoryStock({
+          sessionId, catalogRows, recordedByEmail: currentEmail()
+        });
+        if (result.added) {
+          try {
+            const [catalog, registered] = await Promise.all([
+              accessoryAdapter.getCatalogSnapshot(), listAllProductVariants()
+            ]);
+            const ids = new Set(result.variantIds);
+            const registeredIds = new Set(registered.map(row => row.variantId || row.id));
+            const missing = catalog.rows.filter(row => ids.has(row.variantId) && !registeredIds.has(row.variantId));
+            if (missing.length) await syncAccessoryCatalogRows(missing);
+          } catch (error) {
+            window.alert("イベント在庫は登録しましたが、SKUの商品登録を確認してください。在庫画面に未登録SKUが表示されます。");
+          }
+        }
+        renderedSessionKey = "";
+        refreshInventoryFlowPanel();
+      } catch (error) {
+        button.disabled = false;
+        window.alert(error?.message || String(error));
+      }
+    });
 
     card.querySelector(".ifa-search")?.addEventListener("input", () => applyFilter(card));
     card.querySelectorAll(".ifa-chip").forEach(button => button.addEventListener("click", () => {
