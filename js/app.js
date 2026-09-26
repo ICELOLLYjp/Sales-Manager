@@ -8758,6 +8758,15 @@ async function renderSessions(
                             >
                               アクセサリー
                             </div>
+                            <button
+                              id="copyAccessoryStockToCarryButton"
+                              type="button"
+                              class="button button-secondary"
+                              style="width:100%;min-height:48px;margin-bottom:10px;"
+                            >
+                              アクセサリー全在庫を持参数に入力（${currentAccessoryTotal}点）
+                            </button>
+                            <div class="muted" style="margin-bottom:10px;">このイベントの入力欄だけを更新します。保存前に数量を確認できます。</div>
 
                             ${eventCurrentInventoryRows
                               .filter(
@@ -12876,6 +12885,19 @@ async function renderSessions(
         }
       );
 
+
+    document
+      .querySelector("#copyAccessoryStockToCarryButton")
+      ?.addEventListener("click", () => {
+        rememberEventCarryUndo();
+        document.querySelectorAll(".eventCarryAccessoryRow").forEach(row => {
+          const input = row.querySelector(".eventCarryQtyInput");
+          if (input && !input.disabled) {
+            input.value = row.dataset.currentQty || "0";
+          }
+        });
+        commitEventCarryDomChange();
+      });
 
     document
       .querySelector(
