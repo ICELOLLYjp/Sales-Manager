@@ -322,7 +322,7 @@ export async function addEventInventoryAdjustment({
   return entry;
 }
 
-export async function backfillMissingAccessoryStock({ sessionId, catalogRows, recordedByEmail = "" }) {
+export async function backfillMissingAccessoryStock({ sessionId, catalogRows, selectedVariantIds, recordedByEmail = "" }) {
   const cleanSessionId = text(sessionId);
   if (!cleanSessionId) throw new Error("販売セッションを選択してください。");
   const db = await requireDb();
@@ -356,7 +356,7 @@ export async function backfillMissingAccessoryStock({ sessionId, catalogRows, re
         if (row) validRows.push(row);
       }
     }
-    const planned = planAccessoryEventBackfill(session, validRows, stockBySource);
+    const planned = planAccessoryEventBackfill(session, validRows, stockBySource, selectedVariantIds);
     if (!planned.length) return { added: 0, quantity: 0, variantIds: [] };
     const batchId = makeId("accessory_backfill");
     const entries = planned.map(row => ({
