@@ -4,6 +4,12 @@ function text(value) {
   return String(value ?? "").trim();
 }
 
+const VISIBLE_SESSION_STATUSES = new Set([
+  "open",
+  "pending_allocation",
+  "closed"
+]);
+
 function localDateKey() {
   const now = new Date();
   const y = now.getFullYear();
@@ -14,7 +20,7 @@ function localDateKey() {
 
 function eventPhase(session) {
   const status = text(session?.status);
-  if (status === "closed" || status === "archived") return "ended";
+  if (status === "closed") return "ended";
 
   const today = localDateKey();
   const start = text(session?.startDate);
@@ -149,15 +155,36 @@ function rebuildBoard(sessions) {
   const sourceCards = new Set();
 
   rows.forEach((row, sessionId) => {
+    const sourceCard = row.closest(".card");
+    if (sourceCard && !sourceCard.classList.contains("session-period-group")) {
+      sourceCards.add(sourceCard);
+    }
+
     const session = rawById.get(sessionId);
-    if (!session) return;
+    if (!session) {
+      row.remove();
+      return;
+    }
+
+    const status = text(session?.status);
+    if (!VISIBLE_SESSION_STATUSES.has(status)) {
+      row.remove();
+      return;
+    }
+
     updateOpenBadge(row, session);
     entries.push({ row, sessionId, session, phase: eventPhase(session) });
-    const sourceCard = row.closest(".card");
-    if (sourceCard && !sourceCard.classList.contains("session-period-group")) sourceCards.add(sourceCard);
   });
 
-  if (!entries.length) return;
+  sourceCards.forEach(card => {
+    card.dataset.sessionPeriodSource = "1";
+    card.style.display = "none";
+  });
+
+  if (!entries.length) {
+    document.getElementById("sessionPeriodBoard")?.remove();
+    return;
+  }
 
   const anchor = entries[0].row.closest(".card") || entries[0].row;
   const board = ensureBoard(anchor);
@@ -173,20 +200,20 @@ function rebuildBoard(sessions) {
     }
     group.forEach(entry => body.appendChild(entry.row));
   });
-
-  sourceCards.forEach(card => {
-    card.dataset.sessionPeriodSource = "1";
-    card.style.display = "none";
-  });
 }
 
 let loading = false;
 let cachedSessions = null;
 let cachedAt = 0;
 
+function clearSessionCache() {
+  cachedSessions = null;
+  cachedAt = 0;
+}
+
 async function loadSessions() {
   const now = Date.now();
-  if (cachedSessions && now - cachedAt < 15000) return cachedSessions;
+  if (cachedSessions && now - cachedAt < 3000) return cachedSessions;
 
   const { db, enabled } = getFirebaseState();
   if (!enabled || !db) return null;
@@ -226,12 +253,27 @@ function schedule() {
   });
 }
 
+document.addEventListener("click", event => {
+  const button = event.target?.closest?.("button");
+  if (!button) return;
+  if (text(document.querySelector("h1.page-title")?.textContent) !== "Sessions") return;
+
+  const label = text(button.textContent);
+  if (
+    label.includes("削除") ||
+    label.includes("アーカイブ") ||
+    label.includes("復元")
+  ) {
+    clearSessionCache();
+    window.setTimeout(schedule, 250);
+  }
+});
+
 schedule();
 new MutationObserver(schedule).observe(document.body, { childList: true, subtree: true });
 document.addEventListener("visibilitychange", () => {
   if (!document.hidden) {
-    cachedSessions = null;
-    cachedAt = 0;
+    clearSessionCache();
     schedule();
   }
 });
