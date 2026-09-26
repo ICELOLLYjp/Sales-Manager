@@ -1,6 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { filterTshirtRowsForEventGroups } from "../js/services/eventTshirtDesigns.mjs";
+import { filterTshirtRowsForEventGroups, filterTshirtRowsForEventDesigns } from "../js/services/eventTshirtDesigns.mjs";
+
+test("both cached application imports resolve to the same group filter", () => {
+  assert.equal(filterTshirtRowsForEventDesigns, filterTshirtRowsForEventGroups);
+});
 
 test("POS hides zero-only design, body and color groups while keeping zero sizes of a carried group", () => {
   const rows = [
