@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { missingAccessoryOpeningRows } from "../js/services/accessoryOpeningRegistration.mjs";
+import { missingAccessoryOpeningRows, missingAccessoryEventRows } from "../js/services/accessoryOpeningRegistration.mjs";
 
 test("a positive event opening registers only missing accessory SKU metadata", () => {
   const opening = [
@@ -20,4 +20,16 @@ test("does not invent a product for an event row absent from canonical stock", (
     [{ variantId: "accessory__pierce__missing", inventorySource: "accessory", openingQty: 4 }],
     [], []
   ), []);
+});
+
+test("late SKU metadata repair covers existing event stock without adding quantities", () => {
+  const eventRows = [
+    { variantId: "opening", openingQty: 4, restockQty: 0, openingCorrection: 0 },
+    { variantId: "late", openingQty: 0, restockQty: 0, openingCorrection: 6 },
+    { variantId: "registered", openingQty: 3, restockQty: 0, openingCorrection: 0 },
+    { variantId: "not-carried", openingQty: 0, restockQty: 0, openingCorrection: 0 }
+  ];
+  const catalog = eventRows.map(row => ({ variantId: row.variantId, label: row.variantId }));
+  assert.deepEqual(missingAccessoryEventRows(eventRows, catalog, [{ variantId: "registered" }]), catalog.slice(0, 2));
+  assert.deepEqual(missingAccessoryEventRows(eventRows, catalog, catalog), []);
 });
