@@ -165,14 +165,32 @@ function dateText(group) {
 }
 
 function primarySalesText(group) {
-  if (group.localSales.size === 1) {
-    const [currency, amount] = Array.from(group.localSales.entries())[0];
-    return formatLocal(amount, currency);
+  if (group.unknownFxCount > 0 && group.salesJPY <= 0) {
+    return "円換算未設定";
   }
 
-  return group.unknownFxCount > 0
-    ? "複数通貨"
-    : formatJPY(group.salesJPY);
+  return formatJPY(group.salesJPY);
+}
+
+function secondarySalesText(group) {
+  const localEntries = Array.from(group.localSales.entries());
+  let localText = "";
+
+  if (localEntries.length === 1) {
+    const [currency, amount] = localEntries[0];
+    if (currency !== "JPY") {
+      localText = formatLocal(amount, currency);
+    }
+  } else if (localEntries.length > 1) {
+    localText = "複数通貨";
+  }
+
+  if (group.unknownFxCount > 0) {
+    const warning = `円換算一部未設定 ${group.unknownFxCount}件`;
+    return localText ? `${localText} / ${warning}` : warning;
+  }
+
+  return localText;
 }
 
 function averageTicketText(group) {
@@ -198,7 +216,10 @@ function averageDayText(group) {
 }
 
 function rowsHtml(groups) {
-  return groups.map(group => `
+  return groups.map(group => {
+    const secondary = secondarySalesText(group);
+
+    return `
     <div class="analyticsEventRow analyticsGroupedEventRow">
       <div class="analyticsEventHead">
         <div>
@@ -207,7 +228,7 @@ function rowsHtml(groups) {
         </div>
         <div class="analyticsEventSales">
           <strong>${esc(primarySalesText(group))}</strong>
-          <span>${group.unknownFxCount > 0 ? `円換算一部未設定 ${group.unknownFxCount}件` : esc(formatJPY(group.salesJPY))}</span>
+          ${secondary ? `<span>${esc(secondary)}</span>` : ""}
         </div>
       </div>
       <div class="analyticsEventStats">
@@ -217,7 +238,8 @@ function rowsHtml(groups) {
         <span>1日平均 ${esc(averageDayText(group))}</span>
       </div>
     </div>
-  `).join("");
+  `;
+  }).join("");
 }
 
 let refreshToken = 0;
