@@ -585,3 +585,8 @@ PR 50 grouped only by Design and was insufficient for the real event screenshot.
 ## POS module cache compatibility incident 2026-09-26
 
 After PR 51, an iPhone showed a full-app startup error: the previously cached app.js imported filterTshirtRowsForEventDesigns, while the newly deployed eventTshirtDesigns.mjs only exported filterTshirtRowsForEventGroups. The fix exports both names as the same Design / Body / Color filter and versions both the app.js entry URL and its helper import. The service worker shell cache version is advanced and preloads the helper. Regression tests import both names and check they point to the same implementation. No sales or stock data was altered. Verify production startup on iPhone after Pages deployment, then recheck SKU POS visibility.
+
+
+## SKU POS selection tabs 2026-09-26
+
+The SKU POS category dropdown is replaced with large T-shirt and Accessory buttons for event use on iPhone. The Accessory view defaults to all four tracked accessory categories and has optional All / Pierce / Earring buttons. Drop pierces appear with pierces, and drop earrings with earrings; the individual SKU category label remains visible under each product. The UI grouping never changes productVariants.category, variantId, prices, cart line identity, checkout stock deduction, or event inventory authority. Switching views clears the SKU search and accessory subtype returns to All. Version the index app.js entry and service worker shell together to avoid mixing cached module generations, following the PR 52 incident. Verify both modes and each accessory button in an authenticated event Session on the physical iPhone after deployment.
