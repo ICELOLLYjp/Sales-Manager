@@ -11,6 +11,15 @@ import {
 const REGION =
   "asia-southeast1";
 
+const RECOVERABLE_CACHE_TTL_MS =
+  15 * 1000;
+
+const recoverablePaymentCache =
+  new Map();
+
+const recoverablePaymentRequests =
+  new Map();
+
 
 function functionsInstance() {
   return getFunctions(
@@ -100,19 +109,99 @@ export async function refundStripePayment({
 export async function listRecoverableStripePayments(
   sessionId
 ) {
-  const result =
-    await call(
-      "stripeListRecoverablePayments",
-      {
-        sessionId
-      }
+  const key =
+    String(
+      sessionId ||
+      ""
+    ).trim();
+
+  const cached =
+    recoverablePaymentCache
+      .get(
+        key
+      );
+
+  if (
+    cached &&
+    Date.now() -
+      cached.savedAt <
+      RECOVERABLE_CACHE_TTL_MS
+  ) {
+    return cached.payments
+      .map(
+        payment => ({
+          ...payment
+        })
+      );
+  }
+
+  const existingRequest =
+    recoverablePaymentRequests
+      .get(
+        key
+      );
+
+  if (existingRequest) {
+    return await existingRequest;
+  }
+
+  const request =
+    (async () => {
+      const result =
+        await call(
+          "stripeListRecoverablePayments",
+          {
+            sessionId
+          }
+        );
+
+      const payments =
+        Array.isArray(
+          result?.payments
+        )
+          ? result.payments
+          : [];
+
+      recoverablePaymentCache
+        .set(
+          key,
+          {
+            savedAt:
+              Date.now(),
+            payments:
+              payments.map(
+                payment => ({
+                  ...payment
+                })
+              )
+          }
+        );
+
+      return payments;
+    })();
+
+  recoverablePaymentRequests
+    .set(
+      key,
+      request
     );
 
-  return Array.isArray(
-    result?.payments
-  )
-    ? result.payments
-    : [];
+  try {
+    return await request;
+  } finally {
+    if (
+      recoverablePaymentRequests
+        .get(
+          key
+        ) ===
+      request
+    ) {
+      recoverablePaymentRequests
+        .delete(
+          key
+        );
+    }
+  }
 }
 
 
