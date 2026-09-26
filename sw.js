@@ -1,5 +1,5 @@
 const CACHE_NAME =
-  "icelolly-sales-shell-20260926-group-compat-1";
+  "icelolly-sales-shell-20260926-pos-sku-tabs-1";
 
 const CORE_ASSETS = [
   "./",
