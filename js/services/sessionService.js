@@ -50,6 +50,19 @@ function cloneSessions(
   );
 }
 
+function posScreenActive() {
+  return Boolean(
+    document
+      .querySelector(
+        '.nav-btn[data-route="pos"]'
+      )
+      ?.classList
+      .contains(
+        "active"
+      )
+  );
+}
+
 function invalidateSessionCache() {
   sessionCache =
     null;
@@ -59,7 +72,11 @@ function invalidateSessionCache() {
 }
 
 export async function listSalesSessions() {
+  const allowCache =
+    posScreenActive();
+
   if (
+    allowCache &&
     sessionCache &&
     Date.now() -
       sessionCacheSavedAt <
@@ -70,7 +87,10 @@ export async function listSalesSessions() {
     );
   }
 
-  if (sessionRequest) {
+  if (
+    allowCache &&
+    sessionRequest
+  ) {
     return cloneSessions(
       await sessionRequest
     );
@@ -79,8 +99,10 @@ export async function listSalesSessions() {
   const request =
     listSalesSessionsFromServer();
 
-  sessionRequest =
-    request;
+  if (allowCache) {
+    sessionRequest =
+      request;
+  }
 
   try {
     const sessions =
@@ -95,7 +117,7 @@ export async function listSalesSessions() {
       Date.now();
 
     return cloneSessions(
-      sessionCache
+      sessions
     );
   } finally {
     if (
