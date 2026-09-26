@@ -3,6 +3,7 @@ import { initAuth, loginWithGoogle, logout } from "./auth.js";
 import { renderDashboard } from "./views/dashboardView.js";
 import { tshirtAdapter } from "./inventoryAdapters/tshirtAdapter.js?v=20260915-empty-size-cells-1";
 import { accessoryAdapter } from "./inventoryAdapters/accessoryAdapter.js";
+import { missingAccessoryOpeningRows } from "./services/accessoryOpeningRegistration.mjs";
 import { loadTshirtProductVariants, syncTshirtCurrentStockRows } from "./services/catalogService.js";
 import { listAllProductVariants, registerTshirtVariant, registerGeneralProduct, syncAccessoryCatalogRows } from "./services/productAdminService.js?v=20260911-cost-cache-import-fix-2";
 import { CATEGORY_TEMPLATES, getCategoryTemplate } from "./data/categoryTemplates.js";
@@ -12521,13 +12522,14 @@ async function renderSessions(
       }
 
       try {
+        const openingRows = readEventCarryRowsFromDom();
         await saveEventOpeningInventory({
           sessionId:
             selectedInventoryCountSession
               .sessionId,
 
           items:
-            readEventCarryRowsFromDom(),
+            openingRows,
 
           capturedByEmail:
             currentUser?.email ||
@@ -12535,6 +12537,33 @@ async function renderSessions(
 
           overwrite
         });
+
+        // Opening inventory may contain accessories that have not yet been
+        // registered in productVariants. SKU POS only lists registered rows.
+        // Sync metadata after the opening is saved; never change real stock here.
+        let accessoryRegistrationWarning = "";
+        if (openingRows.some(item => item.inventorySource === "accessory" && Number(item.openingQty) > 0)) {
+          try {
+            const [catalog, registered] = await Promise.all([
+              accessoryAdapter.getCatalogSnapshot(),
+              listAllProductVariants()
+            ]);
+            const missing = missingAccessoryOpeningRows(openingRows, catalog.rows, registered);
+            if (missing.length) await syncAccessoryCatalogRows(missing);
+            const catalogIds = new Set(catalog.rows.map(row => row.variantId));
+            const unavailable = openingRows.some(item =>
+              item.inventorySource === "accessory" && Number(item.openingQty) > 0 &&
+              !catalogIds.has(item.variantId) &&
+              !registered.some(row => (row.variantId || row.id) === item.variantId)
+            );
+            if (unavailable) accessoryRegistrationWarning =
+              "開始在庫は保存しました。一部のアクセサリーは実在庫マスターに見つからず、SKUに登録できませんでした。";
+          } catch (registrationError) {
+            accessoryRegistrationWarning =
+              "開始在庫は保存しましたが、アクセサリーSKUの登録に失敗しました。在庫画面で未登録SKUを確認してください。";
+            console.warn("Accessory SKU registration after opening failed", registrationError);
+          }
+        }
 
         clearEventCarryDraft();
 
@@ -12544,6 +12573,10 @@ async function renderSessions(
         await renderSessions(
           ++renderSequence
         );
+        if (accessoryRegistrationWarning) {
+          const status = document.querySelector("#inventoryCountMessage");
+          if (status) status.textContent = accessoryRegistrationWarning;
+        }
 
         setTimeout(
           () => {
