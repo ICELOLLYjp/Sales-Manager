@@ -18,3 +18,5 @@ export function filterTshirtRowsForEventGroups(rows, openingItems, flowEntries, 
     .map(groupKey));
   return (rows || []).filter(row => activeGroups.has(groupKey(row)));
 }
+
+export const filterTshirtRowsForEventDesigns = filterTshirtRowsForEventGroups;

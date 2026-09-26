@@ -580,3 +580,8 @@ The user observed T-shirt designs not brought to the active event in SKU POS. Th
 ## Event T-shirt color correction 2026-09-26
 
 PR 50 grouped only by Design and was insufficient for the real event screenshot. PR 51 merged as be56e8f5e43ac5dfd28d63e879f39c0e91df3f59 and narrows SKU POS visibility to the Design / Body / Color combination while retaining size zero cells within a carried combination. Example: Bigwave Vintage Navy is visible while Bigwave Organic Black and Organic Natural are hidden when those combinations have only automatic zero opening rows. This changes display only and preserves Quick sales and real stock.
+
+
+## POS module cache compatibility incident 2026-09-26
+
+After PR 51, an iPhone showed a full-app startup error: the previously cached app.js imported filterTshirtRowsForEventDesigns, while the newly deployed eventTshirtDesigns.mjs only exported filterTshirtRowsForEventGroups. The fix exports both names as the same Design / Body / Color filter and versions both the app.js entry URL and its helper import. The service worker shell cache version is advanced and preloads the helper. Regression tests import both names and check they point to the same implementation. No sales or stock data was altered. Verify production startup on iPhone after Pages deployment, then recheck SKU POS visibility.

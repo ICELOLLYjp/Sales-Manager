@@ -1,5 +1,5 @@
 const CACHE_NAME =
-  "icelolly-sales-shell-20260917-advertising-1";
+  "icelolly-sales-shell-20260926-group-compat-1";
 
 const CORE_ASSETS = [
   "./",
@@ -64,6 +64,7 @@ const CORE_ASSETS = [
   "./js/services/costHistoryService.js",
   "./js/services/inventoryCountService.js",
   "./js/services/inventoryFlowService.js",
+  "./js/services/eventTshirtDesigns.mjs",
   "./js/services/inventoryFlowFinalizeService.js",
   "./js/services/pinkoiCatalogService.js",
   "./js/services/sessionLifecycleService.js",
