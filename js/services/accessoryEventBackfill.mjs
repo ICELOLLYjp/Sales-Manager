@@ -1,4 +1,5 @@
-export function planAccessoryEventBackfill(session, catalogRows, stockBySource) {
+export function planAccessoryEventBackfill(session, catalogRows, stockBySource, selectedVariantIds = null) {
+  const selected = selectedVariantIds === null ? null : new Set(selectedVariantIds);
   const opening = session?.inventoryCount?.opening?.items || [];
   const existing = new Set(opening.filter(item => Number(item.openingQty) > 0).map(item => item.variantId));
   for (const entry of session?.inventoryCount?.flowEntries || []) existing.add(entry.variantId);
@@ -7,7 +8,7 @@ export function planAccessoryEventBackfill(session, catalogRows, stockBySource) 
   }
   return (catalogRows || []).flatMap(row => {
     const quantity = Number(stockBySource ? stockBySource.get(`${row.sourceId}|${row.stockField}`) : row.companyStockQty);
-    if (existing.has(row.variantId) || !Number.isSafeInteger(quantity) || quantity <= 0) return [];
+    if ((selected && !selected.has(row.variantId)) || existing.has(row.variantId) || !Number.isSafeInteger(quantity) || quantity <= 0) return [];
     return [{ ...row, quantity }];
   });
 }
