@@ -1,8 +1,8 @@
 # ICELOLLY Sales Manager — PROJECT HANDOFF
 
-Last reconciled: 2026-09-26
+Last reconciled: 2026-09-17
 Repository: `ICELOLLYjp/Sales-Manager`
-Reference `main` at reconciliation: `f95ad0ddf42092acb68771268d143b45a2b2c314`
+Reference `main` at reconciliation: `3ad30c96a0fc8157d8098d27fd4ac33b064ef57e`
 
 This is the canonical handoff for future development chats. Inspect latest `main` before editing; this file describes the intended invariants, what is already implemented, and what still needs work.
 
@@ -515,6 +515,8 @@ Do not add another large inventory-close model before the next real-event field 
 ---
 
 # 16. Real event field test notes 2026-09-25
+
+Recorded: 2026-09-26
 
 The app is being tested during a real event. Treat the items below as field observations. Reproduce and verify them after the event before changing data models or large workflows.
 
