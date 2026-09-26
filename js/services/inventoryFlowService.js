@@ -1,4 +1,5 @@
 import { getFirebaseState } from "../firebase.js";
+import { planAccessoryEventBackfill } from "./accessoryEventBackfill.mjs";
 
 const SESSION_COLLECTION = "salesSessions";
 const ALLOWED_ADJUSTMENT_TYPES = new Set([
@@ -319,6 +320,69 @@ export async function addEventInventoryAdjustment({
   });
 
   return entry;
+}
+
+export async function backfillMissingAccessoryStock({ sessionId, catalogRows, recordedByEmail = "" }) {
+  const cleanSessionId = text(sessionId);
+  if (!cleanSessionId) throw new Error("販売セッションを選択してください。");
+  const db = await requireDb();
+  const { doc, runTransaction, serverTimestamp } = await firestoreModule();
+  const sessionRef = doc(db, SESSION_COLLECTION, cleanSessionId);
+  const stockRef = doc(db, "accessoryStock", "shared");
+
+  return runTransaction(db, async transaction => {
+    const sessionSnapshot = await transaction.get(sessionRef);
+    const stockSnapshot = await transaction.get(stockRef);
+    if (!sessionSnapshot.exists()) throw new Error("販売セッションが見つかりません。");
+    if (!stockSnapshot.exists()) throw new Error("アクセサリーの実在庫を確認できません。");
+    const session = sessionSnapshot.data();
+    if (session.status !== "open" || !session.inventoryCount?.opening) {
+      throw new Error("開始在庫が保存された進行中のイベントを選択してください。");
+    }
+    const designs = Array.isArray(stockSnapshot.data()?.designs) ? stockSnapshot.data().designs : [];
+    const stockBySource = new Map();
+    const validRows = [];
+    for (const design of designs) {
+      const sourceId = text(design?.id);
+      if (!sourceId) continue;
+      for (const stockField of ["piercing", "earring"]) {
+        const category = text(design?.category) === "puraplara"
+          ? (stockField === "piercing" ? "drop_pierce" : "drop_earring")
+          : (stockField === "piercing" ? "pierce" : "earring");
+        const variantId = ["accessory", encodeURIComponent(category), encodeURIComponent(sourceId)].join("__");
+        stockBySource.set(`${sourceId}|${stockField}`, Number(design?.[stockField]));
+        const row = (catalogRows || []).find(item => item.variantId === variantId &&
+          item.sourceId === sourceId && item.stockField === stockField && item.category === category);
+        if (row) validRows.push(row);
+      }
+    }
+    const planned = planAccessoryEventBackfill(session, validRows, stockBySource);
+    if (!planned.length) return { added: 0, quantity: 0, variantIds: [] };
+    const batchId = makeId("accessory_backfill");
+    const entries = planned.map(row => ({
+      id: makeId("flow"), batchId, type: "opening_correction", variantId: row.variantId,
+      quantity: row.quantity, note: "開始時に持参したアクセサリーの登録漏れ",
+      recordedAtIso: nowIso(), recordedByEmail: text(recordedByEmail),
+      item: {
+        variantId: row.variantId, category: row.category, inventorySource: "accessory",
+        inventoryKey: row.inventoryKey, sku: row.sku || row.variantId,
+        label: row.label, detail: row.detail
+      }
+    }));
+    const previous = Array.isArray(session.inventoryCount.flowEntries)
+      ? session.inventoryCount.flowEntries : [];
+    const combined = [...previous, ...entries];
+    if (JSON.stringify(combined).length > 800000) {
+      throw new Error("一括登録の件数が多いため保存できません。対象を分けて登録してください。");
+    }
+    transaction.update(sessionRef, {
+      "inventoryCount.flowEntries": combined,
+      "inventoryCount.flowUpdatedAt": serverTimestamp(),
+      "inventoryCount.updatedAt": serverTimestamp(), updatedAt: serverTimestamp()
+    });
+    return { added: entries.length, quantity: entries.reduce((sum, entry) => sum + entry.quantity, 0),
+      variantIds: entries.map(entry => entry.variantId) };
+  });
 }
 
 export async function deleteEventInventoryAdjustment({ sessionId, entryId }) {
