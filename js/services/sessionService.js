@@ -51,6 +51,13 @@ function cloneSessions(
 }
 
 function posScreenActive() {
+  if (
+    typeof document ===
+    "undefined"
+  ) {
+    return false;
+  }
+
   return Boolean(
     document
       .querySelector(
