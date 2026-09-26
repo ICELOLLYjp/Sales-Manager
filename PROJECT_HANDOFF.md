@@ -579,4 +579,4 @@ The user observed T-shirt designs not brought to the active event in SKU POS. Th
 
 ## Event T-shirt color correction 2026-09-26
 
-PR 50 grouped only by Design and was insufficient for the real event screenshot. The follow-up change narrows SKU POS visibility to the Design / Body / Color combination while retaining size zero cells within a carried combination. Example: Bigwave Vintage Navy is visible while Bigwave Organic Black and Organic Natural are hidden when those combinations have only automatic zero opening rows. This changes display only and preserves Quick sales and real stock.
+PR 50 grouped only by Design and was insufficient for the real event screenshot. PR 51 merged as be56e8f5e43ac5dfd28d63e879f39c0e91df3f59 and narrows SKU POS visibility to the Design / Body / Color combination while retaining size zero cells within a carried combination. Example: Bigwave Vintage Navy is visible while Bigwave Organic Black and Organic Natural are hidden when those combinations have only automatic zero opening rows. This changes display only and preserves Quick sales and real stock.
