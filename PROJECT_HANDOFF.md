@@ -549,3 +549,10 @@ The app is being tested during a real event. Treat the items below as field obse
 ## Field test handling rule
 
 During the event, record observations first and avoid large changes unless a small isolated fix is necessary for operation. After the event, classify each item as a reproducible defect, an operation issue, or a UX improvement before implementation.
+
+
+## Accessory SKU registration follow up 2026-09-26
+
+Code investigation found a reproducible gap: event opening inventory accepts accessory rows from the canonical stock catalog even when the corresponding productVariants entry is absent. SKU POS filters accessory rows by productVariants, so a positive saved opening quantity alone does not make an unregistered accessory available in SKU mode. A separate manual registration button exists in Inventory.
+
+Proposed branch fix/accessory-opening-sku-registration-20260926 registers only missing accessory SKU metadata from canonical accessoryStock/shared after a positive event opening is saved. It does not change canonical stock quantities or existing sales. If registration fails, the opening remains saved and the user receives a warning. The branch has a focused regression test. Production Firestore state for the affected event has not been inspected, so verify the actual missing SKU IDs and the result on a dedicated test Session before merging or deploying. The real event is still in progress; no production deployment was made.
