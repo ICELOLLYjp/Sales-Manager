@@ -344,7 +344,7 @@ async function renderAccessoryCard(force = false) {
         <button type="button" class="ifa-chip active" data-cat="all">すべて ${rows.length}</button>
         ${CATEGORY_ORDER.map(cat => `<button type="button" class="ifa-chip" data-cat="${cat}">${CATEGORY_LABELS[cat]} ${counts[cat] || 0}</button>`).join("")}
       </div>
-      ${backfillPlan.length ? `<button type="button" class="ifa-backfill" style="width:100%;min-height:48px;margin:10px 0">未登録のアクセサリーを実在庫から一括追加（${backfillPlan.length} SKU、${backfillQuantity}点）</button><div class="if-muted">開始数や補充を登録済みのSKUは変更しません。保存前に対象件数を確認します。</div>` : ""}
+      ${backfillPlan.length ? `<button type="button" class="button ifa-backfill" style="width:100%;min-height:48px;margin:10px 0">未登録のアクセサリーを実在庫から一括追加（${backfillPlan.length} SKU、${backfillQuantity}点）</button><div class="if-muted">開始数や補充を登録済みのSKUは変更しません。保存前に対象件数を確認します。</div>` : ""}
       <div class="ifa-list">
         ${rows.map(row => {
           const cp = checkpointById.get(row.variantId);
