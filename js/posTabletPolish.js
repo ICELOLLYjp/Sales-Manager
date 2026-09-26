@@ -80,6 +80,13 @@ function installStyles() {
 }
 
 function markTshirtSkuTable() {
+  const firstSkuItem =
+    document.querySelector(
+      "#view .posSkuItem"
+    );
+
+  if (!firstSkuItem) return;
+
   const label = Array.from(document.querySelectorAll("#view div"))
     .find(element => String(element.textContent || "").trim() === "Design / Body / Color");
 
