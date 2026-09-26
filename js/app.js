@@ -356,6 +356,9 @@ let posMode =
 let posSkuCategory =
   "tshirt";
 
+let posAccessoryFilter =
+  "all";
+
 let posSkuSearch =
   "";
 
@@ -20320,70 +20323,89 @@ async function renderPos(
                 }
 
                 <div
+                  role="group"
+                  aria-label="SKUの種類"
                   style="
                     display:grid;
-                    grid-template-columns:
-                      150px
-                      minmax(0,1fr);
+                    grid-template-columns:repeat(2,minmax(0,1fr));
                     gap:8px;
                     margin-bottom:10px;
                   "
                 >
-                  <select
-                    id="posSkuCategory"
+                  ${[
+                    ["tshirt","Tシャツ"],
+                    ["accessory","アクセサリー"]
+                  ].map(([category,label]) => `
+                    <button
+                      type="button"
+                      class="posSkuCategoryButton"
+                      data-category="${category}"
+                      aria-pressed="${posSkuCategory === category}"
+                      style="
+                        min-height:48px;
+                        padding:8px;
+                        border:1px solid ${posSkuCategory === category ? "#202020" : "#deded9"};
+                        border-radius:12px;
+                        background:${posSkuCategory === category ? "#202020" : "#fff"};
+                        color:${posSkuCategory === category ? "#fff" : "#202020"};
+                        font-weight:800;
+                        touch-action:manipulation;
+                      "
+                    >${label}</button>
+                  `).join("")}
+                </div>
+
+                ${posSkuCategory === "accessory" ? `
+                  <div
+                    role="group"
+                    aria-label="アクセサリーの種類"
                     style="
-                      width:100%;
-                      min-height:44px;
-                      padding:0 8px;
-                      border:1px solid #deded9;
-                      border-radius:11px;
-                      background:white;
+                      display:flex;
+                      gap:7px;
+                      overflow-x:auto;
+                      margin-bottom:10px;
                     "
                   >
                     ${[
-                      "tshirt",
-                      "pierce",
-                      "earring",
-                      "drop_pierce",
-                      "drop_earring"
-                    ].map(
-                      category => `
-                        <option
-                          value="${category}"
-                          ${
-                            category ===
-                            posSkuCategory
-                              ? "selected"
-                              : ""
-                          }
-                        >
-                          ${escapeHtml(
-                            POS_CATEGORY_LABELS[
-                              category
-                            ]
-                          )}
-                        </option>
-                      `
-                    ).join("")}
-                  </select>
+                      ["all","すべて"],
+                      ["pierce","ピアス"],
+                      ["earring","イヤリング"]
+                    ].map(([filter,label]) => `
+                      <button
+                        type="button"
+                        class="posAccessoryFilterButton"
+                        data-filter="${filter}"
+                        aria-pressed="${posAccessoryFilter === filter}"
+                        style="
+                          flex:1 0 auto;
+                          min-height:44px;
+                          padding:8px 12px;
+                          border:1px solid ${posAccessoryFilter === filter ? "#202020" : "#deded9"};
+                          border-radius:11px;
+                          background:${posAccessoryFilter === filter ? "#202020" : "#fff"};
+                          color:${posAccessoryFilter === filter ? "#fff" : "#202020"};
+                          font-weight:700;
+                          touch-action:manipulation;
+                        "
+                      >${label}</button>
+                    `).join("")}
+                  </div>
+                ` : ""}
 
-                  <input
-                    id="posSkuSearch"
-                    type="search"
-                    value="${escapeHtml(
-                      posSkuSearch
-                    )}"
-                    placeholder="商品名、色、サイズで検索"
-                    style="
-                      width:100%;
-                      min-height:44px;
-                      padding:0 10px;
-                      border:1px solid #deded9;
-                      border-radius:11px;
-                    "
-                  >
-                </div>
-
+                <input
+                  id="posSkuSearch"
+                  type="search"
+                  value="${escapeHtml(posSkuSearch)}"
+                  placeholder="商品名、色、サイズで検索"
+                  style="
+                    width:100%;
+                    min-height:44px;
+                    padding:0 10px;
+                    margin-bottom:10px;
+                    border:1px solid #deded9;
+                    border-radius:11px;
+                  "
+                >
 
                 ${
                   (() => {
@@ -20395,11 +20417,13 @@ async function renderPos(
                     const rows =
                       posSkuRows.filter(
                         row => {
-                          if (
-                            row.category !==
-                            posSkuCategory
-                          ) {
-                            return false;
+                          const category = row.category;
+                          if (posSkuCategory === "tshirt") {
+                            if (category !== "tshirt") return false;
+                          } else {
+                            if (!["pierce", "earring", "drop_pierce", "drop_earring"].includes(category)) return false;
+                            if (posAccessoryFilter === "pierce" && !["pierce", "drop_pierce"].includes(category)) return false;
+                            if (posAccessoryFilter === "earring" && !["earring", "drop_earring"].includes(category)) return false;
                           }
 
                           if (!query) {
@@ -21395,21 +21419,25 @@ async function renderPos(
 
 
       document
-        .querySelector(
-          "#posSkuCategory"
+        .querySelectorAll(
+          ".posSkuCategoryButton"
         )
-        ?.addEventListener(
-          "change",
-          event => {
-            posSkuCategory =
-              event.target.value;
+        .forEach(button => button.addEventListener("click", () => {
+          posSkuCategory = button.dataset.category;
+          posAccessoryFilter = "all";
+          posSkuSearch = "";
+          renderPosBody();
+        }));
 
-            posSkuSearch =
-              "";
-
-            renderPosBody();
-          }
-        );
+      document
+        .querySelectorAll(
+          ".posAccessoryFilterButton"
+        )
+        .forEach(button => button.addEventListener("click", () => {
+          posAccessoryFilter = button.dataset.filter;
+          posSkuSearch = "";
+          renderPosBody();
+        }));
 
 
       document
