@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { missingAccessoryOpeningRows } from "./accessoryOpeningRegistration.mjs";
+import { missingAccessoryOpeningRows } from "../js/services/accessoryOpeningRegistration.mjs";
 
 test("a positive event opening registers only missing accessory SKU metadata", () => {
   const opening = [
