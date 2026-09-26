@@ -192,6 +192,13 @@ function normalizeCount(
     value || {};
 
   return {
+    flowEntries: (Array.isArray(source?.flowEntries) ? source.flowEntries : [])
+      .map(entry => ({
+        variantId: text(entry?.variantId),
+        type: text(entry?.type),
+        quantity: Number(entry?.quantity)
+      }))
+      .filter(entry => entry.variantId && Number.isFinite(entry.quantity)),
     quickAllocations:
       (Array.isArray(source?.quickAllocations)
         ? source.quickAllocations
