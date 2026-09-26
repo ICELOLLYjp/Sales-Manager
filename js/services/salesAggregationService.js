@@ -44,6 +44,39 @@ function normalizedKey(value) {
     .replace(/[^a-z0-9]/g, "");
 }
 
+function canonicalCategory(value) {
+  const raw = text(value);
+  if (!raw) return "";
+  if (CATEGORY_LABELS[raw]) return raw;
+
+  const labelMatch = Object.entries(CATEGORY_LABELS)
+    .find(([, label]) => label === raw);
+  if (labelMatch) return labelMatch[0];
+
+  const key = normalizedKey(raw);
+  const aliases = {
+    tshirts: "tshirt",
+    tshirt: "tshirt",
+    pierce: "pierce",
+    earring: "earring",
+    droppierce: "drop_pierce",
+    droptypepierce: "drop_pierce",
+    dropearring: "drop_earring",
+    droptypeearring: "drop_earring",
+    sticker: "sticker",
+    postcard: "postcard",
+    artprint: "art_print",
+    accessory: "accessory",
+    accessories: "accessory",
+    other: "other",
+    unclassified: "other",
+    unknown: "other",
+    misc: "other"
+  };
+
+  return aliases[key] || "";
+}
+
 function decodeParts(value, prefix, count) {
   const raw = text(value);
   if (!raw.startsWith(prefix)) return null;
@@ -91,7 +124,14 @@ function isTshirtItem(item, variant) {
 
 export function normalizeSalesCategory(item, variant = {}) {
   if (isTshirtItem(item, variant)) return "tshirt";
-  return text(item?.category || variant?.category || variant?.productId || "other") || "other";
+
+  const itemCategory = canonicalCategory(item?.category);
+  if (itemCategory) return itemCategory;
+
+  const variantCategory = canonicalCategory(variant?.category || variant?.productId);
+  if (variantCategory) return variantCategory;
+
+  return "other";
 }
 
 function lineSales(item) {
@@ -180,7 +220,7 @@ export function buildSalesAggregation({ transactions, variantsById = new Map() }
         const sales = lineSales(item);
         const current = categoryMap.get(category) || {
           category,
-          label: CATEGORY_LABELS[category] || category,
+          label: CATEGORY_LABELS[category] || CATEGORY_LABELS.other,
           quantity: 0,
           sales: 0
         };
