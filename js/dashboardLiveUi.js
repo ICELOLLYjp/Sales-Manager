@@ -1,3 +1,4 @@
+import "./analyticsUi.js?v=20260926-analytics-1";
 import { listSalesSessions } from "./services/sessionService.js";
 import { listSessionTransactions } from "./services/salesHistoryService.js?v=20260910-setdiscount-2";
 
