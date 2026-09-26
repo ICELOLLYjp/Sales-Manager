@@ -4,6 +4,7 @@ import { renderDashboard } from "./views/dashboardView.js";
 import { tshirtAdapter } from "./inventoryAdapters/tshirtAdapter.js?v=20260915-empty-size-cells-1";
 import { accessoryAdapter } from "./inventoryAdapters/accessoryAdapter.js";
 import { missingAccessoryOpeningRows } from "./services/accessoryOpeningRegistration.mjs";
+import { eventSkuBaseQuantities } from "./services/eventPosStock.mjs";
 import { loadTshirtProductVariants, syncTshirtCurrentStockRows } from "./services/catalogService.js";
 import { listAllProductVariants, registerTshirtVariant, registerGeneralProduct, syncAccessoryCatalogRows } from "./services/productAdminService.js?v=20260911-cost-cache-import-fix-2";
 import { CATEGORY_TEMPLATES, getCategoryTemplate } from "./data/categoryTemplates.js";
@@ -18612,23 +18613,10 @@ async function renderPos(
                 .items
             : [];
 
-        const eventOpeningMap =
-          new Map(
-            eventOpeningItems.map(
-              item => [
-                item.variantId,
-                Math.max(
-                  0,
-                  Math.floor(
-                    Number(
-                      item.openingQty ||
-                      0
-                    )
-                  )
-                )
-              ]
-            )
-          );
+        const eventOpeningMap = eventSkuBaseQuantities(
+          eventOpeningItems,
+          posEventInventoryCount?.flowEntries
+        );
 
         const soldByVariant =
           posEventInventoryCount
