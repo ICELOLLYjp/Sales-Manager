@@ -20748,126 +20748,94 @@ async function renderPos(
                       <div
                         style="
                           display:grid;
+                          grid-template-columns:repeat(2,minmax(0,1fr));
                           gap:8px;
                         "
                       >
                         ${rows.map(
                           row => {
                             const cartQty =
-                              posCart
-                                .get(
-                                  `sku:${row.variantId}`
-                                )
-                                ?.quantity || 0;
-
+                              posCart.get(`sku:${row.variantId}`)?.quantity || 0;
                             const soldOut =
-                              Number(
-                                row.quantity ||
-                                0
-                              ) <= 0;
+                              Number(row.quantity || 0) <= 0;
+                            const isDrop =
+                              row.category === "drop_pierce" ||
+                              row.category === "drop_earring";
+                            const accent = isDrop ? "#b45831" : "#246487";
+                            const background = isDrop ? "#fff3eb" : "#edf7fc";
+                            const border = isDrop ? "#eac8b7" : "#bfd9e6";
 
                             return `
                               <button
                                 class="posSkuItem"
-                                data-variant-id="${escapeHtml(
-                                  row.variantId
-                                )}"
+                                data-variant-id="${escapeHtml(row.variantId)}"
                                 type="button"
                                 ${soldOut ? "disabled" : ""}
                                 style="
                                   width:100%;
-                                  min-height:66px;
-                                  padding:10px 12px;
-                                  border:1px solid #deded9;
+                                  min-width:0;
+                                  min-height:112px;
+                                  padding:10px;
+                                  border:1px solid ${border};
+                                  border-left:4px solid ${accent};
                                   border-radius:13px;
-                                  background:${
-                                    soldOut
-                                      ? "#f3f3f0"
-                                      : "white"
-                                  };
-                                  color:${
-                                    soldOut
-                                      ? "#aaa"
-                                      : "#1f1f1f"
-                                  };
-                                  opacity:${
-                                    soldOut
-                                      ? ".68"
-                                      : "1"
-                                  };
+                                  background:${background};
+                                  color:#1f1f1f;
+                                  opacity:${soldOut ? ".58" : "1"};
                                   text-align:left;
-                                  display:grid;
-                                  grid-template-columns:
-                                    minmax(0,1fr)
-                                    auto;
-                                  gap:10px;
-                                  align-items:center;
+                                  display:flex;
+                                  flex-direction:column;
+                                  justify-content:space-between;
+                                  gap:8px;
                                   touch-action:manipulation;
                                 "
                               >
-                                <div>
+                                <div style="min-width:0">
                                   <div
                                     style="
+                                      font-size:15px;
                                       font-weight:800;
+                                      line-height:1.3;
+                                      overflow-wrap:anywhere;
                                     "
                                   >
-                                    ${escapeHtml(
-                                      skuDisplayLabel(
-                                        row
-                                      )
-                                    )}
+                                    ${escapeHtml(skuDisplayLabel(row))}
                                   </div>
-
                                   <div
-                                    class="muted"
                                     style="
-                                      margin-top:3px;
-                                      line-height:1.35;
+                                      margin-top:4px;
+                                      color:${accent};
+                                      font-size:12px;
+                                      font-weight:700;
+                                      line-height:1.3;
                                     "
                                   >
-                                    ${escapeHtml(
-                                      skuDisplayDetail(
-                                        row
-                                      )
-                                    )}
+                                    ${isDrop ? "ドロップ" : "スタッド"} ・
+                                    ${row.category.endsWith("earring") ? "イヤリング" : "ピアス"}
                                   </div>
                                 </div>
-
-                                <div
-                                  style="
-                                    text-align:right;
-                                  "
-                                >
+                                <div style="min-width:0">
                                   <div
                                     style="
+                                      font-size:14px;
                                       font-weight:800;
+                                      line-height:1.25;
+                                      overflow-wrap:anywhere;
                                     "
                                   >
-                                    ${
-                                      skuSalePrice(
-                                        row
-                                      ) > 0
-                                        ? formatMoney(
-                                            skuSalePrice(
-                                              row
-                                            )
-                                          )
-                                        : "価格未設定"
-                                    }
+                                    ${skuSalePrice(row) > 0
+                                      ? escapeHtml(formatMoney(skuSalePrice(row)))
+                                      : "価格未設定"}
                                   </div>
-
                                   <div
-                                    class="muted"
                                     style="
                                       margin-top:3px;
+                                      color:#555;
+                                      font-size:12px;
+                                      line-height:1.3;
                                     "
                                   >
-                                    在庫 ${row.quantity}
-                                    ${
-                                      cartQty > 0
-                                        ? ` / 会計 ${cartQty}`
-                                        : ""
-                                    }
+                                    在庫 ${row.quantity}${cartQty > 0 ? ` / 会計 ${cartQty}` : ""}
                                   </div>
                                 </div>
                               </button>
