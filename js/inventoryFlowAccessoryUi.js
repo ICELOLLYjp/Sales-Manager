@@ -323,7 +323,6 @@ async function renderAccessoryCard(force = false) {
       ? planAccessoryEventBackfill(session, catalogRows)
       : [];
     const backfillQuantity = backfillPlan.reduce((sum, row) => sum + row.quantity, 0);
-
     document.querySelector(`#${CARD_ID}`)?.remove();
     installStyles();
     const card = document.createElement("section");
@@ -344,7 +343,7 @@ async function renderAccessoryCard(force = false) {
         <button type="button" class="ifa-chip active" data-cat="all">すべて ${rows.length}</button>
         ${CATEGORY_ORDER.map(cat => `<button type="button" class="ifa-chip" data-cat="${cat}">${CATEGORY_LABELS[cat]} ${counts[cat] || 0}</button>`).join("")}
       </div>
-      ${backfillPlan.length ? `<details class="ifa-backfill-review" style="margin:10px 0"><summary>未登録のアクセサリーを実在庫から一括追加（${backfillPlan.length} SKU、${backfillQuantity}点）</summary><div class="if-muted">実際に持参していない品目はチェックを外してください。開始数や補充を登録済みのSKUは変更しません。</div><div style="max-height:250px;overflow-y:auto;padding:8px 0">${backfillPlan.map(row => `<label style="display:flex;gap:8px;align-items:center;padding:6px 0"><input class="ifa-backfill-choice" type="checkbox" checked value="${esc(row.variantId)}" style="width:20px;height:20px;flex:none"><span>${esc(row.label)}　${esc(CATEGORY_LABELS[row.category] || row.category)}　${row.quantity}点</span></label>`).join("")}</div><button type="button" class="button ifa-backfill" style="width:100%;min-height:48px;margin:10px 0">選択したアクセサリーを登録</button></details>` : ""}
+      ${backfillPlan.length ? `<details class="ifa-backfill-review" style="margin:10px 0"><summary>未登録のアクセサリーを実在庫から一括追加（${backfillPlan.length} SKU、${backfillQuantity}点）</summary><div class="if-muted">実際に持参していない品目はチェックを外してください。開始数や補充を登録済みのSKUは変更しません。Quick販売はSKU別に割り当てず、品目別の予測残数には反映しません。後で実数を確認してください。</div><div style="max-height:250px;overflow-y:auto;padding:8px 0">${backfillPlan.map(row => `<label style="display:flex;gap:8px;align-items:center;padding:6px 0"><input class="ifa-backfill-choice" type="checkbox" checked value="${esc(row.variantId)}" style="width:20px;height:20px;flex:none"><span>${esc(row.label)}　${esc(CATEGORY_LABELS[row.category] || row.category)}　${row.quantity}点</span></label>`).join("")}</div><button type="button" class="button ifa-backfill" style="width:100%;min-height:48px;margin:10px 0">選択したアクセサリーを登録</button></details>` : ""}
       <div class="ifa-list">
         ${rows.map(row => {
           const cp = checkpointById.get(row.variantId);
@@ -384,7 +383,7 @@ async function renderAccessoryCard(force = false) {
       const selected = backfillPlan.filter(row => selectedVariantIds.includes(row.variantId));
       if (!selected.length) return window.alert("登録するアクセサリーを選択してください。");
       const selectedQuantity = selected.reduce((sum, row) => sum + row.quantity, 0);
-      if (!window.confirm(`選択した ${selected.length} SKU、${selectedQuantity}点を、このイベントの在庫に追加しますか？\n販売記録や会社全体の実在庫は変更しません。`)) return;
+      if (!window.confirm(`選択した ${selected.length} SKU、${selectedQuantity}点を、このイベントの在庫に追加しますか？\nQuick販売は個別SKUから減らしません。後で棚卸しが必要です。販売記録や会社全体の実在庫は変更しません。`)) return;
       button.disabled = true;
       try {
         const result = await backfillMissingAccessoryStock({
