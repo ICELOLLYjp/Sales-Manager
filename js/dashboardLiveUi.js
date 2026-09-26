@@ -59,6 +59,24 @@ function statusLabel(status) {
   return status || "";
 }
 
+function localDateKey() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const d = String(now.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function sessionIsCurrent(session) {
+  const today = localDateKey();
+  const start = String(session?.startDate || "").trim();
+  const end = String(session?.endDate || "").trim() || start;
+
+  if (start && today < start) return false;
+  if (end && today > end) return false;
+  return true;
+}
+
 function localDayStartMs() {
   const now = new Date();
   return new Date(
@@ -81,13 +99,15 @@ function eventDateText(session) {
 }
 
 function pickDashboardSession(sessions) {
+  const currentOpen = sessions
+    .filter(row => row.status === "open" && sessionIsCurrent(row))
+    .sort((a, b) => String(b.startDate || "").localeCompare(String(a.startDate || "")));
+
   const activeId = localStorage.getItem("icelolly-sales-active-session") || "";
-  const active = sessions.find(row => row.sessionId === activeId);
+  const active = currentOpen.find(row => row.sessionId === activeId);
   if (active) return active;
 
-  return sessions.find(row => row.status === "open") ||
-    sessions.find(row => row.status === "pending_allocation") ||
-    sessions[0] || null;
+  return currentOpen[0] || null;
 }
 
 function metric(label, value, note = "") {
@@ -184,8 +204,8 @@ async function refreshDashboard(force = false) {
         <h1 class="page-title">Dashboard</h1>
         <p class="page-note">イベントホーム</p>
         <section class="card">
-          <div class="card-title">販売イベントがありません</div>
-          <div class="muted" style="margin-top:8px;">Sessionsからイベントを作成してください。</div>
+          <div class="card-title">現在開催中の販売イベントはありません</div>
+          <div class="muted" style="margin-top:8px;">開催予定のイベントはSessionsで確認できます。</div>
         </section>
         <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;">
           ${actionButton("dashboardOpenSessions", "Sessionsを開く", true)}
