@@ -112,17 +112,25 @@ function enhanceEventNamePreset(inputId) {
   if (!input || input.dataset.eventPresetEnhanced === "1") return;
 
   input.dataset.eventPresetEnhanced = "1";
+  const originalParent = input.parentNode;
+  if (!originalParent) return;
+
+  const wrapper = document.createElement("div");
+  wrapper.className = "sessionEventNameSelector";
+  wrapper.style.cssText = "display:grid;gap:7px;min-width:0;";
+  originalParent.insertBefore(wrapper, input);
+  wrapper.appendChild(input);
+
   const select = document.createElement("select");
   select.className = "sessionEventPresetSelect";
-  select.style.cssText = `${controlStyle(input)}margin-bottom:7px;`;
+  select.style.cssText = controlStyle(input);
   select.setAttribute("aria-label", "よく使うイベント名");
   select.innerHTML = [
     '<option value="">よく使うイベント名から選択</option>',
     ...EVENT_NAME_PRESETS.map(name => `<option value="${name}">${name}</option>`),
     '<option value="__custom__">その他・自由入力</option>'
   ].join("");
-
-  input.parentNode?.insertBefore(select, input);
+  wrapper.insertBefore(select, input);
 
   select.addEventListener("change", () => {
     if (select.value && select.value !== "__custom__") {
