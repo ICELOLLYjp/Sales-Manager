@@ -254,6 +254,12 @@ async function enhanceCurrencyDisplay() {
   const countryCard = analyticsCard("国別");
   const regionCard = analyticsCard("地域別");
   if (!countryCard || !regionCard) return;
+  if (
+    countryCard.dataset.currencyEnhanced === "1" &&
+    regionCard.dataset.currencyEnhanced === "1"
+  ) {
+    return;
+  }
 
   busy = true;
   const token = ++runToken;
@@ -272,12 +278,14 @@ async function enhanceCurrencyDisplay() {
       <div class="analyticsNote">日本円を大きく表示し、その下に現地通貨を併記します。過去の国名表記も標準名にまとめて集計します。</div>
       ${countries.length ? rowsHtml(countries) : '<div class="analyticsNote">販売実績がありません。</div>'}
     `;
+    countryCard.dataset.currencyEnhanced = "1";
 
     regionCard.innerHTML = `
       <div class="analyticsCardTitle">地域別</div>
       <div class="analyticsNote">国と都市の組み合わせで集計し、日本円と現地通貨を併記します。</div>
       ${regions.length ? rowsHtml(regions) : '<div class="analyticsNote">販売実績がありません。</div>'}
     `;
+    regionCard.dataset.currencyEnhanced = "1";
   } catch (error) {
     console.warn("Analytics currency display failed", error);
   } finally {
