@@ -131,8 +131,8 @@ function waitFor(find, timeoutMs = 3500) {
   });
 }
 
-function scrollToHistoryTitle(historyTitle) {
-  if (!historyTitle) return;
+function scrollToHistoryTitle(historyTitle, behavior = "auto") {
+  if (!historyTitle?.isConnected) return;
 
   const topbar = document.querySelector(".topbar");
   const topbarHeight = Math.ceil(
@@ -145,8 +145,64 @@ function scrollToHistoryTitle(historyTitle) {
 
   window.scrollTo({
     top: targetTop,
-    behavior: "smooth"
+    behavior
   });
+}
+
+function keepHistoryTitleAligned(historyTitle) {
+  const detail = document.getElementById("sessionSalesDetail");
+  if (!detail || !historyTitle) return;
+
+  let frame = 0;
+  let stopped = false;
+
+  const stop = () => {
+    if (stopped) return;
+    stopped = true;
+    mutationObserver.disconnect();
+    resizeObserver?.disconnect();
+    if (frame) cancelAnimationFrame(frame);
+  };
+
+  const align = behavior => {
+    if (stopped || !historyTitle.isConnected) {
+      stop();
+      return;
+    }
+
+    scrollToHistoryTitle(historyTitle, behavior);
+
+    if (document.getElementById("normalizedTshirtSalesAggregation")) {
+      window.setTimeout(stop, 250);
+    }
+  };
+
+  const scheduleAlign = () => {
+    if (stopped || frame) return;
+    frame = requestAnimationFrame(() => {
+      frame = 0;
+      align("auto");
+    });
+  };
+
+  const mutationObserver = new MutationObserver(scheduleAlign);
+  mutationObserver.observe(detail, {
+    childList: true,
+    subtree: true
+  });
+
+  const resizeObserver = typeof ResizeObserver === "function"
+    ? new ResizeObserver(scheduleAlign)
+    : null;
+  resizeObserver?.observe(detail);
+
+  align("smooth");
+  window.setTimeout(() => {
+    if (!stopped) {
+      align("auto");
+      stop();
+    }
+  }, 5000);
 }
 
 async function openActiveSessionHistory() {
@@ -180,7 +236,7 @@ async function openActiveSessionHistory() {
   }
 
   requestAnimationFrame(() => {
-    scrollToHistoryTitle(historyTitle);
+    keepHistoryTitleAligned(historyTitle);
   });
 }
 
