@@ -131,6 +131,24 @@ function waitFor(find, timeoutMs = 3500) {
   });
 }
 
+function scrollToHistoryTitle(historyTitle) {
+  if (!historyTitle) return;
+
+  const topbar = document.querySelector(".topbar");
+  const topbarHeight = Math.ceil(
+    topbar?.getBoundingClientRect().height || 0
+  );
+  const targetTop = Math.max(
+    0,
+    window.scrollY + historyTitle.getBoundingClientRect().top - topbarHeight - 10
+  );
+
+  window.scrollTo({
+    top: targetTop,
+    behavior: "smooth"
+  });
+}
+
 async function openActiveSessionHistory() {
   const sessionId = localStorage.getItem("icelolly-sales-active-session") || "";
   if (!sessionId) {
@@ -156,10 +174,13 @@ async function openActiveSessionHistory() {
   detailButton.click();
 
   const historyTitle = await waitFor(() => cardTitle("会計履歴"));
+  if (!historyTitle) {
+    window.alert("会計履歴の位置を開けませんでした。");
+    return;
+  }
 
-  historyTitle?.scrollIntoView({
-    behavior: "smooth",
-    block: "start"
+  requestAnimationFrame(() => {
+    scrollToHistoryTitle(historyTitle);
   });
 }
 
