@@ -11,6 +11,15 @@ import {
 const REGION =
   "asia-southeast1";
 
+const RECOVERABLE_CACHE_TTL_MS =
+  60 * 1000;
+
+const recoverablePaymentCache =
+  new Map();
+
+const recoverablePaymentRequests =
+  new Map();
+
 
 function functionsInstance() {
   return getFunctions(
@@ -39,13 +48,77 @@ async function call(
 }
 
 
+function recoverableSessionKey(
+  sessionId
+) {
+  return String(
+    sessionId ||
+    ""
+  ).trim();
+}
+
+
+function clonePayments(
+  payments
+) {
+  return (
+    Array.isArray(
+      payments
+    )
+      ? payments
+      : []
+  ).map(
+    payment => ({
+      ...payment
+    })
+  );
+}
+
+
+function invalidateRecoverablePayments(
+  sessionId = ""
+) {
+  const key =
+    recoverableSessionKey(
+      sessionId
+    );
+
+  if (key) {
+    recoverablePaymentCache
+      .delete(
+        key
+      );
+
+    recoverablePaymentRequests
+      .delete(
+        key
+      );
+
+    return;
+  }
+
+  recoverablePaymentCache
+    .clear();
+
+  recoverablePaymentRequests
+    .clear();
+}
+
+
 export async function createStripeCheckout(
   data
 ) {
-  return await call(
-    "stripeCreateCheckout",
-    data
+  const result =
+    await call(
+      "stripeCreateCheckout",
+      data
+    );
+
+  invalidateRecoverablePayments(
+    data?.sessionId
   );
+
+  return result;
 }
 
 
@@ -64,55 +137,148 @@ export async function getStripeCheckoutStatus(
 export async function expireStripeCheckout(
   transactionId
 ) {
-  return await call(
-    "stripeExpireCheckout",
-    {
-      transactionId
-    }
-  );
+  const result =
+    await call(
+      "stripeExpireCheckout",
+      {
+        transactionId
+      }
+    );
+
+  invalidateRecoverablePayments();
+
+  return result;
 }
 
 
 export async function markStripeSaleCommitted({
   transactionId
 }) {
-  return await call(
-    "stripeMarkSaleCommitted",
-    {
-      transactionId
-    }
-  );
+  const result =
+    await call(
+      "stripeMarkSaleCommitted",
+      {
+        transactionId
+      }
+    );
+
+  invalidateRecoverablePayments();
+
+  return result;
 }
 
 
 export async function refundStripePayment({
   transactionId
 }) {
-  return await call(
-    "stripeRefundPayment",
-    {
-      transactionId
-    }
-  );
+  const result =
+    await call(
+      "stripeRefundPayment",
+      {
+        transactionId
+      }
+    );
+
+  invalidateRecoverablePayments();
+
+  return result;
 }
 
 
 export async function listRecoverableStripePayments(
   sessionId
 ) {
-  const result =
-    await call(
-      "stripeListRecoverablePayments",
-      {
-        sessionId
-      }
+  const key =
+    recoverableSessionKey(
+      sessionId
     );
 
-  return Array.isArray(
-    result?.payments
-  )
-    ? result.payments
-    : [];
+  const cached =
+    recoverablePaymentCache
+      .get(
+        key
+      );
+
+  if (
+    cached &&
+    Date.now() -
+      cached.savedAt <
+      RECOVERABLE_CACHE_TTL_MS
+  ) {
+    return clonePayments(
+      cached.payments
+    );
+  }
+
+  const pending =
+    recoverablePaymentRequests
+      .get(
+        key
+      );
+
+  if (pending) {
+    return clonePayments(
+      await pending
+    );
+  }
+
+  const request =
+    (async () => {
+      const result =
+        await call(
+          "stripeListRecoverablePayments",
+          {
+            sessionId
+          }
+        );
+
+      const payments =
+        Array.isArray(
+          result?.payments
+        )
+          ? result.payments
+          : [];
+
+      recoverablePaymentCache
+        .set(
+          key,
+          {
+            savedAt:
+              Date.now(),
+            payments:
+              clonePayments(
+                payments
+              )
+          }
+        );
+
+      return payments;
+    })();
+
+  recoverablePaymentRequests
+    .set(
+      key,
+      request
+    );
+
+  try {
+    return clonePayments(
+      await request
+    );
+  } finally {
+    if (
+      recoverablePaymentRequests
+        .get(
+          key
+        ) ===
+      request
+    ) {
+      recoverablePaymentRequests
+        .delete(
+          key
+        );
+    }
+  }
 }
 
 
