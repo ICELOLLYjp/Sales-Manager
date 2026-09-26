@@ -4,6 +4,24 @@ function text(value) {
   return String(value ?? "").trim();
 }
 
+function localDateKey() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const d = String(now.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function eventPhase(session) {
+  const today = localDateKey();
+  const start = text(session?.startDate);
+  const end = text(session?.endDate) || start;
+
+  if (start && today < start) return "upcoming";
+  if (end && today > end) return "ended";
+  return "current";
+}
+
 function injectStyles() {
   if (document.querySelector("#sessionStatusUiStyles")) return;
   const style = document.createElement("style");
@@ -12,6 +30,7 @@ function injectStyles() {
     .session-status-line{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 8px;}
     .session-status-badge{display:inline-flex;align-items:center;min-height:28px;padding:0 10px;border-radius:999px;font-size:11px;font-weight:900;line-height:1.2;}
     .session-status-badge.live{background:#e8f6ec;color:#25703c;}
+    .session-status-badge.scheduled{background:#eef4ff;color:#3d5f91;}
     .session-status-badge.wait{background:#fff3cf;color:#765c00;}
     .session-status-badge.review{background:#fff0df;color:#8a4d0b;}
     .session-status-badge.done{background:#eceff1;color:#4f5961;}
@@ -87,6 +106,26 @@ function statusMeta(session) {
     session?.inventoryCount?.provisionalWithoutCount?.status === "pending_count";
 
   if (status === "open") {
+    const phase = eventPhase(session);
+
+    if (phase === "upcoming") {
+      return {
+        label: "開催予定",
+        note: text(session?.startDate) ? `${text(session.startDate)} 開始` : "開催前",
+        className: "scheduled",
+        rank: 20
+      };
+    }
+
+    if (phase === "ended") {
+      return {
+        label: "開催終了・終了処理待ち",
+        note: "イベント期間終了",
+        className: "review",
+        rank: 12
+      };
+    }
+
     return {
       label: "販売中",
       note: "POS使用中",
@@ -264,7 +303,9 @@ function updateOpenHeader(rawById) {
   const active = Array.from(rawById.values())
     .filter(session => ["open", "pending_allocation"].includes(text(session.status)));
   const waiting = active.filter(session => text(session.status) === "pending_allocation").length;
-  const live = active.filter(session => text(session.status) === "open").length;
+  const live = active.filter(session => text(session.status) === "open" && eventPhase(session) === "current").length;
+  const upcoming = active.filter(session => text(session.status) === "open" && eventPhase(session) === "upcoming").length;
+  const endedWaiting = active.filter(session => text(session.status) === "open" && eventPhase(session) === "ended").length;
 
   const header = title.parentElement;
   if (!header?.parentElement) return;
@@ -275,7 +316,13 @@ function updateOpenHeader(rawById) {
     summary.id = "sessionStatusSummary";
     header.insertAdjacentElement("afterend", summary);
   }
-  const nextSummary = `処理待ち ${waiting}件 / 販売中 ${live}件`;
+
+  const parts = [
+    `販売中 ${live}件`,
+    `開催予定 ${upcoming}件`,
+    `処理待ち ${waiting + endedWaiting}件`
+  ];
+  const nextSummary = parts.join(" / ");
   if (summary.textContent !== nextSummary) {
     summary.textContent = nextSummary;
   }
