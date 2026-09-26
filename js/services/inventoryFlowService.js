@@ -77,6 +77,7 @@ function normalizeFlowEntries(session) {
   return rows
     .map(row => ({
       id: text(row?.id),
+      batchId: text(row?.batchId),
       type: text(row?.type),
       variantId: text(row?.variantId),
       quantity: int(row?.quantity),
