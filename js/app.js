@@ -5,6 +5,7 @@ import { tshirtAdapter } from "./inventoryAdapters/tshirtAdapter.js?v=20260915-e
 import { accessoryAdapter } from "./inventoryAdapters/accessoryAdapter.js";
 import { missingAccessoryOpeningRows } from "./services/accessoryOpeningRegistration.mjs";
 import { eventSkuBaseQuantities } from "./services/eventPosStock.mjs";
+import { filterTshirtRowsForEventDesigns } from "./services/eventTshirtDesigns.mjs";
 import { loadTshirtProductVariants, syncTshirtCurrentStockRows } from "./services/catalogService.js";
 import { listAllProductVariants, registerTshirtVariant, registerGeneralProduct, syncAccessoryCatalogRows } from "./services/productAdminService.js?v=20260911-cost-cache-import-fix-2";
 import { CATEGORY_TEMPLATES, getCategoryTemplate } from "./data/categoryTemplates.js";
@@ -18597,8 +18598,19 @@ async function renderPos(
               })
             );
 
+        const eventTshirtRows =
+          activeSession &&
+          posEventInventoryCount?.opening
+            ? filterTshirtRowsForEventDesigns(
+                tshirtRows,
+                posEventInventoryCount.opening.items,
+                posEventInventoryCount.flowEntries,
+                posEventInventoryCount.soldByVariant
+              )
+            : tshirtRows;
+
         const allSkuRows = [
-          ...tshirtRows,
+          ...eventTshirtRows,
           ...accessoryRows
         ];
 
