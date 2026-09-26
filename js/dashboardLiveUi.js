@@ -19,6 +19,22 @@ function dashboardActive() {
   );
 }
 
+function dashboardAuthReady() {
+  if (document.getElementById("googleLoginButton")) return false;
+
+  const status = String(
+    document.getElementById("syncStatus")?.textContent || ""
+  ).trim();
+
+  if (!status) return false;
+
+  return ![
+    "Local",
+    "Login",
+    "Error"
+  ].includes(status);
+}
+
 function money(value, currency) {
   const amount = Number(value || 0);
   try {
@@ -141,7 +157,7 @@ function bindDashboardActions() {
 }
 
 async function refreshDashboard(force = false) {
-  if (!dashboardActive() || refreshBusy) return;
+  if (!dashboardActive() || refreshBusy || !dashboardAuthReady()) return;
 
   const view = document.getElementById("view");
   if (!view) return;
@@ -267,10 +283,10 @@ async function refreshDashboard(force = false) {
 }
 
 function scheduleDashboardRefresh() {
-  if (!dashboardActive()) return;
+  if (!dashboardActive() || !dashboardAuthReady()) return;
   const view = document.getElementById("view");
   if (!view) return;
-  if (view.dataset.liveDashboard === "loading" || view.dataset.liveDashboard === "ready") return;
+  if (["loading", "ready", "error"].includes(view.dataset.liveDashboard || "")) return;
   window.setTimeout(() => void refreshDashboard(), 60);
 }
 
@@ -280,6 +296,7 @@ document.addEventListener("click", event => {
     : null;
   if (!nav) return;
   window.setTimeout(() => {
+    if (!dashboardAuthReady()) return;
     const view = document.getElementById("view");
     if (view) delete view.dataset.liveDashboard;
     void refreshDashboard(true);
