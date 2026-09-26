@@ -395,6 +395,9 @@ async function renderAccessoryCard(force = false) {
             const registeredIds = new Set(registered.map(row => row.variantId || row.id));
             const missing = catalog.rows.filter(row => ids.has(row.variantId) && !registeredIds.has(row.variantId));
             if (missing.length) await syncAccessoryCatalogRows(missing);
+            if (result.variantIds.some(id => !registeredIds.has(id) && !missing.some(row => row.variantId === id))) {
+              window.alert("一部のアクセサリーはSKUに登録できませんでした。在庫画面で未登録SKUを確認してください。");
+            }
           } catch (error) {
             window.alert("イベント在庫は登録しましたが、SKUの商品登録を確認してください。在庫画面に未登録SKUが表示されます。");
           }
