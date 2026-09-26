@@ -3,6 +3,7 @@
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { accountId, decryptRefreshToken } = require("./oauthCore");
 const { COLLECTION } = require("./candidateStorage");
+const { MAX_TEXT_MIME_BYTES, hydrateReferencedTextParts } = require("./textPartHydration");
 
 const MAX_TEXT_BYTES = 200000;
 const MAX_EXCERPT = 6000;
@@ -125,6 +126,7 @@ function inspectPayload(payload) {
   const textParts = [];
   const attachments = [];
   let remaining = MAX_TEXT_BYTES;
+  let remainingSource = MAX_TEXT_MIME_BYTES;
 
   function visit(part) {
     if (!part || typeof part !== "object") return;
@@ -139,13 +141,20 @@ function inspectPayload(payload) {
         isPdf: mimeType === "application/pdf" || /\.pdf$/i.test(filename)
       });
     }
-    if (body.data && remaining > 0 && (mimeType === "text/plain" || mimeType === "text/html")) {
-      const decoded = decodeBase64Url(body.data, remaining);
+    if (typeof body.data === "string" && remaining > 0 && remainingSource > 0 &&
+        (mimeType === "text/plain" || mimeType === "text/html")) {
+      // Bound MIME input and extracted text separately. Agoda's roughly 220 KB
+      // HTML confirmation becomes much smaller after markup and CSS are removed.
+      const decoded = decodeBase64Url(body.data, remainingSource);
       if (decoded) {
+        remainingSource -= Buffer.byteLength(decoded, "utf8");
         const clean = mimeType === "text/html" ? htmlToText(decoded) : decoded.trim();
         if (clean) {
-          textParts.push(clean);
-          remaining -= Buffer.byteLength(clean, "utf8");
+          const bounded = Buffer.from(clean, "utf8").subarray(0, remaining).toString("utf8").trim();
+          if (bounded) {
+            textParts.push(bounded);
+            remaining -= Buffer.byteLength(bounded, "utf8");
+          }
         }
       }
     }
@@ -283,6 +292,13 @@ function createEvidenceInspection({ requireStaff, db, clientId, clientSecret, to
     const url = new URL(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${encodeURIComponent(messageId)}`);
     url.searchParams.set("format", "full");
     const message = await fetchGoogleJson(url, { headers: { Authorization: `Bearer ${token.access_token}` } });
+    // Large text parts can be referenced rather than embedded in Gmail payload.
+    // PDF and image attachments are never fetched through this path.
+    await hydrateReferencedTextParts(message.payload, attachmentId => {
+      const textUrl = new URL(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${encodeURIComponent(messageId)}/attachments/${encodeURIComponent(attachmentId)}`);
+      textUrl.searchParams.set("fields", "data,size");
+      return fetchGoogleJson(textUrl, { headers: { Authorization: `Bearer ${token.access_token}` } });
+    });
     const evidence = inspectPayload(message.payload);
     const pdfResults = [];
     for (const ref of collectPdfAttachmentRefs(message.payload)) {
