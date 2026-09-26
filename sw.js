@@ -1,5 +1,5 @@
 const CACHE_NAME =
-  "icelolly-sales-shell-20260926-ipad-sku-stripe-1";
+  "icelolly-sales-shell-20260926-quick-load-1";
 
 const CORE_ASSETS = [
   "./",
