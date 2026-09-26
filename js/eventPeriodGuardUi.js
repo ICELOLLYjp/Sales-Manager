@@ -16,6 +16,16 @@ function normalizeDate(value) {
   return match ? `${match[1]}-${match[2]}-${match[3]}` : "";
 }
 
+function setText(element, value) {
+  if (!element || text(element.textContent) === value) return;
+  element.textContent = value;
+}
+
+function setClass(element, value) {
+  if (!element || element.className === value) return;
+  element.className = value;
+}
+
 function enforceSessionPeriodLabels() {
   const title = text(document.querySelector("h1.page-title")?.textContent);
   if (title !== "Sessions") return;
@@ -26,10 +36,14 @@ function enforceSessionPeriodLabels() {
       const badge = line.querySelector(".session-status-badge");
       const note = line.querySelector(".session-status-note");
       if (badge) {
-        badge.className = "session-status-badge scheduled";
-        badge.textContent = "開催予定";
+        setClass(badge, "session-status-badge scheduled");
+        setText(badge, "開催予定");
       }
-      if (note) note.textContent = "開催前";
+      setText(note, "開催前");
+    });
+
+    upcoming.querySelectorAll("button").forEach(button => {
+      if (text(button.textContent) === "使用中") setText(button, "開催前");
     });
   }
 
@@ -39,9 +53,13 @@ function enforceSessionPeriodLabels() {
       const badge = line.querySelector(".session-status-badge");
       const note = line.querySelector(".session-status-note");
       if (!badge || text(badge.textContent) !== "販売中") return;
-      badge.className = "session-status-badge review";
-      badge.textContent = "開催終了";
-      if (note) note.textContent = "終了処理待ち";
+      setClass(badge, "session-status-badge review");
+      setText(badge, "開催終了");
+      setText(note, "終了処理待ち");
+    });
+
+    ended.querySelectorAll("button").forEach(button => {
+      if (text(button.textContent) === "使用中") setText(button, "終了処理待ち");
     });
   }
 }
@@ -62,7 +80,6 @@ function dashboardEventDateRange() {
   if (!matches.length) return null;
 
   return {
-    card: eventCard,
     start: matches[0],
     end: matches[1] || matches[0]
   };
@@ -80,23 +97,17 @@ function enforceDashboardCurrentEvent() {
   if (!range.start || !range.end || (range.start <= today && today <= range.end)) return;
 
   const view = document.getElementById("view");
-  if (!view || view.dataset.periodGuard === `${range.start}:${range.end}`) return;
+  const guardKey = `${range.start}:${range.end}`;
+  if (!view || view.dataset.periodGuard === guardKey) return;
 
-  const eventName = text(range.card.querySelector("div[style*='font-size:20px']")?.textContent) || "次回イベント";
-  const phase = today < range.start ? "開催予定" : "開催終了";
-  const message = today < range.start
-    ? `${eventName} は ${range.start.replaceAll("-", "/")} から開催予定です。`
-    : `${eventName} の開催期間は終了しています。`;
-
-  view.dataset.periodGuard = `${range.start}:${range.end}`;
+  view.dataset.periodGuard = guardKey;
   view.dataset.liveDashboard = "ready";
   view.innerHTML = `
     <h1 class="page-title">Dashboard</h1>
     <p class="page-note">イベントホーム</p>
     <section class="card">
-      <div class="card-title">現在開催中のイベントはありません</div>
-      <div class="muted" style="margin-top:8px;line-height:1.6;">${message}</div>
-      <div style="margin-top:10px;font-size:12px;font-weight:800;">${phase}</div>
+      <div class="card-title">開催期間外のイベントはDashboardに表示しません</div>
+      <div class="muted" style="margin-top:8px;line-height:1.6;">現在開催中のイベントを確認する場合はSessionsから選択してください。</div>
     </section>
     <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;">
       ${actionButton("Sessionsを開く", "sessions", true)}
