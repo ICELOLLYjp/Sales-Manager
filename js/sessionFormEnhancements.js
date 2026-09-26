@@ -4,7 +4,8 @@ const COUNTRY_OPTIONS = [
   "Singapore",
   "Thailand",
   "Hong Kong",
-  "South Korea"
+  "South Korea",
+  "United States"
 ];
 
 const EVENT_NAME_PRESETS = [
@@ -35,6 +36,7 @@ function canonicalCountry(value) {
   if (["thailand", "th", "タイ", "泰国", "泰國"].includes(key)) return "Thailand";
   if (["hongkong", "hk", "香港"].includes(key)) return "Hong Kong";
   if (["southkorea", "korea", "kr", "韓国", "韓國", "대한민국", "한국"].includes(key)) return "South Korea";
+  if (["unitedstates", "unitedstatesofamerica", "usa", "us", "america", "アメリカ", "米国", "米國"].includes(key)) return "United States";
 
   return "";
 }
