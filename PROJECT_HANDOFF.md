@@ -1,8 +1,8 @@
 # ICELOLLY Sales Manager — PROJECT HANDOFF
 
-Last reconciled: 2026-09-17
+Last reconciled: 2026-09-26
 Repository: `ICELOLLYjp/Sales-Manager`
-Reference `main` at reconciliation: `3ad30c96a0fc8157d8098d27fd4ac33b064ef57e`
+Reference `main` at reconciliation: `f95ad0ddf42092acb68771268d143b45a2b2c314`
 
 This is the canonical handoff for future development chats. Inspect latest `main` before editing; this file describes the intended invariants, what is already implemented, and what still needs work.
 
@@ -510,3 +510,40 @@ Security/config:
 For Gmail expenses, preserve this sequence: manual metadata preview -> explicit candidate save -> event/general classification -> human review and duplicate warning -> explicit bounded body/attachment inspection -> human-reviewed evidence draft -> PDF extraction when present -> separate user-approved expense posting. Body and PDF inspection is allowed only for candidates marked kept, and raw body/attachment bytes and extracted PDF text are not persisted during inspection. Temporary HTML evidence display decodes bounded named and numeric character references for readability. Posting is event-only, requires paid evidence, matching event currency, a configured exchange rate for non-JPY events, a separate confirmation dialog and a transactional current-amount check. It is idempotent and locks the candidate after posting. Event detail lists active Gmail-posted entries through a staff callable; Mori Market orders `11333138` and `11339404` were confirmed separately in production under the total of `16,950 TWD`. Voiding one entry requires a second confirmation and one transaction that subtracts only that amount, records an audit and unlocks the candidate for correction; retrying must not subtract twice. Live-test void only with a dedicated test candidate and test event, never with the two production Mori Market entries. Fetching, parsing, classifying or saving a candidate must never post an expense. Order `11333130` for `8,550 TWD` belongs to a separate 20 to 22 November event and must remain unassigned until that event is created. A PDF invoice is not payment proof. Deploy only `functions:gmail-expenses`; never deploy the tracked Firestore rules with this work.
 
 Do not add another large inventory-close model before the next real-event field test. Amount-only later allocation and normalized T-shirt sales aggregation are implemented.
+
+
+---
+
+# 16. Real event field test notes 2026-09-25
+
+The app is being tested during a real event. Treat the items below as field observations. Reproduce and verify them after the event before changing data models or large workflows.
+
+## Confirmed during the event
+
+1. Fast POS mode switching was rechecked after an earlier concern. Quick, SKU and 最速 tabs were displayed correctly, so this is not currently treated as a reproducible defect.
+
+2. Rapid repeated taps on iPhone could trigger Safari double tap zoom and interfere with event operation. PR 45 added the interaction fix and PR 46 refreshed the cached CSS. The user confirmed during the event that the issue improved.
+
+## Needs reproduction or verification after the event
+
+1. Accessory quantities entered through inventory registration appeared not to be reflected in SKU POS. Verify whether this is an actual data linkage defect, stale state, or an operation issue. Preserve `accessoryStock/shared.designs` as the canonical accessory stock source.
+
+2. Verify behavior when the user moves to another screen or starts another operation while a Stripe checkout is still in progress. Payment success, Sales Manager transaction creation, inventory mutation and duplicate protection must remain consistent. Until verified, event operation should wait for payment completion before leaving the checkout flow.
+
+## UX and workflow improvements identified during the event
+
+1. The difference between the event inventory actions currently shown as 補充 and 修正 is not clear enough during live operation. Confirm the exact behavior of each action and rename or explain them so the result is immediately understandable.
+
+2. A mistaken inventory flow operation is difficult to correct afterward. Consider a safe correction workflow such as undoing the latest operation, editing through an audit history, or entering a verified physical count without losing the original history.
+
+3. 棚卸なしで仮終了 should be able to end the event Session operationally while keeping inventory reconciliation pending. The event can be closed for sales while inventory remains explicitly unconfirmed and can be completed later.
+
+4. Sessions should be sorted by event date in descending order so the newest event appears first.
+
+5. In sales detail, 経費差引き収支 should appear above the 経費 section so the final event result is visible before expense detail.
+
+6. After an event, the accessory and T shirt inventory management screens should be usable directly for stocktaking. The desired flow is to compare theoretical stock with the physical count, show differences, review them, and then apply the confirmed result to canonical real stock.
+
+## Field test handling rule
+
+During the event, record observations first and avoid large changes unless a small isolated fix is necessary for operation. After the event, classify each item as a reproducible defect, an operation issue, or a UX improvement before implementation.
