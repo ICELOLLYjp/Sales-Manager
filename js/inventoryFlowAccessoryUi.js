@@ -6,6 +6,7 @@ import {
 } from "./services/inventoryFlowService.js?v=20260926-accessory-backfill-1";
 import { loadAllAccessoryEventRows } from "./services/accessoryEventCatalogService.js?v=20260916-accessory-flow-1";
 import { planAccessoryEventBackfill } from "./services/accessoryEventBackfill.mjs";
+import { missingAccessoryEventRows } from "./services/accessoryOpeningRegistration.mjs";
 import { accessoryAdapter } from "./inventoryAdapters/accessoryAdapter.js";
 import { listAllProductVariants, syncAccessoryCatalogRows } from "./services/productAdminService.js";
 
@@ -344,6 +345,8 @@ async function renderAccessoryCard(force = false) {
         ${CATEGORY_ORDER.map(cat => `<button type="button" class="ifa-chip" data-cat="${cat}">${CATEGORY_LABELS[cat]} ${counts[cat] || 0}</button>`).join("")}
       </div>
       ${backfillPlan.length ? `<details class="ifa-backfill-review" style="margin:10px 0"><summary>未登録のアクセサリーを実在庫から一括追加（${backfillPlan.length} SKU、${backfillQuantity}点）</summary><div class="if-muted">実際に持参していない品目はチェックを外してください。開始数や補充を登録済みのSKUは変更しません。Quick販売はSKU別に割り当てず、品目別の予測残数には反映しません。後で実数を確認してください。</div><div style="max-height:250px;overflow-y:auto;padding:8px 0">${backfillPlan.map(row => `<label style="display:flex;gap:8px;align-items:center;padding:6px 0"><input class="ifa-backfill-choice" type="checkbox" checked value="${esc(row.variantId)}" style="width:20px;height:20px;flex:none"><span>${esc(row.label)}　${esc(CATEGORY_LABELS[row.category] || row.category)}　${row.quantity}点</span></label>`).join("")}</div><button type="button" class="button ifa-backfill" style="width:100%;min-height:48px;margin:10px 0">選択したアクセサリーを登録</button></details>` : ""}
+      ${!backfillPlan.length ? `<div class="if-muted" style="margin-top:9px">実在庫から追加する未登録SKUはありません。すでにイベント在庫にあるSKUは再追加しません。</div>` : ""}
+      ${eventSkuCount ? `<button type="button" class="if-btn ifa-register-existing" style="margin-top:9px;min-height:42px">イベント在庫にあるアクセサリーのSKU商品登録を確認</button>` : ""}
       <div class="ifa-list">
         ${rows.map(row => {
           const cp = checkpointById.get(row.variantId);
@@ -410,6 +413,29 @@ async function renderAccessoryCard(force = false) {
       } catch (error) {
         button.disabled = false;
         window.alert(error?.message || String(error));
+      }
+    });
+
+    card.querySelector(".ifa-register-existing")?.addEventListener("click", async event => {
+      const button = event.currentTarget;
+      button.disabled = true;
+      try {
+        const registered = await listAllProductVariants();
+        const missing = missingAccessoryEventRows(rows, catalogRows, registered);
+        if (!missing.length) {
+          window.alert("イベント在庫にあるアクセサリーのSKU商品登録は完了しています。イベント在庫と販売履歴は変更していません。");
+          return;
+        }
+        const names = missing.slice(0, 12).map(row => `${row.label}（${CATEGORY_LABELS[row.category] || row.category}）`).join("、");
+        if (!window.confirm(`イベント在庫にある ${missing.length} SKUの商品登録を補完しますか？\n${names}${missing.length > 12 ? " ほか" : ""}\nイベント在庫の数量、実在庫、販売履歴は変更しません。`)) return;
+        await syncAccessoryCatalogRows(missing.map(row => ({
+          ...row, displayName: row.label, design: row.label, categoryLabel: CATEGORY_LABELS[row.category] || row.category
+        })));
+        window.alert(`${missing.length} SKUの商品登録を補完しました。在庫数と販売履歴は変更していません。`);
+      } catch (error) {
+        window.alert(error?.message || String(error));
+      } finally {
+        button.disabled = false;
       }
     });
 
