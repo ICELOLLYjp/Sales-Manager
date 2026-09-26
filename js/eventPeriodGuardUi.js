@@ -21,27 +21,12 @@ function setText(element, value) {
   element.textContent = value;
 }
 
-function setClass(element, value) {
-  if (!element || element.className === value) return;
-  element.className = value;
-}
-
-function enforceSessionPeriodLabels() {
+function enforceSessionPeriodActions() {
   const title = text(document.querySelector("h1.page-title")?.textContent);
   if (title !== "Sessions") return;
 
   const upcoming = document.querySelector('[data-session-period="upcoming"]');
   if (upcoming) {
-    upcoming.querySelectorAll(".session-status-line").forEach(line => {
-      const badge = line.querySelector(".session-status-badge");
-      const note = line.querySelector(".session-status-note");
-      if (badge) {
-        setClass(badge, "session-status-badge scheduled");
-        setText(badge, "開催予定");
-      }
-      setText(note, "開催前");
-    });
-
     upcoming.querySelectorAll("button").forEach(button => {
       if (text(button.textContent) === "使用中") setText(button, "開催前");
     });
@@ -49,15 +34,6 @@ function enforceSessionPeriodLabels() {
 
   const ended = document.querySelector('[data-session-period="ended"]');
   if (ended) {
-    ended.querySelectorAll(".session-status-line").forEach(line => {
-      const badge = line.querySelector(".session-status-badge");
-      const note = line.querySelector(".session-status-note");
-      if (!badge || text(badge.textContent) !== "販売中") return;
-      setClass(badge, "session-status-badge review");
-      setText(badge, "開催終了");
-      setText(note, "終了処理待ち");
-    });
-
     ended.querySelectorAll("button").forEach(button => {
       if (text(button.textContent) === "使用中") setText(button, "終了処理待ち");
     });
@@ -107,7 +83,7 @@ function enforceDashboardCurrentEvent() {
     <p class="page-note">イベントホーム</p>
     <section class="card">
       <div class="card-title">開催期間外のイベントはDashboardに表示しません</div>
-      <div class="muted" style="margin-top:8px;line-height:1.6;">現在開催中のイベントを確認する場合はSessionsから選択してください。</div>
+      <div class="muted" style="margin-top:8px;line-height:1.6;">現在開催中のイベントを確認する場合はSessionsから確認してください。</div>
     </section>
     <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;">
       ${actionButton("Sessionsを開く", "sessions", true)}
@@ -129,7 +105,7 @@ function schedule() {
   scheduled = true;
   requestAnimationFrame(() => {
     scheduled = false;
-    enforceSessionPeriodLabels();
+    enforceSessionPeriodActions();
     enforceDashboardCurrentEvent();
   });
 }
