@@ -12,6 +12,7 @@ test("late import keeps counted, adjusted and sold SKUs unchanged", () => {
   } };
   const stock = new Map(ids.map(id => [`${id}|piercing`, id === "new" ? 5 : 8]));
   assert.deepEqual(planAccessoryEventBackfill(session, rows, stock), [{ ...rows[0], quantity: 5 }]);
+  assert.deepEqual(planAccessoryEventBackfill(session, rows, stock, []), []);
   const after = structuredClone(session);
   after.inventoryCount.flowEntries.push({ variantId: "new", type: "opening_correction", quantity: 5 });
   assert.deepEqual(planAccessoryEventBackfill(after, rows, stock), []);
