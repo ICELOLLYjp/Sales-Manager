@@ -1,5 +1,5 @@
 import { getFirebaseState } from "./firebase.js";
-import { buildSalesAggregation } from "./services/salesAggregationService.js?v=20260916-tshirt-sales-aggregation-1";
+import { buildSalesAggregation } from "./services/salesAggregationService.js?v=20260926-category-fix-1";
 
 const REPORT_ID = "normalizedTshirtSalesAggregation";
 
@@ -80,8 +80,11 @@ function dimensionCard(title, rows, currency) {
 }
 
 function renderReport(section, aggregation, currency) {
-  const existingRows = Array.from(section.children).filter(element => element.classList?.contains("list-row"));
-  existingRows.forEach(row => { row.hidden = true; });
+  const legacyRows = Array.from(section.children)
+    .filter(element => element.classList?.contains("list-row"));
+
+  section.querySelector(`#${REPORT_ID}`)?.remove();
+
   const report = document.createElement("div");
   report.id = REPORT_ID;
   report.innerHTML = `
@@ -100,7 +103,15 @@ function renderReport(section, aggregation, currency) {
         </div>
       </details>` : ""}
   `;
+
   section.appendChild(report);
+
+  // The original sales detail already renders a legacy category list.
+  // Once the normalized report is ready, remove those rows instead of only
+  // setting the hidden attribute. Some existing list-row CSS can make hidden
+  // rows visible again, which looks like every category is counted twice.
+  legacyRows.forEach(row => row.remove());
+
   section.dataset.tshirtAggregationReady = "1";
 }
 
