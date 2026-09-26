@@ -8,7 +8,8 @@ export const SESSION_CURRENCIES = [
   "HKD",
   "SGD",
   "THB",
-  "USD"
+  "USD",
+  "KRW"
 ];
 
 async function firestoreModule() {
