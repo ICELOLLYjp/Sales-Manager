@@ -1,5 +1,5 @@
 const CACHE_NAME =
-  "icelolly-sales-shell-20260926-accessory-grid-1";
+  "icelolly-sales-shell-20260926-ipad-sku-stripe-1";
 
 const CORE_ASSETS = [
   "./",
@@ -14,6 +14,8 @@ const CORE_ASSETS = [
   "./css/iphoneInventoryControls.css",
 
   "./js/app.js",
+  "./js/accessorySkuPalette.js",
+  "./js/posTabletPolish.js",
   "./js/quickAllocationUi.js",
   "./js/unidentifiedFinalizeUi.js",
   "./js/eventCloseHubUi.js",
