@@ -12,7 +12,7 @@ const REGION =
   "asia-southeast1";
 
 const RECOVERABLE_CACHE_TTL_MS =
-  60 * 1000;
+  15 * 1000;
 
 const recoverablePaymentCache =
   new Map();
@@ -48,77 +48,13 @@ async function call(
 }
 
 
-function recoverableSessionKey(
-  sessionId
-) {
-  return String(
-    sessionId ||
-    ""
-  ).trim();
-}
-
-
-function clonePayments(
-  payments
-) {
-  return (
-    Array.isArray(
-      payments
-    )
-      ? payments
-      : []
-  ).map(
-    payment => ({
-      ...payment
-    })
-  );
-}
-
-
-function invalidateRecoverablePayments(
-  sessionId = ""
-) {
-  const key =
-    recoverableSessionKey(
-      sessionId
-    );
-
-  if (key) {
-    recoverablePaymentCache
-      .delete(
-        key
-      );
-
-    recoverablePaymentRequests
-      .delete(
-        key
-      );
-
-    return;
-  }
-
-  recoverablePaymentCache
-    .clear();
-
-  recoverablePaymentRequests
-    .clear();
-}
-
-
 export async function createStripeCheckout(
   data
 ) {
-  const result =
-    await call(
-      "stripeCreateCheckout",
-      data
-    );
-
-  invalidateRecoverablePayments(
-    data?.sessionId
+  return await call(
+    "stripeCreateCheckout",
+    data
   );
-
-  return result;
 }
 
 
@@ -137,51 +73,36 @@ export async function getStripeCheckoutStatus(
 export async function expireStripeCheckout(
   transactionId
 ) {
-  const result =
-    await call(
-      "stripeExpireCheckout",
-      {
-        transactionId
-      }
-    );
-
-  invalidateRecoverablePayments();
-
-  return result;
+  return await call(
+    "stripeExpireCheckout",
+    {
+      transactionId
+    }
+  );
 }
 
 
 export async function markStripeSaleCommitted({
   transactionId
 }) {
-  const result =
-    await call(
-      "stripeMarkSaleCommitted",
-      {
-        transactionId
-      }
-    );
-
-  invalidateRecoverablePayments();
-
-  return result;
+  return await call(
+    "stripeMarkSaleCommitted",
+    {
+      transactionId
+    }
+  );
 }
 
 
 export async function refundStripePayment({
   transactionId
 }) {
-  const result =
-    await call(
-      "stripeRefundPayment",
-      {
-        transactionId
-      }
-    );
-
-  invalidateRecoverablePayments();
-
-  return result;
+  return await call(
+    "stripeRefundPayment",
+    {
+      transactionId
+    }
+  );
 }
 
 
@@ -189,9 +110,10 @@ export async function listRecoverableStripePayments(
   sessionId
 ) {
   const key =
-    recoverableSessionKey(
-      sessionId
-    );
+    String(
+      sessionId ||
+      ""
+    ).trim();
 
   const cached =
     recoverablePaymentCache
@@ -205,21 +127,22 @@ export async function listRecoverableStripePayments(
       cached.savedAt <
       RECOVERABLE_CACHE_TTL_MS
   ) {
-    return clonePayments(
-      cached.payments
-    );
+    return cached.payments
+      .map(
+        payment => ({
+          ...payment
+        })
+      );
   }
 
-  const pending =
+  const existingRequest =
     recoverablePaymentRequests
       .get(
         key
       );
 
-  if (pending) {
-    return clonePayments(
-      await pending
-    );
+  if (existingRequest) {
+    return await existingRequest;
   }
 
   const request =
@@ -246,8 +169,10 @@ export async function listRecoverableStripePayments(
             savedAt:
               Date.now(),
             payments:
-              clonePayments(
-                payments
+              payments.map(
+                payment => ({
+                  ...payment
+                })
               )
           }
         );
@@ -262,9 +187,7 @@ export async function listRecoverableStripePayments(
     );
 
   try {
-    return clonePayments(
-      await request
-    );
+    return await request;
   } finally {
     if (
       recoverablePaymentRequests
