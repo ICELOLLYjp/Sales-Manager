@@ -17,7 +17,15 @@ const requestedEvent = params.get("eventId") || "";
 const validMonth = value => /^20\d{2}-(0[1-9]|1[0-2])$/.test(value) && Number(value.slice(0, 4)) >= 2025 && Number(value.slice(0, 4)) <= 2030;
 const today = new Date();
 const defaultMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+if (!month.options.length) {
+  for (let year = Math.min(today.getFullYear(), 2030); year >= 2025; year--) {
+    for (let number = year === today.getFullYear() ? today.getMonth() + 1 : 12; number >= 1; number--) {
+      month.add(new Option(`${year}年${number}月`, `${year}-${String(number).padStart(2, "0")}`));
+    }
+  }
+}
 month.value = validMonth(params.get("month")) ? params.get("month") : defaultMonth;
+if (!month.value && month.options.length) month.selectedIndex = 0;
 let functions = null, signedIn = false, busy = false, version = 0, sessions = [];
 let connected = new Map(), previews = [], selected = new Set(), fetchInfo = new Map();
 const bodyCache = new Map();
