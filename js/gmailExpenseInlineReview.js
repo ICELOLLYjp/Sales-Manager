@@ -110,9 +110,20 @@ export function createInlineExpenseReview({ call, getContext, setIntakeBusy }) {
       if (pdf.moneyHints?.length) details.append(el("p", "", `金額候補: ${pdf.moneyHints.join(" ／ ")}`));
       panel.append(details);
     }
+    const excelStatus = { parsed: "読み取り済み", no_text: "内容なし", too_large: "サイズ上限超過", too_complex: "解析上限超過", failed: "読み取り失敗" };
+    for (const sheet of data.xlsxResults || []) {
+      const details = el("details", "inline-proof");
+      details.append(el("summary", "", `${sheet.filename || "Excel添付"} ／ ${excelStatus[sheet.status] || "未解析"}`));
+      if (sheet.excerpt) details.append(el("pre", "", sheet.excerpt));
+      if (sheet.excerptTruncated) details.append(el("p", "inline-hint", "内容の一部を表示しています。元ファイルも確認してください。"));
+      if (sheet.moneyHints?.length) details.append(el("p", "inline-hint", `金額候補: ${sheet.moneyHints.join(" ／ ")}`));
+      panel.append(details);
+    }
     for (const attachment of data.attachments || []) {
-      if (!(data.pdfResults || []).some(pdf => pdf.filename === attachment.filename)) {
-        panel.append(el("p", "inline-hint", `添付: ${attachment.filename || "ファイル名なし"}（${attachment.mimeType || "形式不明"}）`));
+      if (!(data.pdfResults || []).some(pdf => pdf.filename === attachment.filename) &&
+          !(data.xlsxResults || []).some(sheet => sheet.filename === attachment.filename)) {
+        const unsupported = /\.xls$/i.test(attachment.filename || "") ? "。旧形式のExcelは元ファイルで確認してください。" : "";
+        panel.append(el("p", "inline-hint", `添付: ${attachment.filename || "ファイル名なし"}（${attachment.mimeType || "形式不明"}）${unsupported}`));
       }
     }
     const draft = item.evidenceReview || {};
