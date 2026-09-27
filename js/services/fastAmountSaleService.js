@@ -18,6 +18,10 @@ function money(value) {
   return Number.isFinite(n) ? Math.max(0, n) : 0;
 }
 
+function quantity(value) {
+  return Math.max(0, Math.floor(Number(value || 0) || 0));
+}
+
 function makeTransactionId() {
   if (globalThis.crypto?.randomUUID) {
     return `sale_fast_${globalThis.crypto.randomUUID()}`;
@@ -69,6 +73,7 @@ export function buildFastAmountSalePayload({
         quantity: 1,
         unitPrice: cleanAmount,
         trackingMode: TRACKING_MODE,
+        physicalQuantityKnown: false,
         setDiscount: 0,
         manualDiscount: 0
       }
@@ -94,7 +99,6 @@ async function normalizeFastAmountTransaction({
 
   const saleRef = doc(db, "salesTransactions", transactionId);
   const lockRef = doc(db, "transactionLocks", transactionId);
-  const movementRef = doc(db, "inventoryMovements", `${transactionId}__1`);
 
   return await runTransaction(db, async transaction => {
     const saleSnap = await transaction.get(saleRef);
@@ -106,8 +110,13 @@ async function normalizeFastAmountTransaction({
     }
 
     const items = Array.isArray(sale?.items) ? sale.items : [];
-    const amountItem = items.find(item => text(item?.trackingMode) === TRACKING_MODE);
-    if (!amountItem) return { adjusted: false, reason: "not-fast-amount" };
+    const amountEntries = items
+      .map((item, index) => ({ item, index }))
+      .filter(entry => text(entry.item?.trackingMode) === TRACKING_MODE);
+
+    if (!amountEntries.length) {
+      return { adjusted: false, reason: "not-fast-amount" };
+    }
 
     const sessionId = text(sale?.sessionId);
     if (!sessionId) throw new Error("最速POS売上のSessionが不明です。");
@@ -116,8 +125,28 @@ async function normalizeFastAmountTransaction({
     const sessionSnap = await transaction.get(sessionRef);
     if (!sessionSnap.exists()) throw new Error("販売セッションが見つかりません。");
 
-    const movementSnap = await transaction.get(movementRef);
+    const movementRows = [];
+    for (const entry of amountEntries) {
+      const ref = doc(
+        db,
+        "inventoryMovements",
+        `${transactionId}__${entry.index + 1}`
+      );
+      const snapshot = await transaction.get(ref);
+      movementRows.push({ ref, snapshot, entry });
+    }
+
+    const amountItem = amountEntries[0].item;
     const hint = text(classificationHint) || hintFromLabel(amountItem?.label);
+    const amountQuantity = amountEntries.reduce(
+      (sum, entry) => sum + quantity(entry.item?.quantity),
+      0
+    );
+
+    const normalItems = items.filter(
+      item => text(item?.trackingMode) !== TRACKING_MODE
+    );
+    const mixed = normalItems.length > 0;
 
     const nextItems = items.map(item => {
       if (text(item?.trackingMode) !== TRACKING_MODE) return item;
@@ -132,34 +161,70 @@ async function normalizeFastAmountTransaction({
       };
     });
 
+    const currentItemCount = Number.isFinite(Number(sale?.itemCount))
+      ? Math.max(0, Number(sale.itemCount))
+      : items.reduce((sum, item) => sum + quantity(item?.quantity), 0);
+
+    const nextItemCount = Math.max(0, currentItemCount - amountQuantity);
+
+    const costSnapshotCoveredQuantity = normalItems.reduce(
+      (sum, item) =>
+        item?.unitCostJPY === null || item?.unitCostJPY === undefined
+          ? sum
+          : sum + quantity(item?.quantity),
+      0
+    );
+
+    const costSnapshotMissingQuantity = normalItems.reduce(
+      (sum, item) =>
+        item?.unitCostJPY === null || item?.unitCostJPY === undefined
+          ? sum + quantity(item?.quantity)
+          : sum,
+      0
+    );
+
+    const reconciliationStatus = mixed
+      ? text(sale?.reconciliationStatus) || "partially_allocated"
+      : "unclassified";
+
+    const inventoryMode = mixed
+      ? text(sale?.inventoryMode) || "mixed"
+      : "unclassified";
+
     transaction.update(saleRef, {
-      mode: "amount_only",
+      mode: mixed ? "mixed" : "amount_only",
       items: nextItems,
-      itemCount: 0,
+      itemCount: nextItemCount,
       itemCountKnown: false,
-      amountOnly: true,
+      amountOnly: !mixed,
       fastAmountAdjusted: true,
-      classificationStatus: "unclassified",
+      classificationStatus: mixed ? "partially_unclassified" : "unclassified",
       classificationHint: hint,
       requiresClassification: true,
-      inventoryMode: "unclassified",
-      inventoryApplied: false,
-      reconciliationStatus: "unclassified",
+      inventoryMode,
+      inventoryApplied: mixed ? sale?.inventoryApplied === true : false,
+      reconciliationStatus,
       costSnapshotComplete: false,
-      costSnapshotCoveredQuantity: 0,
-      costSnapshotMissingQuantity: 0,
+      costSnapshotCoveredQuantity,
+      costSnapshotMissingQuantity,
       updatedAt: serverTimestamp()
     });
 
-    transaction.update(sessionRef, {
-      "salesSummary.itemCount": increment(-1),
+    const sessionUpdate = {
       "salesSummary.unclassifiedTransactionCount": increment(1),
       updatedAt: serverTimestamp()
-    });
+    };
 
-    if (movementSnap.exists()) {
+    if (amountQuantity > 0) {
+      sessionUpdate["salesSummary.itemCount"] = increment(-amountQuantity);
+    }
+
+    transaction.update(sessionRef, sessionUpdate);
+
+    for (const row of movementRows) {
+      if (!row.snapshot.exists()) continue;
       transaction.set(
-        movementRef,
+        row.ref,
         {
           category: CATEGORY,
           label: hintLabel(hint),
@@ -188,7 +253,12 @@ async function normalizeFastAmountTransaction({
       { merge: true }
     );
 
-    return { adjusted: true, sessionId };
+    return {
+      adjusted: true,
+      sessionId,
+      mixed,
+      itemCount: nextItemCount
+    };
   });
 }
 
