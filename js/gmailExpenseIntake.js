@@ -9,6 +9,7 @@ const $ = selector => document.querySelector(selector);
 const staff = $("#staff"), login = $("#login"), eventSelect = $("#eventSelect");
 const month = $("#month"), monthCount = $("#monthCount"), keyword = $("#keyword"), accountsBox = $("#accounts");
 const accountNotice = $("#accountNotice"), notice = $("#notice"), fetchBoth = $("#fetchBoth");
+const monthFetchSummary = $("#monthFetchSummary"), retryFailedMonths = $("#retryFailedMonths");
 const summary = $("#resultSummary"), results = $("#results"), selectAll = $("#selectAll");
 const clearSelection = $("#clearSelection"), saveArea = $("#saveArea"), saveSelected = $("#saveSelected");
 const reviewLink = $("#reviewLink");
@@ -28,6 +29,7 @@ month.value = validMonth(params.get("month")) ? params.get("month") : defaultMon
 if (!month.value && month.options.length) month.selectedIndex = 0;
 let functions = null, signedIn = false, busy = false, version = 0, sessions = [];
 let connected = new Map(), previews = [], selected = new Set(), fetchInfo = new Map();
+let fetchStatus = new Map(), failedRequests = [], lastSearchKeyword = "";
 const bodyCache = new Map();
 const eventPicker = createEventPicker({ select: eventSelect, search: $("#eventSearch"), closedToggle: $("#showClosedEvents"), list: $("#eventPickerList"), summary: $("#eventPickerSummary"), chosen: $("#chosenEvent") });
 
@@ -49,6 +51,7 @@ function update() {
   monthCount.disabled = busy;
   keyword.disabled = busy;
   fetchBoth.disabled = busy || !signedIn || !eventSelect.value || !searchMonths(month.value, monthCount.value).length || ![...connected.values()].some(Boolean);
+  retryFailedMonths.disabled = busy || !signedIn || !failedRequests.length;
   selectAll.disabled = busy || !previews.length;
   clearSelection.disabled = busy || !selected.size;
   saveSelected.disabled = busy || !selected.size || !eventSelect.value;
@@ -84,8 +87,40 @@ function renderAccounts() {
 }
 function clearPreviews() {
   previews = []; selected = new Set(); fetchInfo = new Map(); bodyCache.clear();
+  fetchStatus = new Map(); failedRequests = []; monthFetchSummary.textContent = ""; retryFailedMonths.hidden = true;
   results.replaceChildren(); summary.textContent = "まだ検索していません。"; saveArea.hidden = true;
   update();
+}
+function requestKey({ account, searchMonth }) { return `${account}\u0000${searchMonth}`; }
+function recordSearchResults(tasks, settled) {
+  tasks.forEach((task, index) => {
+    const key = requestKey(task), outcome = settled[index];
+    const error = outcome.status === "rejected" ? outcome.reason?.message || "取得に失敗" :
+      !Array.isArray(outcome.value?.messages) ? "応答が不正です" : "";
+    if (error) { fetchStatus.set(key, { ...task, error }); return; }
+    const response = outcome.value;
+    const messages = response.messages.filter(item => item.account === task.account && /^[A-Za-z0-9_-]+$/.test(item.messageId || ""));
+    fetchStatus.set(key, { ...task, count: messages.length, hasMore: response.hasMore === true });
+    fetchInfo.set(key, { hasMore: response.hasMore === true, skipped: Number(response.skipped || 0) });
+    previews.push(...messages.map(item => ({ ...item, searchMonth: task.searchMonth })));
+  });
+  previews = [...new Map(previews.map(item => [intakeKey(item), item])).values()]
+    .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
+  failedRequests = [...fetchStatus.values()].filter(item => item.error).map(({ account, searchMonth }) => ({ account, searchMonth }));
+  const months = searchMonths(month.value, monthCount.value);
+  monthFetchSummary.textContent = months.map(searchMonth => {
+    const statuses = GMAIL_INTAKE_ACCOUNTS.filter(account => connected.get(account) === true)
+      .map(account => fetchStatus.get(requestKey({ account, searchMonth })));
+    const count = statuses.reduce((sum, item) => sum + (item?.count || 0), 0);
+    const failed = statuses.filter(item => item?.error);
+    return `${searchMonth}: ${count}件${failed.length ? ` ／ 取得失敗 ${failed.map(item => item.account).join("、")}` : ""}${statuses.some(item => item?.hasMore) ? " ／ 続きあり" : ""}`;
+  }).join("\n");
+  retryFailedMonths.hidden = !failedRequests.length;
+  renderResults();
+  const errors = [...fetchStatus.values()].filter(item => item.error).map(item => `${item.account} ${item.searchMonth}: ${item.error}`);
+  const missing = GMAIL_INTAKE_ACCOUNTS.filter(account => connected.get(account) !== true);
+  const notes = [missing.length ? `未接続: ${missing.join("、")}` : "", ...errors].filter(Boolean);
+  showMessage(notice, `${errors.length ? "一部の月を取得できませんでした。失敗分を再検索できます。" : `取得した${previews.length}件を確認し、経費に関係するメールを選択してください。`}${notes.length ? `\n${notes.join("\n")}` : ""}`, errors.length > 0);
 }
 async function openBody(item, button, panel) {
   const key = intakeKey(item);
@@ -191,6 +226,7 @@ async function fetchBothAccounts() {
   busy = true; clearPreviews(); update(); showMessage(notice, "接続済みのGmailを検索しています。まだ候補には保存していません…");
   const activeAccounts = GMAIL_INTAKE_ACCOUNTS.filter(account => connected.get(account) === true);
   const searchKeyword = keyword.value.replace(/\s+/g, " ").trim();
+  lastSearchKeyword = searchKeyword;
   try {
     const tasks = months.flatMap(searchMonth => activeAccounts.map(account => ({ account, searchMonth })));
     const settled = [];
@@ -201,24 +237,24 @@ async function fetchBothAccounts() {
       if (months.length > 1) showMessage(notice, `${searchMonth}まで検索しました（${settled.length}/${tasks.length}件）。`);
     }
     if (active !== version || !signedIn) return;
-    const failures = [];
-    settled.forEach((outcome, index) => {
-      const { account, searchMonth } = tasks[index];
-      if (outcome.status === "rejected") { failures.push(`${account} ${searchMonth}: ${outcome.reason?.message || "取得に失敗"}`); return; }
-      const response = outcome.value;
-      if (!Array.isArray(response?.messages)) { failures.push(`${account} ${searchMonth}: 応答が不正です`); return; }
-      fetchInfo.set(`${account}\u0000${searchMonth}`, { hasMore: response.hasMore === true, skipped: Number(response.skipped || 0) });
-      previews.push(...response.messages.filter(item => item.account === account && /^[A-Za-z0-9_-]+$/.test(item.messageId || "")).map(item => ({ ...item, searchMonth })));
-    });
-    previews = [...new Map(previews.map(item => [intakeKey(item), item])).values()]
-      .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
-    renderResults();
-    const missing = GMAIL_INTAKE_ACCOUNTS.filter(account => connected.get(account) !== true);
-    const notes = [missing.length ? `未接続: ${missing.join("、")}` : "", ...failures];
-    showMessage(notice, failures.length ? `取得できたメールだけ表示しています。${notes.filter(Boolean).join("\n")}` :
-      `取得した${previews.length}件を確認し、経費に関係するメールを選択してください。${notes.filter(Boolean).join("\n")}`, failures.length > 0);
+    recordSearchResults(tasks, settled);
   } catch (error) {
     showMessage(notice, `検索できませんでした: ${error?.message || error}`, true);
+  } finally {
+    if (active === version) { busy = false; update(); }
+  }
+}
+async function retryFailedSearches() {
+  if (busy || !signedIn || !failedRequests.length) return;
+  const active = ++version;
+  const tasks = [...failedRequests];
+  busy = true; update(); showMessage(notice, "取得に失敗した月を再検索しています…");
+  try {
+    const settled = await Promise.allSettled(tasks.map(task => callable("gmailExpensePreview", {
+      account: task.account, month: task.searchMonth, keyword: lastSearchKeyword
+    })));
+    if (active !== version || !signedIn) return;
+    recordSearchResults(tasks, settled);
   } finally {
     if (active === version) { busy = false; update(); }
   }
@@ -279,6 +315,7 @@ async function saveAndAssign() {
 }
 
 fetchBoth.addEventListener("click", fetchBothAccounts);
+retryFailedMonths.addEventListener("click", retryFailedSearches);
 selectAll.addEventListener("click", () => { selected = new Set(previews.map(intakeKey)); renderResults(); });
 clearSelection.addEventListener("click", () => { selected.clear(); renderResults(); });
 month.addEventListener("change", () => {
