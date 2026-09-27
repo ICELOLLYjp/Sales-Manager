@@ -18,6 +18,11 @@ function money(value) {
   return Number.isFinite(n) ? Math.max(0, n) : 0;
 }
 
+function quantity(value) {
+  const n = Number(value);
+  return Number.isFinite(n) ? Math.max(0, Math.floor(n)) : 0;
+}
+
 function makeTransactionId() {
   if (globalThis.crypto?.randomUUID) {
     return `sale_fast_${globalThis.crypto.randomUUID()}`;
@@ -25,7 +30,7 @@ function makeTransactionId() {
   return `sale_fast_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
-function hintLabel(hint) {
+export function fastAmountHintLabel(hint) {
   switch (text(hint)) {
     case "tshirt":
       return "未分類売上（Tシャツ）";
@@ -65,7 +70,7 @@ export function buildFastAmountSalePayload({
       {
         lineId: "amount_only",
         category: CATEGORY,
-        label: hintLabel(classificationHint),
+        label: fastAmountHintLabel(classificationHint),
         quantity: 1,
         unitPrice: cleanAmount,
         trackingMode: TRACKING_MODE,
@@ -78,7 +83,7 @@ export function buildFastAmountSalePayload({
   };
 }
 
-async function normalizeFastAmountTransaction({
+export async function normalizeFastAmountTransaction({
   transactionId,
   classificationHint = ""
 }) {
@@ -92,9 +97,11 @@ async function normalizeFastAmountTransaction({
     serverTimestamp
   } = await firestoreModule();
 
-  const saleRef = doc(db, "salesTransactions", transactionId);
-  const lockRef = doc(db, "transactionLocks", transactionId);
-  const movementRef = doc(db, "inventoryMovements", `${transactionId}__1`);
+  const cleanTransactionId = text(transactionId);
+  if (!cleanTransactionId) return { adjusted: false, reason: "transaction-missing" };
+
+  const saleRef = doc(db, "salesTransactions", cleanTransactionId);
+  const lockRef = doc(db, "transactionLocks", cleanTransactionId);
 
   return await runTransaction(db, async transaction => {
     const saleSnap = await transaction.get(saleRef);
@@ -106,25 +113,47 @@ async function normalizeFastAmountTransaction({
     }
 
     const items = Array.isArray(sale?.items) ? sale.items : [];
-    const amountItem = items.find(item => text(item?.trackingMode) === TRACKING_MODE);
-    if (!amountItem) return { adjusted: false, reason: "not-fast-amount" };
+    const amountEntries = items
+      .map((item, index) => ({ item, index }))
+      .filter(entry => text(entry.item?.trackingMode) === TRACKING_MODE);
+
+    if (!amountEntries.length) {
+      return { adjusted: false, reason: "not-fast-amount" };
+    }
 
     const sessionId = text(sale?.sessionId);
     if (!sessionId) throw new Error("最速POS売上のSessionが不明です。");
 
     const sessionRef = doc(db, "salesSessions", sessionId);
+    const movementRefs = amountEntries.map(entry =>
+      doc(db, "inventoryMovements", `${cleanTransactionId}__${entry.index + 1}`)
+    );
+
     const sessionSnap = await transaction.get(sessionRef);
     if (!sessionSnap.exists()) throw new Error("販売セッションが見つかりません。");
 
-    const movementSnap = await transaction.get(movementRef);
-    const hint = text(classificationHint) || hintFromLabel(amountItem?.label);
+    const movementSnaps = [];
+    for (const movementRef of movementRefs) {
+      movementSnaps.push(await transaction.get(movementRef));
+    }
+
+    const firstAmountItem = amountEntries[0].item;
+    const defaultHint = text(classificationHint) || hintFromLabel(firstAmountItem?.label);
+    const knownItems = items.filter(item => text(item?.trackingMode) !== TRACKING_MODE);
+    const knownItemCount = knownItems.reduce((sum, item) => sum + quantity(item?.quantity), 0);
+    const unknownPlaceholderCount = amountEntries.reduce(
+      (sum, entry) => sum + quantity(entry.item?.quantity),
+      0
+    );
+    const amountOnly = knownItems.length === 0;
 
     const nextItems = items.map(item => {
       if (text(item?.trackingMode) !== TRACKING_MODE) return item;
+      const itemHint = text(classificationHint) || hintFromLabel(item?.label) || defaultHint;
       return {
         ...item,
         category: CATEGORY,
-        label: hintLabel(hint),
+        label: fastAmountHintLabel(itemHint),
         physicalQuantityKnown: false,
         inventoryApplied: false,
         eventInventoryApplied: false,
@@ -132,37 +161,54 @@ async function normalizeFastAmountTransaction({
       };
     });
 
-    transaction.update(saleRef, {
-      mode: "amount_only",
+    const saleUpdate = {
+      mode: amountOnly ? "amount_only" : "mixed",
       items: nextItems,
-      itemCount: 0,
+      itemCount: knownItemCount,
       itemCountKnown: false,
-      amountOnly: true,
+      amountOnly,
       fastAmountAdjusted: true,
-      classificationStatus: "unclassified",
-      classificationHint: hint,
+      classificationStatus: amountOnly ? "unclassified" : "partial",
+      classificationHint: defaultHint,
       requiresClassification: true,
-      inventoryMode: "unclassified",
-      inventoryApplied: false,
-      reconciliationStatus: "unclassified",
-      costSnapshotComplete: false,
-      costSnapshotCoveredQuantity: 0,
-      costSnapshotMissingQuantity: 0,
+      inventoryMode: amountOnly ? "unclassified" : "mixed",
+      reconciliationStatus: amountOnly ? "unclassified" : "partial",
       updatedAt: serverTimestamp()
-    });
+    };
 
-    transaction.update(sessionRef, {
-      "salesSummary.itemCount": increment(-1),
+    if (amountOnly) {
+      Object.assign(saleUpdate, {
+        inventoryApplied: false,
+        costSnapshotComplete: false,
+        costSnapshotCoveredQuantity: 0,
+        costSnapshotMissingQuantity: 0
+      });
+    } else {
+      saleUpdate.costSnapshotComplete = false;
+    }
+
+    transaction.update(saleRef, saleUpdate);
+
+    const sessionUpdate = {
       "salesSummary.unclassifiedTransactionCount": increment(1),
       updatedAt: serverTimestamp()
-    });
+    };
 
-    if (movementSnap.exists()) {
+    if (unknownPlaceholderCount > 0) {
+      sessionUpdate["salesSummary.itemCount"] = increment(-unknownPlaceholderCount);
+    }
+
+    transaction.update(sessionRef, sessionUpdate);
+
+    amountEntries.forEach((entry, offset) => {
+      const movementSnap = movementSnaps[offset];
+      if (!movementSnap?.exists()) return;
+      const itemHint = text(classificationHint) || hintFromLabel(entry.item?.label) || defaultHint;
       transaction.set(
-        movementRef,
+        movementRefs[offset],
         {
           category: CATEGORY,
-          label: hintLabel(hint),
+          label: fastAmountHintLabel(itemHint),
           quantity: 0,
           expectedInventoryDelta: 0,
           appliedInventoryDelta: 0,
@@ -177,7 +223,7 @@ async function normalizeFastAmountTransaction({
         },
         { merge: true }
       );
-    }
+    });
 
     transaction.set(
       lockRef,
@@ -188,7 +234,13 @@ async function normalizeFastAmountTransaction({
       { merge: true }
     );
 
-    return { adjusted: true, sessionId };
+    return {
+      adjusted: true,
+      sessionId,
+      amountOnly,
+      knownItemCount,
+      unknownPlaceholderCount
+    };
   });
 }
 
@@ -256,7 +308,7 @@ export function queueFastAmountSale({
       kind: "amount_only",
       currency: text(currency),
       amount: money(amount),
-      label: hintLabel(classificationHint)
+      label: fastAmountHintLabel(classificationHint)
     }
   });
 
