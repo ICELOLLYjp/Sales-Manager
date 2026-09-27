@@ -1,22 +1,16 @@
 import { getFirebaseState } from "./firebase.js";
-import {
-  buildFastAmountSalePayload,
-  commitFastAmountSale,
-  queueFastAmountSale,
-  normalizeFastAmountSalesForSession
-} from "./services/fastAmountSaleService.js?v=20260916-fast-pos-1";
-import {
-  createStripeCheckout,
-  getStripeCheckoutStatus,
-  expireStripeCheckout,
-  markStripeSaleCommitted,
-  renderStripeQr
-} from "./services/stripePaymentService.js?v=20260912-stripe-live-short-ui-1";
 import { loadPosOfflineSnapshot } from "./services/offlineQueueService.js?v=20260911-offline-resilience-1";
+import { normalizeFastAmountSalesForSession } from "./services/fastAmountSaleService.js?v=20260927-mixed-cart-1";
+import {
+  getFastDraft,
+  setFastDraft,
+  clearFastDraft,
+  normalCartSummary,
+  checkoutCombined
+} from "./mixedFastCart.js?v=20260927-mixed-cart-1";
 
 const BUTTON_ID = "fastPosOpenButton";
 const OVERLAY_ID = "fastPosOverlay";
-let stripeToken = 0;
 
 function text(value) {
   return String(value ?? "").trim();
@@ -94,6 +88,8 @@ function installStyles() {
     #${OVERLAY_ID} .fp-card{background:#fff;border:1px solid #e1e1dc;border-radius:16px;padding:12px;margin-bottom:10px}
     #${OVERLAY_ID} .fp-session{font-size:12px;color:#666;line-height:1.45}
     #${OVERLAY_ID} .fp-amount{font-size:36px;font-weight:900;text-align:right;padding:14px 6px;border-bottom:1px solid #eee;min-height:70px;overflow:hidden}
+    #${OVERLAY_ID} .fp-combined{margin-top:9px;padding:9px 10px;border:1px solid #ddd9ff;border-radius:11px;background:#f7f6ff;font-size:12px;line-height:1.55;color:#5148e5}
+    #${OVERLAY_ID} .fp-combined strong{font-size:14px;color:#3f38c7}
     #${OVERLAY_ID} .fp-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
     #${OVERLAY_ID} .fp-key{height:58px;border:1px solid #d8d8d2;border-radius:14px;background:#fff;font:800 24px system-ui}
     #${OVERLAY_ID} .fp-key:active{transform:scale(.97);background:#eee}
@@ -111,6 +107,7 @@ function installStyles() {
     #${OVERLAY_ID} .fp-status.err{background:#fff0f0;color:#a32d2d}
     #${OVERLAY_ID} .fp-qr{text-align:center;padding:10px 0}
     #${OVERLAY_ID} .fp-cancel{width:100%;min-height:44px;border:1px solid #ccc;border-radius:11px;background:#fff;font:700 13px system-ui}
+    @media(max-width:759px){#${OVERLAY_ID} .fp-wrap{padding-bottom:calc(136px + env(safe-area-inset-bottom))}}
   `;
   document.head.appendChild(style);
 }
@@ -141,11 +138,6 @@ function parseDigitString(raw, currency) {
   return Math.round(n * 100) / 100;
 }
 
-function makeTransactionId() {
-  if (globalThis.crypto?.randomUUID) return `sale_fast_${globalThis.crypto.randomUUID()}`;
-  return `sale_fast_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
-}
-
 function waitFor(find, timeoutMs = 3500) {
   return new Promise(resolve => {
     const started = Date.now();
@@ -173,7 +165,6 @@ function cardTitle(label) {
 }
 
 async function openActiveSessionHistory(sessionId) {
-  stripeToken += 1;
   document.getElementById(OVERLAY_ID)?.remove();
 
   const sessionsNav = document.querySelector('.nav-btn[data-route="sessions"]');
@@ -212,9 +203,11 @@ async function openFastPos() {
   }
 
   const currency = text(session?.currency || "JPY").toUpperCase();
-  let rawAmount = "";
-  let hint = "unclassified";
-  stripeToken += 1;
+  const savedDraft = getFastDraft();
+  let rawAmount = savedDraft && savedDraft.currency === currency
+    ? String(savedDraft.amount)
+    : "";
+  let hint = savedDraft?.hint || "unclassified";
 
   const overlay = document.createElement("div");
   overlay.id = OVERLAY_ID;
@@ -234,22 +227,23 @@ async function openFastPos() {
     <div class="fp-wrap">
       <section class="fp-card">
         <div class="fp-session">${esc(session?.eventName || session?.name || session.id)} / ${esc(currency)}</div>
-        <div class="fp-amount" id="fpAmount">${esc(formatAmount(0, currency))}</div>
+        <div class="fp-amount" id="fpAmount">${esc(formatAmount(parseDigitString(rawAmount, currency), currency))}</div>
+        <div class="fp-combined" id="fpCombinedSummary"></div>
         <div class="fp-pad">
           ${["1","2","3","4","5","6","7","8","9",currencyAllowsDecimal(currency)?".":"C","0","⌫"].map(key => `<button type="button" class="fp-key" data-key="${esc(key)}">${esc(key)}</button>`).join("")}
         </div>
-        <div class="fp-note">商品を探さず、合計金額だけで会計します。商品数・SKUは未分類のまま保存されます。</div>
+        <div class="fp-note">ここで入力した金額はQuickやSKUと同じ会計に追加できます。商品数とSKUはこの金額分だけ未分類のまま保存されます。</div>
       </section>
 
       <section class="fp-card">
         <strong style="font-size:13px">あとで分類するためのヒント（任意）</strong>
         <div class="fp-hints">
-          <button type="button" class="fp-hint active" data-hint="unclassified">完全未分類</button>
-          <button type="button" class="fp-hint" data-hint="tshirt">Tシャツ</button>
-          <button type="button" class="fp-hint" data-hint="accessory">アクセサリー</button>
-          <button type="button" class="fp-hint" data-hint="other">その他</button>
+          <button type="button" class="fp-hint ${hint === "unclassified" ? "active" : ""}" data-hint="unclassified">完全未分類</button>
+          <button type="button" class="fp-hint ${hint === "tshirt" ? "active" : ""}" data-hint="tshirt">Tシャツ</button>
+          <button type="button" class="fp-hint ${hint === "accessory" ? "active" : ""}" data-hint="accessory">アクセサリー</button>
+          <button type="button" class="fp-hint ${hint === "other" ? "active" : ""}" data-hint="other">その他</button>
         </div>
-        <div class="fp-note">これはSKU確定ではありません。正式在庫はこの時点では減らしません。</div>
+        <div class="fp-note">SKU確定ではありません。SKUで選んだ商品だけが正式在庫から減ります。</div>
       </section>
 
       <section class="fp-card">
@@ -266,6 +260,7 @@ async function openFastPos() {
   overlay.style.setProperty("--fp-top-offset", `${Math.max(0, Math.round(topbarBottom))}px`);
 
   const amountEl = overlay.querySelector("#fpAmount");
+  const combinedEl = overlay.querySelector("#fpCombinedSummary");
   const statusEl = overlay.querySelector("#fpStatus");
   const manualButton = overlay.querySelector("#fpManual");
   const stripeButton = overlay.querySelector("#fpStripe");
@@ -279,10 +274,29 @@ async function openFastPos() {
   }
 
   function renderAmount() {
-    amountEl.textContent = formatAmount(amount(), currency);
-    const disabled = amount() <= 0;
-    manualButton.disabled = disabled;
-    stripeButton.disabled = disabled || !navigator.onLine;
+    const fastAmount = amount();
+    amountEl.textContent = formatAmount(fastAmount, currency);
+
+    if (fastAmount > 0) {
+      setFastDraft({
+        sessionId: session.id,
+        currency,
+        amount: fastAmount,
+        hint
+      });
+    } else {
+      clearFastDraft();
+    }
+
+    const normal = normalCartSummary();
+    const combinedTotal = Math.max(0, normal.total + fastAmount);
+
+    combinedEl.innerHTML = normal.hasItems
+      ? `Quick / SKU 選択分 ${esc(formatAmount(normal.total, currency))}<br><strong>合計 ${esc(formatAmount(combinedTotal, currency))}</strong>`
+      : `<strong>合計 ${esc(formatAmount(combinedTotal, currency))}</strong>`;
+
+    manualButton.disabled = combinedTotal <= 0;
+    stripeButton.disabled = combinedTotal <= 0 || !navigator.onLine;
   }
 
   function setStatus(message, type = "") {
@@ -291,18 +305,7 @@ async function openFastPos() {
       : "";
   }
 
-  function resetSale() {
-    rawAmount = "";
-    hint = "unclassified";
-    overlay.querySelectorAll(".fp-hint").forEach(button => {
-      button.classList.toggle("active", button.dataset.hint === hint);
-    });
-    setStatus("");
-    renderAmount();
-  }
-
   overlay.querySelector(".fp-close")?.addEventListener("click", () => {
-    stripeToken += 1;
     overlay.remove();
   });
 
@@ -320,6 +323,7 @@ async function openFastPos() {
         if (rawAmount.includes(".") && decimals >= 2) return;
         rawAmount += key;
       }
+      setStatus("");
       renderAmount();
     });
   });
@@ -330,42 +334,24 @@ async function openFastPos() {
       overlay.querySelectorAll(".fp-hint").forEach(row => {
         row.classList.toggle("active", row === button);
       });
+      renderAmount();
     });
   });
 
   manualButton.addEventListener("click", async () => {
-    const total = amount();
-    if (total <= 0) return;
-    if (!window.confirm(`${formatAmount(total, currency)} を金額のみで会計しますか？\n\nSKU・商品数は未分類のまま保存します。`)) return;
+    const normal = normalCartSummary();
+    if (amount() <= 0 && !normal.hasItems) return;
 
     manualButton.disabled = true;
     stripeButton.disabled = true;
     setStatus("会計中…");
 
-    const transactionId = makeTransactionId();
     try {
-      if (!navigator.onLine) {
-        queueFastAmountSale({
-          transactionId,
-          sessionId: session.id,
-          amount: total,
-          createdByEmail: email(),
-          classificationHint: hint,
-          currency
-        });
-        setStatus("オフライン会計として保存しました。再接続後に同期します。", "ok");
-      } else {
-        await commitFastAmountSale({
-          transactionId,
-          sessionId: session.id,
-          amount: total,
-          createdByEmail: email(),
-          classificationHint: hint,
-          paymentMethod: "manual"
-        });
-        setStatus(`${formatAmount(total, currency)} を会計しました。未分類売上として保存しています。`, "ok");
+      const result = await checkoutCombined({ paymentMethod: "manual" });
+      if (result?.canceled) {
+        setStatus("");
+        renderAmount();
       }
-      setTimeout(resetSale, 900);
     } catch (error) {
       setStatus(error?.message || String(error), "err");
       renderAmount();
@@ -373,78 +359,20 @@ async function openFastPos() {
   });
 
   stripeButton.addEventListener("click", async () => {
-    const total = amount();
-    if (total <= 0 || !navigator.onLine) return;
-
-    const transactionId = makeTransactionId();
-    const salePayload = buildFastAmountSalePayload({
-      transactionId,
-      sessionId: session.id,
-      amount: total,
-      createdByEmail: email(),
-      classificationHint: hint
-    });
+    const normal = normalCartSummary();
+    if ((amount() <= 0 && !normal.hasItems) || !navigator.onLine) return;
 
     manualButton.disabled = true;
     stripeButton.disabled = true;
     setStatus("Stripe QRを作成中…");
 
     try {
-      const checkout = await createStripeCheckout({ salePayload });
-      if (!checkout?.url) throw new Error("Stripe支払いURLを作成できませんでした。");
-
-      const token = ++stripeToken;
-      statusEl.innerHTML = `
-        <div class="fp-status">お客様の支払いを待っています…</div>
-        <div class="fp-qr" id="fpQr"></div>
-        <button type="button" class="fp-cancel" id="fpCancelStripe">Stripe会計をキャンセル</button>
-      `;
-      await renderStripeQr(statusEl.querySelector("#fpQr"), checkout.url);
-
-      statusEl.querySelector("#fpCancelStripe")?.addEventListener("click", async () => {
-        stripeToken += 1;
-        try { await expireStripeCheckout(transactionId); } catch {}
-        setStatus("Stripe会計をキャンセルしました。");
-        renderAmount();
+      const result = await checkoutCombined({
+        paymentMethod: "stripe",
+        statusHost: statusEl
       });
-
-      for (let attempt = 0; attempt < 90 && token === stripeToken; attempt += 1) {
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        if (token !== stripeToken || !document.body.contains(overlay)) return;
-
-        const latest = await getStripeCheckoutStatus(transactionId);
-        if (latest?.paymentStatus === "paid") {
-          await commitFastAmountSale({
-            transactionId,
-            sessionId: session.id,
-            amount: total,
-            createdByEmail: email(),
-            classificationHint: hint,
-            paymentMethod: "stripe",
-            paymentProvider: "stripe",
-            providerPaymentIntentId: latest?.paymentIntentId || "",
-            providerCheckoutSessionId: latest?.checkoutSessionId || checkout?.checkoutSessionId || "",
-            providerPaymentStatus: latest?.paymentStatus || "paid"
-          });
-          try { await markStripeSaleCommitted({ transactionId }); } catch (error) {
-            console.warn("Stripe committed marker failed", error);
-          }
-          stripeToken += 1;
-          setStatus(`Stripe支払い完了。${formatAmount(total, currency)} を未分類売上として保存しました。`, "ok");
-          setTimeout(resetSale, 1100);
-          return;
-        }
-
-        if (latest?.status === "expired" || latest?.status === "complete" && latest?.paymentStatus !== "paid") {
-          stripeToken += 1;
-          setStatus("Stripe会計は完了しませんでした。", "err");
-          renderAmount();
-          return;
-        }
-      }
-
-      if (token === stripeToken) {
-        setStatus("支払い確認がタイムアウトしました。会計履歴とStripe状態を確認してください。", "err");
+      if (result?.canceled) {
+        setStatus("");
         renderAmount();
       }
     } catch (error) {
