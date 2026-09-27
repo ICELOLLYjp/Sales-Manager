@@ -235,3 +235,23 @@ button {
   font-size: 12px;
   overflow-wrap: anywhere;
 }
+
+@media (max-width: 759px) {
+  .view {
+    padding-bottom: calc(104px + env(safe-area-inset-bottom));
+  }
+
+  .bottom-nav {
+    position: fixed !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    z-index: 2147483000 !important;
+    display: grid !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+    isolation: isolate;
+  }
+}
