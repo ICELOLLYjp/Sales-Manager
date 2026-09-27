@@ -37,7 +37,7 @@ class Node {
   removeAttribute(name) { delete this[name]; }
 }
 
-function setup({ eventId = "eventA", duplicates = [], amount = 50 } = {}) {
+function setup({ eventId = "eventA", duplicates = [], amount = 50, months } = {}) {
   const nodes = Object.fromEntries(["inlineReview", "inlineReviewList", "inlineReviewStatus", "inlineReviewLoad"].map(id => [id, new Node()]));
   globalThis.document = {
     getElementById: id => nodes[id],
@@ -60,7 +60,8 @@ function setup({ eventId = "eventA", duplicates = [], amount = 50 } = {}) {
   });
   async function call(name, args) {
     calls.push({ name, args });
-    if (name === "gmailExpenseCandidateList") return snapshot();
+    if (name === "gmailExpenseCandidateList") return months && args.month !== months.at(-1)
+      ? { ...snapshot(), candidates: [] } : snapshot();
     if (name === "gmailExpenseCandidateReview") { candidate.reviewStatus = args.status; return {}; }
     if (name === "gmailExpenseInspectEvidence") return { excerpt: "支払領収書", moneyHints: ["JPY 20"], pdfResults: [], attachments: [] };
     if (name === "gmailExpenseSaveEvidenceReview") {
@@ -72,7 +73,7 @@ function setup({ eventId = "eventA", duplicates = [], amount = 50 } = {}) {
     }
     throw Error(`Unexpected call: ${name}`);
   }
-  const review = createInlineExpenseReview({ call, getContext: () => ({ eventId, month: "2026-09" }), setIntakeBusy: () => {} });
+  const review = createInlineExpenseReview({ call, getContext: () => ({ eventId, month: "2026-09", months }), setIntakeBusy: () => {} });
   const buttons = () => nodes.inlineReviewList.all().filter(node => node.tag === "button");
   const click = action => {
     const button = buttons().find(node => node.dataset.action === action);
@@ -84,6 +85,13 @@ function setup({ eventId = "eventA", duplicates = [], amount = 50 } = {}) {
   };
   return { review, calls, nodes, buttons, click, settle, setConfirm: value => { confirm = value; }, id };
 }
+
+test("a candidate found in an earlier month stays available for inline review", async () => {
+  const app = setup({ months: ["2026-09", "2026-08"] });
+  await app.review.load();
+  assert.deepEqual(app.calls.filter(item => item.name === "gmailExpenseCandidateList").map(item => item.args.month), ["2026-09", "2026-08"]);
+  assert.equal(app.nodes.inlineReviewList.all().filter(node => node.tag === "article").length, 1);
+});
 
 test("loading the inline screen reads only, and displays only the selected event", async () => {
   const app = setup();
