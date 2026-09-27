@@ -155,6 +155,14 @@
     return result;
   };
 
+  Map.prototype.values = function patchedPosCartValues() {
+    const stack = String(new Error().stack || "");
+    if (stack.includes("posCartTotals")) {
+      captureCart(this);
+    }
+    return nativeValues.call(this);
+  };
+
   function setFastAmount(amount, hint = lastHint) {
     const cleanAmount = number(amount);
     lastHint = text(hint) || "unclassified";
@@ -254,9 +262,13 @@
       overlay.querySelector(".fp-card")?.appendChild(note);
     }
 
-    note.textContent = amount > 0
+    const nextText = amount > 0
       ? `${formatAmount(amount)} をQuick・SKUと同じ会計に合算します。`
       : "金額を入力するとQuick・SKUと同じ会計に合算できます。";
+
+    if (note.textContent !== nextText) {
+      note.textContent = nextText;
+    }
   }
 
   function polishNormalCart() {
@@ -276,11 +288,6 @@
       if (discountLabel) {
         discountLabel.style.display = "none";
       }
-
-      const detail = row.querySelector(".muted");
-      if (detail && !detail.dataset.fastAmountPolished) {
-        detail.dataset.fastAmountPolished = "true";
-      }
     }
 
     const cards = Array.from(document.querySelectorAll("section.card"));
@@ -293,9 +300,12 @@
       const count = heading?.lastElementChild;
       if (count && count !== heading?.firstElementChild) {
         const known = knownQuantity();
-        count.textContent = known > 0
+        const nextText = known > 0
           ? `${known} 点 + 金額入力`
           : "金額入力";
+        if (count.textContent !== nextText) {
+          count.textContent = nextText;
+        }
       }
     }
   }
