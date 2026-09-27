@@ -4,7 +4,7 @@ import {
   commitFastAmountSale,
   queueFastAmountSale,
   normalizeFastAmountSalesForSession
-} from "./services/fastAmountSaleService.js?v=20260916-fast-pos-1";
+} from "./services/fastAmountSaleService.js?v=20260927-mixed-fast-1";
 import {
   createStripeCheckout,
   getStripeCheckoutStatus,
@@ -336,7 +336,9 @@ async function openFastPos() {
   manualButton.addEventListener("click", async () => {
     const total = amount();
     if (total <= 0) return;
-    if (!window.confirm(`${formatAmount(total, currency)} を金額のみで会計しますか？\n\nSKU・商品数は未分類のまま保存します。`)) return;
+    if (!window.confirm(`${formatAmount(total, currency)} を金額のみで会計しますか？\
+\
+SKU・商品数は未分類のまま保存します。`)) return;
 
     manualButton.disabled = true;
     stripeButton.disabled = true;

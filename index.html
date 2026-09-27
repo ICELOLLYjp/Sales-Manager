@@ -25,6 +25,7 @@
     <nav class="bottom-nav" aria-label="Main navigation"><button data-route="dashboard" class="nav-btn active">Dashboard</button><button data-route="sessions" class="nav-btn">Sessions</button><button data-route="pos" class="nav-btn nav-btn-primary">POS</button><button data-route="inventory" class="nav-btn">Inventory</button><button data-route="more" class="nav-btn">More</button></nav>
   </div>
   <script>(function(){function showBootError(message){var status=document.getElementById("syncStatus"),view=document.getElementById("view");if(status)status.textContent="Error";if(view&&!view.dataset.booted)view.innerHTML='<div class="warning" style="margin:20px;">アプリの読み込みに失敗しました。<br>'+String(message||"Unknown error").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")+'</div>'}window.addEventListener("error",function(event){showBootError(event.message||event.error?.message||"JavaScript読み込みエラー")});window.addEventListener("unhandledrejection",function(event){showBootError(event.reason?.message||event.reason||"JavaScript処理エラー")})})();</script>
+  <script src="./js/posCartBridge.js?v=20260927-mixed-fast-1"></script>
   <script type="module" src="./js/app.js?v=20260926-country-currency-1"></script>
   <script type="module" src="./js/dashboardLiveUi.js?v=20260926-event-period-1"></script>
   <script type="module" src="./js/analyticsEventGrouping.js?v=20260926-event-group-2"></script>
@@ -51,7 +52,8 @@
   <script type="module" src="./js/fastAmountAllocationUi.js?v=20260916-fast-amount-allocation-1"></script>
   <script type="module" src="./js/posUxEnhancements.js?v=20260926-pos-history-target-2"></script>
   <script type="module" src="./js/historyNavigationReliability.js?v=20260926-history-wait-1"></script>
-  <script type="module" src="./js/fastPosUi.js?v=20260916-fast-pos-3"></script>
+  <script type="module" src="./js/fastPosUi.js?v=20260927-mixed-fast-1"></script>
+  <script type="module" src="./js/mixedFastAmountNormalizer.js?v=20260927-mixed-fast-1"></script>
   <script type="module" src="./js/fastPosModeEnhancement.js?v=20260916-fast-pos-switch-3"></script>
   <script type="module" src="./js/fastPosSessionEnhancement.js?v=20260916-fast-pos-session-1"></script>
   <script type="module" src="./js/stripeCompletionConfirm.js?v=20260926-confirm-1"></script>
