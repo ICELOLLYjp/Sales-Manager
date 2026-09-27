@@ -71,6 +71,13 @@ Updated: 2026-09-17 (Japan time). Repo: `ICELOLLYjp/Sales-Manager`.
 - PDF text and attachment bytes are returned only in the callable response and are not written to Firestore or logs.
 - Amount-looking strings from the PDF are suggestions only. A person must enter or confirm the amount, currency and evidence status before saving an evidence draft.
 - A PDF invoice is not payment proof. PDF extraction does not set `paid_evidence` and never posts an expense.
+
+## Excel invoice preview
+
+- After a staff member keeps a candidate and chooses evidence inspection, up to three `.xlsx` attachments are fetched from Gmail. Old `.xls` files remain listed by filename and require opening the source email.
+- Each file is limited to 5 MiB. The parser checks the archive size before opening the workbook and limits the number of files, sheets, rows, columns and displayed characters.
+- Sheet names and populated cell values appear in the inline review. Stored formula results can appear, but formulas are not calculated. Amount strings are suggestions only.
+- Workbook bytes and extracted text remain in the callable response and are not saved to Firestore. Reading an invoice never marks it paid or posts an expense.
 - Scanned image-only PDFs may return no text. OCR is not part of this phase.
 - The production candidate for Mori Market included one 105 KB PDF named `森之市｜2026 珈琲と花物語｜未払い項目確認.pdf`; metadata inspection succeeded before parser deployment.
 

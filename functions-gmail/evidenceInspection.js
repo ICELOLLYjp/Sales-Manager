@@ -3,6 +3,7 @@
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { accountId, decryptRefreshToken } = require("./oauthCore");
 const { COLLECTION } = require("./candidateStorage");
+const { MAX_XLSX_BYTES, parseXlsxData } = require("./xlsxEvidence");
 
 const MAX_TEXT_BYTES = 200000;
 const MAX_EXCERPT = 6000;
@@ -40,19 +41,19 @@ async function fetchGoogleAttachment(url, options = {}) {
   try {
     response = await fetch(url, { ...options, signal: AbortSignal.timeout(30000) });
   } catch {
-    throw new HttpsError("unavailable", "GmailのPDF添付を取得できませんでした。");
+    throw new HttpsError("unavailable", "Gmailの添付ファイルを取得できませんでした。");
   }
   if (!response.ok) {
     if (response.status === 401 || response.status === 403) {
       throw new HttpsError("failed-precondition", "Gmailの認可を確認できません。接続画面で状態を確認してください。");
     }
-    throw new HttpsError("unavailable", "GmailのPDF添付を取得できませんでした。");
+    throw new HttpsError("unavailable", "Gmailの添付ファイルを取得できませんでした。");
   }
   const contentLength = Number(response.headers.get("content-length"));
   const maxResponseBytes = Math.ceil(MAX_PDF_BYTES * 4 / 3) + 65536;
   if (Number.isFinite(contentLength) && contentLength > maxResponseBytes) return { tooLarge: true };
   const reader = response.body?.getReader();
-  if (!reader) throw new HttpsError("unavailable", "GmailのPDF添付を読み取れませんでした。");
+  if (!reader) throw new HttpsError("unavailable", "Gmailの添付ファイルを読み取れませんでした。");
   const chunks = [];
   let total = 0;
   while (true) {
@@ -69,7 +70,7 @@ async function fetchGoogleAttachment(url, options = {}) {
     const raw = Buffer.concat(chunks.map(chunk => Buffer.from(chunk)), total).toString("utf8");
     return { json: JSON.parse(raw), tooLarge: false };
   } catch {
-    throw new HttpsError("unavailable", "GmailのPDF添付を読み取れませんでした。");
+    throw new HttpsError("unavailable", "Gmailの添付ファイルを読み取れませんでした。");
   }
 }
 
@@ -175,6 +176,24 @@ function collectPdfAttachmentRefs(payload) {
         filename: filename || "（ファイル名なし）",
         declaredSize: Number.isFinite(Number(body.size)) ? Number(body.size) : null
       });
+    }
+    for (const child of Array.isArray(part.parts) ? part.parts : []) visit(child);
+  }
+  visit(payload);
+  return refs;
+}
+
+function collectXlsxAttachmentRefs(payload) {
+  const refs = [];
+  function visit(part) {
+    if (!part || typeof part !== "object" || refs.length >= 3) return;
+    const mimeType = String(part.mimeType || "").toLowerCase();
+    const filename = String(part.filename || "").trim().slice(0, 240);
+    const body = part.body || {};
+    if ((/\.xlsx$/i.test(filename) || mimeType === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet") &&
+        typeof body.attachmentId === "string" && body.attachmentId) {
+      refs.push({ attachmentId: body.attachmentId, filename: filename || "（ファイル名なし）",
+        declaredSize: Number.isFinite(Number(body.size)) ? Number(body.size) : null });
     }
     for (const child of Array.isArray(part.parts) ? part.parts : []) visit(child);
   }
@@ -305,8 +324,28 @@ function createEvidenceInspection({ requireStaff, db, clientId, clientSecret, to
       const bytes = Buffer.from(encoded.replace(/-/g, "+").replace(/_/g, "/"), "base64");
       pdfResults.push(await parsePdfData(bytes, ref.filename));
     }
+    const xlsxResults = [];
+    for (const ref of collectXlsxAttachmentRefs(message.payload)) {
+      if (ref.declaredSize !== null && ref.declaredSize > MAX_XLSX_BYTES) {
+        xlsxResults.push({ filename: ref.filename, status: "too_large", sheetCount: null, excerpt: "", excerptTruncated: false, moneyHints: [] });
+        continue;
+      }
+      const attachmentUrl = new URL(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${encodeURIComponent(messageId)}/attachments/${encodeURIComponent(ref.attachmentId)}`);
+      const attachment = await fetchGoogleAttachment(attachmentUrl, { headers: { Authorization: `Bearer ${token.access_token}` } });
+      if (attachment.tooLarge) {
+        xlsxResults.push({ filename: ref.filename, status: "too_large", sheetCount: null, excerpt: "", excerptTruncated: false, moneyHints: [] });
+        continue;
+      }
+      const encoded = attachment.json?.data;
+      if (typeof encoded !== "string" || Math.floor(encoded.length * 0.75) > MAX_XLSX_BYTES) {
+        xlsxResults.push({ filename: ref.filename, status: "too_large", sheetCount: null, excerpt: "", excerptTruncated: false, moneyHints: [] });
+        continue;
+      }
+      const bytes = Buffer.from(encoded.replace(/-/g, "+").replace(/_/g, "/"), "base64");
+      xlsxResults.push(await parseXlsxData(bytes, ref.filename, findMoneyHints));
+    }
     const moneyHints = [...findMoneyHints(evidence.excerpt)];
-    for (const result of pdfResults) {
+    for (const result of [...pdfResults, ...xlsxResults]) {
       for (const hint of result.moneyHints) if (!moneyHints.includes(hint) && moneyHints.length < 20) moneyHints.push(hint);
     }
     return {
@@ -320,6 +359,7 @@ function createEvidenceInspection({ requireStaff, db, clientId, clientSecret, to
       eventCurrency,
       pdfCount: evidence.attachments.filter(item => item.isPdf).length,
       pdfResults,
+      xlsxResults,
       persisted: false,
       expensePosted: false,
       pdfParsed: pdfResults.some(item => item.status === "parsed" || item.status === "no_text")
@@ -338,6 +378,7 @@ module.exports = {
   htmlToText,
   inspectPayload,
   collectPdfAttachmentRefs,
+  collectXlsxAttachmentRefs,
   parsePdfData,
   findMoneyHints,
   createEvidenceInspection
