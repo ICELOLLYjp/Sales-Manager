@@ -28,7 +28,22 @@ export function createInlineExpenseReview({ call, getContext, setIntakeBusy }) {
   }
   function sameContext() {
     const live = getContext();
-    return context && live.eventId === context.eventId && live.month === context.month;
+    return context && live.eventId === context.eventId && live.month === context.month &&
+      JSON.stringify(live.months || [live.month]) === JSON.stringify(context.months || [context.month]);
+  }
+  async function readCandidates() {
+    const months = context.months || [context.month];
+    const results = await Promise.all(months.map(month => call("gmailExpenseCandidateList", { month })));
+    for (const result of results) {
+      if (!Array.isArray(result?.candidates) || !Array.isArray(result?.sessions)) throw new Error("候補一覧を取得できませんでした。");
+    }
+    return {
+      ...results[0],
+      candidates: [...new Map(results.flatMap(result => result.candidates).map(item => [item.id, item])).values()],
+      duplicateGroups: results.flatMap(result => result.duplicateGroups || []),
+      truncated: results.some(result => result.truncated),
+      expensePostingAvailable: results.every(result => result.expensePostingAvailable === true)
+    };
   }
   function setBusy(value) {
     busy = value;
@@ -52,7 +67,7 @@ export function createInlineExpenseReview({ call, getContext, setIntakeBusy }) {
     setBusy(true);
     say("このイベントの保存済み候補を確認しています…");
     try {
-      const result = await call("gmailExpenseCandidateList", { month: chosen.month });
+      const result = await readCandidates();
       if (!sameContext()) { say("条件が変わりました。もう一度読み込んでください。", true); return; }
       if (!Array.isArray(result?.candidates) || !Array.isArray(result?.sessions)) throw new Error("候補一覧を取得できませんでした。");
       state = result;
@@ -158,7 +173,7 @@ export function createInlineExpenseReview({ call, getContext, setIntakeBusy }) {
   }
   async function refreshAfterFailure() {
     if (!sameContext()) return;
-    try { state = await call("gmailExpenseCandidateList", { month: context.month }); render(); }
+    try { state = await readCandidates(); render(); }
     catch { say("状態を確認できません。画面を再読み込みしてください。", true); }
   }
   async function save(id, article, posting) {
@@ -175,7 +190,7 @@ export function createInlineExpenseReview({ call, getContext, setIntakeBusy }) {
     try {
       await call("gmailExpenseSaveEvidenceReview", { candidateId: id, review });
       // Always re-read the authoritative totals and candidate status before posting.
-      state = await call("gmailExpenseCandidateList", { month: context.month });
+      state = await readCandidates();
       if (!sameContext()) throw new Error("イベントまたは月が変更されました。候補を読み込み直してください。");
       const current = candidate(id);
       const session = event();
@@ -204,7 +219,7 @@ export function createInlineExpenseReview({ call, getContext, setIntakeBusy }) {
       const posted = await call("gmailExpensePostReviewedCandidate", {
         candidateId: id, confirmation: "post_reviewed_expense", expectedCurrentAmount: previous
       });
-      state = await call("gmailExpenseCandidateList", { month: context.month });
+      state = await readCandidates();
       render();
       say(posted.duplicate ? "この候補はすでに登録されています。二重計上していません。" :
         `${Number(draft.amount).toLocaleString("ja-JP")} ${draft.currency} を経費台帳に登録しました。`);
