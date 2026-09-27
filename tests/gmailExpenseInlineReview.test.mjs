@@ -37,7 +37,7 @@ class Node {
   removeAttribute(name) { delete this[name]; }
 }
 
-function setup({ eventId = "eventA", duplicates = [], amount = 50, months } = {}) {
+function setup({ eventId = "eventA", duplicates = [], amount = 50, months, xlsx = false } = {}) {
   const nodes = Object.fromEntries(["inlineReview", "inlineReviewList", "inlineReviewStatus", "inlineReviewLoad"].map(id => [id, new Node()]));
   globalThis.document = {
     getElementById: id => nodes[id],
@@ -63,7 +63,8 @@ function setup({ eventId = "eventA", duplicates = [], amount = 50, months } = {}
     if (name === "gmailExpenseCandidateList") return months && args.month !== months.at(-1)
       ? { ...snapshot(), candidates: [] } : snapshot();
     if (name === "gmailExpenseCandidateReview") { candidate.reviewStatus = args.status; return {}; }
-    if (name === "gmailExpenseInspectEvidence") return { excerpt: "支払領収書", moneyHints: ["JPY 20"], pdfResults: [], attachments: [] };
+    if (name === "gmailExpenseInspectEvidence") return { excerpt: "支払領収書", moneyHints: ["JPY 20"], pdfResults: [], attachments: [],
+      xlsxResults: xlsx ? [{ filename: "invoice.xlsx", status: "parsed", excerpt: "シート: Invoice\nB1: TWD 13,050", moneyHints: ["TWD 13,050"] }] : [] };
     if (name === "gmailExpenseSaveEvidenceReview") {
       candidate.evidenceReview = { ...args.review, amount: Number(args.review.amount) }; return {};
     }
@@ -107,6 +108,15 @@ test("proof inspection saves no expense, unverified payment cannot be posted", a
   app.click("inspect"); await app.settle();
   assert.deepEqual(app.calls.slice(1).map(item => item.name), ["gmailExpenseCandidateReview", "gmailExpenseInspectEvidence"]);
   app.click("post"); await app.settle();
+  assert.equal(app.calls.some(item => item.name === "gmailExpensePostReviewedCandidate"), false);
+});
+
+test("Excel invoice preview shows content without posting an expense", async () => {
+  const app = setup({ xlsx: true });
+  await app.review.load(); app.click("inspect"); await app.settle();
+  const rendered = app.nodes.inlineReviewList.children[0].textContent;
+  assert.match(rendered, /invoice\.xlsx/);
+  assert.match(rendered, /TWD 13,050/);
   assert.equal(app.calls.some(item => item.name === "gmailExpensePostReviewedCandidate"), false);
 });
 
