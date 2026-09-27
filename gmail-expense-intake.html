@@ -88,10 +88,11 @@
         <div id="eventPickerList" role="radiogroup" aria-label="登録先イベント一覧"></div>
         <p id="eventPickerSummary" class="muted" aria-live="polite"></p>
       </div>
-      <label class="field" for="month">メールの検索対象月<select id="month" aria-label="メールの検索対象月"></select></label>
+      <label class="field" for="month">検索を始める月<select id="month" aria-label="検索を始める月"></select></label>
+      <label class="field" for="monthCount">検索期間<select id="monthCount" aria-label="検索期間"><option value="1">選んだ月だけ</option><option value="3">その月から過去3か月</option><option value="6">その月から過去6か月</option></select></label>
       <label class="field" for="keyword">追加の検索語句（任意）<input id="keyword" maxlength="80" placeholder="未入力なら経費関連メールを幅広く検索"></label>
     </div>
-    <p class="muted">メールにイベント名が書かれていない領収書もあるため、イベント名では自動的に検索を絞りません。各アカウント最大25件です。続きがある場合は別途取得が必要です。</p>
+    <p class="muted">メールにイベント名が書かれていない領収書もあるため、イベント名では自動的に検索を絞りません。各アカウント、各月最大25件です。続きがある場合は別途取得が必要です。</p>
     <div id="accounts" class="account-grid" aria-live="polite"></div>
     <p id="accountNotice" class="muted" aria-live="polite"></p>
     <div class="actions"><button id="fetchBoth" type="button" disabled>2つのGmailをまとめて検索</button></div>
@@ -130,6 +131,6 @@
   }
   monthSelect.selectedIndex = 0;
 </script>
-<script type="module" src="./js/gmailExpenseIntake.js?v=20260927-1"></script>
+<script type="module" src="./js/gmailExpenseIntake.js?v=20260927-2"></script>
 </body>
 </html>

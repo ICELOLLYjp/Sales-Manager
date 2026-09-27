@@ -1,9 +1,24 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { groupIntakeSelection, intakeKey, planIntakeAssignments } from "../js/gmailExpenseIntakeModel.js";
+import { groupIntakeSelection, groupIntakeSelectionByMonth, intakeKey, planIntakeAssignments, searchMonths } from "../js/gmailExpenseIntakeModel.js";
 
 const one = { account: "fjmthrs@gmail.com", messageId: "a1" };
 const two = { account: "icelolly.zakka@gmail.com", messageId: "b2" };
+
+test("searches backward across years without including months before 2025", () => {
+  assert.deepEqual(searchMonths("2026-01", 3), ["2026-01", "2025-12", "2025-11"]);
+  assert.deepEqual(searchMonths("2025-02", 6), ["2025-02", "2025-01"]);
+  assert.deepEqual(searchMonths("2026-09", 1), ["2026-09"]);
+});
+
+test("keeps selected results in their scanned month for saving", () => {
+  const a = { ...one, searchMonth: "2026-09" };
+  const b = { ...two, searchMonth: "2026-08" };
+  assert.deepEqual(groupIntakeSelectionByMonth([a, b], new Set([intakeKey(a), intakeKey(b)])), [
+    { account: a.account, month: "2026-09", messages: [a] },
+    { account: b.account, month: "2026-08", messages: [b] }
+  ]);
+});
 
 test("groups selected messages by account without duplicate saves", () => {
   const selected = new Set([intakeKey(one), intakeKey(two)]);

@@ -5,6 +5,27 @@ export function intakeKey(message) {
   return `${message?.account || ""}\u0000${message?.messageId || ""}`;
 }
 
+export function searchMonths(start, count) {
+  if (!/^20\d{2}-(0[1-9]|1[0-2])$/.test(start) || ![1, 3, 6].includes(Number(count))) return [];
+  const [year, month] = start.split("-").map(Number);
+  return Array.from({ length: Number(count) }, (_, index) => {
+    const date = new Date(Date.UTC(year, month - 1 - index, 1));
+    return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
+  }).filter(value => value >= "2025-01");
+}
+
+export function groupIntakeSelectionByMonth(previews, selectedKeys) {
+  const groups = new Map();
+  for (const item of previews || []) {
+    if (!selectedKeys.has(intakeKey(item)) || !GMAIL_INTAKE_ACCOUNTS.includes(item?.account) ||
+      !/^[A-Za-z0-9_-]+$/.test(String(item?.messageId || "")) || !/^20\d{2}-(0[1-9]|1[0-2])$/.test(item.searchMonth || "")) continue;
+    const key = `${item.account}\u0000${item.searchMonth}`;
+    if (!groups.has(key)) groups.set(key, { account: item.account, month: item.searchMonth, messages: [] });
+    groups.get(key).messages.push(item);
+  }
+  return [...groups.values()];
+}
+
 export function groupIntakeSelection(previews, selectedKeys) {
   const groups = new Map();
   for (const item of previews || []) {

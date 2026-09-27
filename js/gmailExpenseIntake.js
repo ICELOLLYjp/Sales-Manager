@@ -1,13 +1,13 @@
 import { initFirebase, getFirebaseState } from "./firebase.js";
 import { initAuth, loginWithGoogle } from "./auth.js";
 import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-functions.js";
-import { GMAIL_INTAKE_ACCOUNTS, intakeKey, groupIntakeSelection, planIntakeAssignments } from "./gmailExpenseIntakeModel.js";
-import { createInlineExpenseReview } from "./gmailExpenseInlineReview.js";
+import { GMAIL_INTAKE_ACCOUNTS, intakeKey, groupIntakeSelectionByMonth, planIntakeAssignments, searchMonths } from "./gmailExpenseIntakeModel.js?v=20260927-2";
+import { createInlineExpenseReview } from "./gmailExpenseInlineReview.js?v=20260927-2";
 import { createEventPicker } from "./gmailExpenseEventPicker.js";
 
 const $ = selector => document.querySelector(selector);
 const staff = $("#staff"), login = $("#login"), eventSelect = $("#eventSelect");
-const month = $("#month"), keyword = $("#keyword"), accountsBox = $("#accounts");
+const month = $("#month"), monthCount = $("#monthCount"), keyword = $("#keyword"), accountsBox = $("#accounts");
 const accountNotice = $("#accountNotice"), notice = $("#notice"), fetchBoth = $("#fetchBoth");
 const summary = $("#resultSummary"), results = $("#results"), selectAll = $("#selectAll");
 const clearSelection = $("#clearSelection"), saveArea = $("#saveArea"), saveSelected = $("#saveSelected");
@@ -46,8 +46,9 @@ function update() {
   eventSelect.disabled = busy || !signedIn || !sessions.length;
   eventPicker.setDisabled(eventSelect.disabled);
   month.disabled = busy;
+  monthCount.disabled = busy;
   keyword.disabled = busy;
-  fetchBoth.disabled = busy || !signedIn || !eventSelect.value || !validMonth(month.value) || ![...connected.values()].some(Boolean);
+  fetchBoth.disabled = busy || !signedIn || !eventSelect.value || !searchMonths(month.value, monthCount.value).length || ![...connected.values()].some(Boolean);
   selectAll.disabled = busy || !previews.length;
   clearSelection.disabled = busy || !selected.size;
   saveSelected.disabled = busy || !selected.size || !eventSelect.value;
@@ -61,7 +62,7 @@ async function callable(name, data = {}) {
 }
 const inlineReview = createInlineExpenseReview({
   call: callable,
-  getContext: () => ({ eventId: signedIn ? eventSelect.value : "", month: month.value }),
+  getContext: () => ({ eventId: signedIn ? eventSelect.value : "", month: month.value, months: searchMonths(month.value, monthCount.value) }),
   setIntakeBusy: value => { busy = value; update(); }
 });
 function populateSessions(items) {
@@ -156,7 +157,7 @@ function renderResults() {
     results.append(card);
   }
   const partial = [...fetchInfo.values()].some(item => item.hasMore);
-  summary.textContent = `検索結果 ${previews.length}件。各アカウント最大25件${partial ? "。続きがあるため、この月の全メールではありません。" : "。"}`;
+  summary.textContent = `検索結果 ${previews.length}件。各アカウント、各月最大25件${partial ? "。続きがある月には、表示されていないメールもあります。" : "。"}`;
   saveArea.hidden = !previews.length;
   update();
 }
@@ -184,24 +185,33 @@ async function initialize() {
   }
 }
 async function fetchBothAccounts() {
-  if (busy || !signedIn || !eventSelect.value || !validMonth(month.value)) return;
+  const months = searchMonths(month.value, monthCount.value);
+  if (busy || !signedIn || !eventSelect.value || !months.length) return;
   const active = ++version;
   busy = true; clearPreviews(); update(); showMessage(notice, "接続済みのGmailを検索しています。まだ候補には保存していません…");
   const activeAccounts = GMAIL_INTAKE_ACCOUNTS.filter(account => connected.get(account) === true);
   const searchKeyword = keyword.value.replace(/\s+/g, " ").trim();
-  const chosenMonth = month.value;
   try {
-    const settled = await Promise.allSettled(activeAccounts.map(account => callable("gmailExpensePreview", { account, month: chosenMonth, keyword: searchKeyword })));
+    const tasks = months.flatMap(searchMonth => activeAccounts.map(account => ({ account, searchMonth })));
+    const settled = [];
+    for (const searchMonth of months) {
+      const monthResults = await Promise.allSettled(activeAccounts.map(account => callable("gmailExpensePreview", { account, month: searchMonth, keyword: searchKeyword })));
+      settled.push(...monthResults);
+      if (active !== version || !signedIn) return;
+      if (months.length > 1) showMessage(notice, `${searchMonth}まで検索しました（${settled.length}/${tasks.length}件）。`);
+    }
     if (active !== version || !signedIn) return;
     const failures = [];
     settled.forEach((outcome, index) => {
-      const account = activeAccounts[index];
-      if (outcome.status === "rejected") { failures.push(`${account}: ${outcome.reason?.message || "取得に失敗"}`); return; }
+      const { account, searchMonth } = tasks[index];
+      if (outcome.status === "rejected") { failures.push(`${account} ${searchMonth}: ${outcome.reason?.message || "取得に失敗"}`); return; }
       const response = outcome.value;
-      if (!Array.isArray(response?.messages)) { failures.push(`${account}: 応答が不正です`); return; }
-      fetchInfo.set(account, { hasMore: response.hasMore === true, skipped: Number(response.skipped || 0) });
-      previews.push(...response.messages.filter(item => item.account === account && /^[A-Za-z0-9_-]+$/.test(item.messageId || "")));
+      if (!Array.isArray(response?.messages)) { failures.push(`${account} ${searchMonth}: 応答が不正です`); return; }
+      fetchInfo.set(`${account}\u0000${searchMonth}`, { hasMore: response.hasMore === true, skipped: Number(response.skipped || 0) });
+      previews.push(...response.messages.filter(item => item.account === account && /^[A-Za-z0-9_-]+$/.test(item.messageId || "")).map(item => ({ ...item, searchMonth })));
     });
+    previews = [...new Map(previews.map(item => [intakeKey(item), item])).values()]
+      .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
     renderResults();
     const missing = GMAIL_INTAKE_ACCOUNTS.filter(account => connected.get(account) !== true);
     const notes = [missing.length ? `未接続: ${missing.join("、")}` : "", ...failures];
@@ -215,31 +225,34 @@ async function fetchBothAccounts() {
 }
 async function saveAndAssign() {
   if (busy || !signedIn || !eventSelect.value || !selected.size) return;
-  const eventId = eventSelect.value, chosenMonth = month.value;
+  const eventId = eventSelect.value;
   const selectedMessages = previews.filter(item => selected.has(intakeKey(item)));
-  const grouped = groupIntakeSelection(selectedMessages, selected);
+  const grouped = groupIntakeSelectionByMonth(selectedMessages, selected);
   if (!grouped.length) return;
   busy = true; update(); showMessage(notice, "選択した候補を保存しています。売上や経費台帳は変更しません…");
   const successfullySaved = [], failures = [];
   try {
     for (const group of grouped) {
       try {
-        const response = await callable("gmailExpenseSaveCandidates", { account: group.account, month: chosenMonth, messages: group.messages });
+        const response = await callable("gmailExpenseSaveCandidates", { account: group.account, month: group.month, messages: group.messages });
         if (Number(response.saved) !== group.messages.length) throw new Error("保存件数が一致しません。確認してください。");
         successfullySaved.push(...group.messages);
-      } catch (error) { failures.push(`${group.account}: ${error?.message || "保存失敗"}`); }
+      } catch (error) { failures.push(`${group.account} ${group.month}: ${error?.message || "保存失敗"}`); }
     }
     if (!successfullySaved.length) {
       showMessage(notice, `保存できませんでした。${failures.join("\n")}`, true); return;
     }
-    let listing;
-    try { listing = await callable("gmailExpenseCandidateList", { month: chosenMonth }); }
+    let listings;
+    try {
+      listings = await Promise.all([...new Set(grouped.map(group => group.month))]
+        .map(searchMonth => callable("gmailExpenseCandidateList", { month: searchMonth })));
+    }
     catch (error) {
       reviewLink.href = reviewHref(false);
       showMessage(notice, `候補は保存されましたが、一覧の再取得に失敗したためイベント割り当ては行っていません。保存済み候補を確認してください。${error?.message || error}`, true);
       saveArea.hidden = false; return;
     }
-    const plan = planIntakeAssignments(successfullySaved, listing.candidates, eventId);
+    const plan = planIntakeAssignments(successfullySaved, listings.flatMap(item => item.candidates || []), eventId);
     let assigned = 0;
     for (const item of plan.assign) {
       try {
@@ -271,6 +284,11 @@ clearSelection.addEventListener("click", () => { selected.clear(); renderResults
 month.addEventListener("change", () => {
   ++version; clearPreviews(); inlineReview.reset();
   showMessage(notice, "月を変更しました。候補を読み込み直してください。");
+  if (signedIn && eventSelect.value) inlineReview.load();
+});
+monthCount.addEventListener("change", () => {
+  ++version; clearPreviews(); inlineReview.reset();
+  showMessage(notice, "検索期間を変更しました。候補を読み込み直してください。");
   if (signedIn && eventSelect.value) inlineReview.load();
 });
 keyword.addEventListener("change", () => {
