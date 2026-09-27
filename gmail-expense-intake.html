@@ -122,16 +122,14 @@
   // Show only the current month and past months, newest first.
   const current = new Date();
   for (let year = Math.min(current.getFullYear(), 2030); year >= 2025; year--) {
-    const group = document.createElement("optgroup");
-    group.label = `${year}年`;
     const lastMonth = year === current.getFullYear() ? current.getMonth() + 1 : 12;
     for (let number = lastMonth; number >= 1; number--) {
       const value = `${year}-${String(number).padStart(2, "0")}`;
-      group.append(new Option(`${year}年${number}月`, value));
+      monthSelect.add(new Option(`${year}年${number}月`, value));
     }
-    monthSelect.append(group);
   }
+  monthSelect.selectedIndex = 0;
 </script>
-<script type="module" src="./js/gmailExpenseIntake.js?v=20260924-2"></script>
+<script type="module" src="./js/gmailExpenseIntake.js?v=20260927-1"></script>
 </body>
 </html>
