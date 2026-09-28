@@ -1,4 +1,4 @@
-import "./inventoryFlowSessionTshirtRecoveryUi.js?v=20260928-session-recovery-1";
+import "./inventoryFlowSessionTshirtRecoveryUi.js?v=20260928-session-recovery-2";
 
 const PANEL_ID = "inventoryFlowOverlay";
 
