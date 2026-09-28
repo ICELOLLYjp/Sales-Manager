@@ -1,6 +1,7 @@
 import { getFirebaseState } from "./firebase.js";
 import { tshirtAdapter } from "./inventoryAdapters/tshirtAdapter.js?v=20260915-empty-size-cells-1";
 import { filterTshirtRowsForEventGroups } from "./services/eventTshirtDesigns.mjs?v=20260926-group-compat-1";
+import { loadTshirtProductVariants } from "./services/catalogService.js?v=20260928-session-zero-1";
 import { loadEventInventoryFlow, saveEventInventoryCheckpoint } from "./services/inventoryFlowService.js?v=20260913-inventory-flow-1";
 
 const PANEL_ID = "inventoryFlowOverlay";
@@ -11,6 +12,10 @@ let saving = false;
 
 function text(value) {
   return String(value ?? "").trim();
+}
+
+function norm(value) {
+  return text(value).toLocaleLowerCase("ja");
 }
 
 function esc(value) {
@@ -28,6 +33,25 @@ function selectedSessionId() {
 
 function currentEmail() {
   return text(getFirebaseState()?.auth?.currentUser?.email);
+}
+
+function rowVariantId(row) {
+  return text(row?.variantId || row?.id);
+}
+
+function rowGroupKey(row) {
+  const designId = text(row?.designId);
+  const bodyId = text(row?.bodyId);
+  const colorId = text(row?.colorId);
+  if (!designId || !bodyId || !colorId) return "";
+  return [designId, bodyId, colorId].join("|||");
+}
+
+function isActiveRegisteredVariant(row) {
+  if (!row || row.active === false) return false;
+  const saleStatus = norm(row.saleStatus);
+  if (["inactive", "disabled", "retired", "archived"].includes(saleStatus)) return false;
+  return Boolean(rowVariantId(row) && rowGroupKey(row) && text(row.size));
 }
 
 function findTshirtCard(overlay) {
@@ -75,7 +99,8 @@ function installStyles() {
 function groupRows(rows) {
   const groups = new Map();
   (Array.isArray(rows) ? rows : []).forEach(row => {
-    const key = [text(row.designId), text(row.bodyId), text(row.colorId)].join("|||");
+    const key = rowGroupKey(row);
+    if (!key) return;
     if (!groups.has(key)) {
       groups.set(key, {
         design: text(row.design),
@@ -89,25 +114,123 @@ function groupRows(rows) {
   return [...groups.values()];
 }
 
-function inputValue({ variantId, stateById, openingIds, latestPhysical }) {
-  if (latestPhysical.has(variantId)) return String(latestPhysical.get(variantId));
-  if (!openingIds.has(variantId)) return "";
-  const stateRow = stateById.get(variantId);
-  return String(Math.max(0, Math.trunc(Number(stateRow?.expectedQty || 0))));
+function activeSessionVariantIds(state) {
+  const ids = new Set();
+
+  (state?.opening || []).forEach(item => {
+    if (Number(item?.openingQty || 0) > 0 && text(item?.variantId)) ids.add(text(item.variantId));
+  });
+
+  (state?.flowEntries || []).forEach(entry => {
+    if (
+      text(entry?.variantId) &&
+      Number(entry?.quantity || 0) > 0 &&
+      (entry?.type === "restock" || entry?.type === "opening_correction")
+    ) {
+      ids.add(text(entry.variantId));
+    }
+  });
+
+  Object.entries(state?.soldByVariant || {}).forEach(([variantId, quantity]) => {
+    if (Number(quantity || 0) > 0 && text(variantId)) ids.add(text(variantId));
+  });
+
+  return ids;
 }
 
-function cellStatus({ variantId, stateById, openingIds, latestPhysical }) {
+function buildSessionRows({ inventoryRows, registeredVariants, state }) {
+  const currentRows = Array.isArray(inventoryRows) ? inventoryRows : [];
+  const registeredRows = (Array.isArray(registeredVariants) ? registeredVariants : [])
+    .filter(isActiveRegisteredVariant);
+
+  const currentById = new Map(currentRows.map(row => [rowVariantId(row), row]));
+  const registeredById = new Map(registeredRows.map(row => [rowVariantId(row), row]));
+
+  const baseRows = filterTshirtRowsForEventGroups(
+    currentRows,
+    state?.opening,
+    state?.flowEntries,
+    state?.soldByVariant
+  );
+
+  const activeGroupKeys = new Set(
+    baseRows.map(rowGroupKey).filter(Boolean)
+  );
+
+  activeSessionVariantIds(state).forEach(variantId => {
+    const meta = registeredById.get(variantId) || currentById.get(variantId);
+    const key = rowGroupKey(meta);
+    if (key) activeGroupKeys.add(key);
+  });
+
+  if (!activeGroupKeys.size) return [];
+
+  const merged = new Map();
+
+  registeredRows.forEach(variant => {
+    const key = rowGroupKey(variant);
+    if (!activeGroupKeys.has(key)) return;
+    const id = rowVariantId(variant);
+    const current = currentById.get(id);
+    merged.set(id, {
+      ...variant,
+      variantId: id,
+      quantity: Math.max(0, Math.trunc(Number(current?.quantity || 0))),
+      registeredForSale: true
+    });
+  });
+
+  baseRows.forEach(row => {
+    const id = rowVariantId(row);
+    if (!id || merged.has(id)) return;
+    merged.set(id, {
+      ...row,
+      variantId: id,
+      registeredForSale: registeredById.has(id)
+    });
+  });
+
+  return [...merged.values()].sort((a, b) =>
+    text(a.design).localeCompare(text(b.design), "ja") ||
+    text(a.body).localeCompare(text(b.body), "ja") ||
+    text(a.color).localeCompare(text(b.color), "ja") ||
+    Number(a.sizeOrder || 999) - Number(b.sizeOrder || 999) ||
+    text(a.size).localeCompare(text(b.size), "ja")
+  );
+}
+
+function inputValue({ variantId, stateById, openingIds, latestPhysical, registeredZeroIds }) {
+  if (latestPhysical.has(variantId)) return String(latestPhysical.get(variantId));
+  if (openingIds.has(variantId)) {
+    const stateRow = stateById.get(variantId);
+    return String(Math.max(0, Math.trunc(Number(stateRow?.expectedQty || 0))));
+  }
+  if (registeredZeroIds.has(variantId)) return "0";
+  return "";
+}
+
+function cellStatus({ variantId, stateById, openingIds, latestPhysical, registeredZeroIds }) {
   if (latestPhysical.has(variantId)) return "前回実数";
-  if (!openingIds.has(variantId)) return "開始不明";
-  const stateRow = stateById.get(variantId);
-  return `予測 ${Math.max(0, Math.trunc(Number(stateRow?.expectedQty || 0)))}`;
+  if (openingIds.has(variantId)) {
+    const stateRow = stateById.get(variantId);
+    return `予測 ${Math.max(0, Math.trunc(Number(stateRow?.expectedQty || 0)))}`;
+  }
+  if (registeredZeroIds.has(variantId)) return "登録SKU 0";
+  return "開始不明";
 }
 
 function bindSteppers(card) {
+  card.querySelectorAll(".if-session-tshirt-input").forEach(input => {
+    input.addEventListener("input", () => {
+      input.dataset.countTouched = "1";
+    });
+  });
+
   card.querySelectorAll(".if-session-tshirt-step").forEach(button => {
     button.addEventListener("click", () => {
       const input = button.parentElement?.querySelector(".if-session-tshirt-input");
       if (!input) return;
+      input.dataset.countTouched = "1";
       const current = input.value === "" ? 0 : Math.max(0, Math.trunc(Number(input.value) || 0));
       const next = Math.max(0, current + Number(button.dataset.step || 0));
       input.value = String(next);
@@ -120,7 +243,11 @@ function bindSteppers(card) {
 
 function collectCounts(card) {
   return [...card.querySelectorAll(".if-session-tshirt-input[data-variant-id]")]
-    .filter(input => input.value !== "")
+    .filter(input => {
+      if (input.value === "") return false;
+      if (input.dataset.unconfirmedZero === "1" && input.dataset.countTouched !== "1") return false;
+      return true;
+    })
     .map(input => ({
       variantId: text(input.dataset.variantId),
       physicalQty: Math.max(0, Math.trunc(Number(input.value) || 0))
@@ -134,11 +261,11 @@ async function saveCounts(card, button, status) {
   const items = collectCounts(card);
   if (!sessionId) return;
   if (!items.length) {
-    window.alert("Tシャツの実数を1SKU以上入力してください。空欄は不明のまま残します。");
+    window.alert("Tシャツの実数を1SKU以上入力してください。未操作の補完0と空欄は不明のまま残します。");
     return;
   }
 
-  if (!window.confirm(`入力した ${items.length} SKUを、このSessionの途中カウントとして保存します。\n空欄は不明のまま残します。\n会社全体の実在庫は変更しません。\n\n進めますか？`)) return;
+  if (!window.confirm(`入力した ${items.length} SKUを、このSessionの途中カウントとして保存します。\n未操作の補完0と空欄は不明のまま残します。\n会社全体の実在庫は変更しません。\n\n進めますか？`)) return;
 
   saving = true;
   const original = button.textContent;
@@ -185,20 +312,23 @@ async function renderSessionTshirts(force = false) {
     card.dataset.sessionTshirtRecoveryFor = sessionId;
     card.querySelector(".if-tshirt-stock-commit")?.remove();
 
-    const [flow, snapshot] = await Promise.all([
+    const [flow, snapshot, registeredVariants] = await Promise.all([
       loadEventInventoryFlow(sessionId),
-      tshirtAdapter.getInventorySnapshot()
+      tshirtAdapter.getInventorySnapshot(),
+      loadTshirtProductVariants().catch(error => {
+        console.warn("Registered T-shirt SKUs could not be loaded for Session zero cells.", error);
+        return [];
+      })
     ]);
     if (!overlay.isConnected || selectedSessionId() !== sessionId) return;
 
     const allRows = Array.isArray(snapshot?.rows) ? snapshot.rows : [];
     const state = flow.state;
-    const sessionRows = filterTshirtRowsForEventGroups(
-      allRows,
-      state.opening,
-      state.flowEntries,
-      state.soldByVariant
-    );
+    const sessionRows = buildSessionRows({
+      inventoryRows: allRows,
+      registeredVariants,
+      state
+    });
 
     const groups = groupRows(sessionRows);
     const stateById = new Map((state.rows || []).map(row => [text(row.variantId), row]));
@@ -207,6 +337,12 @@ async function renderSessionTshirts(force = false) {
       (state.latestCheckpoint?.items || [])
         .filter(item => item?.physicalQty !== null && item?.physicalQty !== undefined)
         .map(item => [text(item.variantId), Math.max(0, Math.trunc(Number(item.physicalQty) || 0))])
+    );
+    const registeredZeroIds = new Set(
+      sessionRows
+        .filter(row => row.registeredForSale === true && Number(row.quantity || 0) <= 0)
+        .map(row => rowVariantId(row))
+        .filter(Boolean)
     );
 
     if (!groups.length) {
@@ -220,7 +356,7 @@ async function renderSessionTshirts(force = false) {
 
     card.innerHTML = `
       <h3>Tシャツ在庫ボード</h3>
-      <div class="if-warning if-session-tshirt-note">Tシャツの開始在庫行が不足しているため、このSession内の販売・補充・開始在庫修正履歴から関係するカラーだけを復元表示しています。会社全体の他カラーは表示しません。開始数を確認できないSKUは空欄＝不明のままです。</div>
+      <div class="if-warning if-session-tshirt-note">このSession内で関係するカラーだけを表示しています。同じカラー内の登録済みSKUは在庫0でも入力欄を表示します。開始数を確認できないSKUは空欄＝不明、補完表示した0は操作した時だけカウント保存の対象になります。</div>
       <div class="if-matrix-wrap">
         <table class="if-matrix">
           <thead><tr><th>Design / Body / Color</th>${SIZES.map(size => `<th>${size}</th>`).join("")}</tr></thead>
@@ -232,13 +368,14 @@ async function renderSessionTshirts(force = false) {
                   const row = group.rows.find(item => text(item.size) === size);
                   if (!row?.variantId) return `<td class="if-cell"></td>`;
                   const variantId = text(row.variantId);
-                  const value = inputValue({ variantId, stateById, openingIds, latestPhysical });
-                  const statusLabel = cellStatus({ variantId, stateById, openingIds, latestPhysical });
+                  const value = inputValue({ variantId, stateById, openingIds, latestPhysical, registeredZeroIds });
+                  const statusLabel = cellStatus({ variantId, stateById, openingIds, latestPhysical, registeredZeroIds });
+                  const unconfirmedZero = registeredZeroIds.has(variantId) && !openingIds.has(variantId) && !latestPhysical.has(variantId);
                   return `<td class="if-cell if-session-tshirt-cell">
                     <div class="if-sub">${esc(statusLabel)}</div>
                     <div class="if-session-tshirt-stepper">
                       <button type="button" class="if-session-tshirt-step" data-step="-1" aria-label="${esc(`${group.design} ${group.color} ${size} を1減らす`)}">−</button>
-                      <input class="if-count if-physical if-session-tshirt-input" type="number" inputmode="numeric" min="0" step="1" data-variant-id="${esc(variantId)}" value="${esc(value)}" placeholder="?" aria-label="${esc(`${group.design} ${group.color} ${size} 実数`)}">
+                      <input class="if-count if-physical if-session-tshirt-input" type="number" inputmode="numeric" min="0" step="1" data-variant-id="${esc(variantId)}" data-unconfirmed-zero="${unconfirmedZero ? "1" : "0"}" data-count-touched="${unconfirmedZero ? "0" : "1"}" value="${esc(value)}" placeholder="?" aria-label="${esc(`${group.design} ${group.color} ${size} 実数`)}">
                       <button type="button" class="if-session-tshirt-step" data-step="1" aria-label="${esc(`${group.design} ${group.color} ${size} を1増やす`)}">＋</button>
                     </div>
                   </td>`;
