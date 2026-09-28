@@ -1,7 +1,12 @@
 const PANEL_ID = "inventoryFlowOverlay";
 const ACTIVE_SESSION_KEY = "icelolly-sales-active-session";
+const APPLY_DELAY_MS = 300;
+const TSHIRT_RETRY_DELAY_MS = 900;
 
 let applying = false;
+let scheduleTimer = null;
+let currentOverlay = null;
+let manualSessionId = "";
 
 function text(value) {
   return String(value ?? "").trim();
@@ -11,12 +16,54 @@ function activeSessionId() {
   return text(localStorage.getItem(ACTIVE_SESSION_KEY));
 }
 
-function applyPreferredSession() {
-  if (applying) return;
+function tshirtCardExists(overlay) {
+  return Array.from(overlay.querySelectorAll(".if-card h3"))
+    .some(heading => text(heading.textContent) === "Tシャツ在庫ボード");
+}
 
+function openingInventoryMissing(overlay) {
+  return Array.from(overlay.querySelectorAll(".if-warning"))
+    .some(item => text(item.textContent).includes("開始在庫がありません"));
+}
+
+function bindManualSelection(select) {
+  if (select.dataset.inventorySessionPriorityBound === "1") return;
+  select.dataset.inventorySessionPriorityBound = "1";
+  select.addEventListener("change", () => {
+    if (applying) return;
+    manualSessionId = text(select.value);
+  });
+}
+
+function scheduleTshirtRecovery(overlay, sessionId) {
+  if (!overlay || !sessionId) return;
+  if (overlay.dataset.tshirtRecoveryScheduled === sessionId) return;
+  overlay.dataset.tshirtRecoveryScheduled = sessionId;
+
+  window.setTimeout(() => {
+    if (!overlay.isConnected) return;
+
+    const select = overlay.querySelector("#ifSession");
+    if (!select || text(select.value) !== sessionId) return;
+    if (tshirtCardExists(overlay) || openingInventoryMissing(overlay)) return;
+    if (overlay.dataset.tshirtRecoveryRetried === sessionId) return;
+
+    overlay.dataset.tshirtRecoveryRetried = sessionId;
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+  }, TSHIRT_RETRY_DELAY_MS);
+}
+
+function applyPreferredSession() {
   const overlay = document.getElementById(PANEL_ID);
   const select = overlay?.querySelector("#ifSession");
   if (!overlay || !select || !select.options.length) return;
+
+  if (overlay !== currentOverlay) {
+    currentOverlay = overlay;
+    manualSessionId = "";
+  }
+
+  bindManualSelection(select);
 
   const activeId = activeSessionId();
   if (!activeId) return;
@@ -37,18 +84,30 @@ function applyPreferredSession() {
     select.insertBefore(activeOption, select.options[0] || null);
   }
 
-  if (select.value === activeId) return;
+  if (manualSessionId && options.some(option => option.value === manualSessionId)) {
+    scheduleTshirtRecovery(overlay, text(select.value));
+    return;
+  }
 
-  applying = true;
-  select.value = activeId;
-  select.dispatchEvent(new Event("change", { bubbles: true }));
-  window.setTimeout(() => {
-    applying = false;
-  }, 0);
+  if (text(select.value) !== activeId && overlay.dataset.activeSessionApplied !== activeId) {
+    overlay.dataset.activeSessionApplied = activeId;
+    applying = true;
+    select.value = activeId;
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+    window.setTimeout(() => {
+      applying = false;
+    }, 0);
+  }
+
+  scheduleTshirtRecovery(overlay, activeId);
 }
 
 function schedule() {
-  requestAnimationFrame(applyPreferredSession);
+  if (scheduleTimer) window.clearTimeout(scheduleTimer);
+  scheduleTimer = window.setTimeout(() => {
+    scheduleTimer = null;
+    applyPreferredSession();
+  }, APPLY_DELAY_MS);
 }
 
 schedule();
