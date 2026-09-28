@@ -6,7 +6,6 @@ import { saveTshirtPhysicalStock } from "./services/tshirtPhysicalStockService.j
 const PANEL_ID = "inventoryFlowOverlay";
 const ACTION_ID = "ifSaveTshirtPhysicalStock";
 const SIZES = ["S", "M", "L", "XL", "XXL"];
-const fallbackFirstSeen = new WeakMap();
 let catalogCache = null;
 let catalogLoadedAt = 0;
 let running = false;
@@ -93,28 +92,35 @@ function installStyles() {
 
 async function registeredCatalog() {
   if (catalogCache && Date.now() - catalogLoadedAt < 30000) return catalogCache;
+
   const [rows, options] = await Promise.all([
     loadTshirtProductVariants(),
     tshirtAdapter.getMasterOptions()
   ]);
+
   const variants = (Array.isArray(rows) ? rows : []).filter(row => {
     if (row?.active === false) return false;
     const saleStatus = norm(row?.saleStatus);
     if (["inactive", "disabled", "retired", "archived"].includes(saleStatus)) return false;
     return text(row?.variantId || row?.id) && text(row?.bodyId) && text(row?.designId) && text(row?.colorId);
   });
+
   const sizeIdByName = new Map(
     (Array.isArray(options?.sizes) ? options.sizes : [])
       .filter(item => SIZES.includes(text(item?.name)))
       .map(item => [text(item.name), text(item.id)])
   );
-  catalogCache = { variants, sizeIdByName };
+
+  const groups = new Map();
+  variants.forEach(variant => {
+    const key = [norm(variant?.design), norm(variant?.body), norm(variant?.color)].join("|||");
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(variant);
+  });
+
+  catalogCache = { groups, sizeIdByName };
   catalogLoadedAt = Date.now();
   return catalogCache;
-}
-
-function variantGroupKey(row) {
-  return [norm(row?.design), norm(row?.body), norm(row?.color)].join("|||");
 }
 
 function domRowKey(row) {
@@ -124,22 +130,11 @@ function domRowKey(row) {
   return [design, parts[0] || "", parts[1] || ""].join("|||");
 }
 
-function createLabelCell(variant) {
-  const cell = document.createElement("td");
-  cell.innerHTML = `<div class="if-design">${esc(variant.design)}</div><div class="if-detail">${esc(`${variant.body} / ${variant.color}`)}</div>`;
-  return cell;
-}
-
-function createEmptyCell() {
-  const cell = document.createElement("td");
-  cell.className = "if-cell";
-  return cell;
-}
-
 function fillZeroCell(cell, variant) {
   if (!cell || cell.querySelector(".if-physical")) return;
   const variantId = text(variant?.variantId || variant?.id);
   if (!variantId) return;
+
   const label = `${text(variant.design)} ${text(variant.color)} ${text(variant.size)}`.trim();
   cell.className = "if-cell if-tshirt-fallback-cell if-tshirt-zero-cell";
   cell.innerHTML = `
@@ -157,6 +152,7 @@ function syntheticVariant(sample, size, sizeId) {
   const designId = text(sample.designId);
   const colorId = text(sample.colorId);
   if (!bodyId || !designId || !colorId) return null;
+
   return {
     variantId: createVariantId(bodyId, designId, colorId, sizeId),
     bodyId,
@@ -170,53 +166,30 @@ function syntheticVariant(sample, size, sizeId) {
   };
 }
 
-async function addRegisteredZeroInputs(card) {
-  if (!card?.classList.contains("if-tshirt-fallback-card")) return;
-  const tbody = card.querySelector(".if-matrix tbody");
+async function addZeroInputsOnlyToDisplayedColors(card) {
+  const tbody = card?.querySelector(".if-matrix tbody");
   if (!tbody) return;
-
-  if (!fallbackFirstSeen.has(card)) fallbackFirstSeen.set(card, Date.now());
-  const hasRows = Boolean(tbody.querySelector("tr"));
-  const fallbackLoaderStarted = card.dataset.inventoryTshirtFallbackReady === "1";
-  const waitedLongEnough = Date.now() - fallbackFirstSeen.get(card) > 3500;
-  if (!hasRows && !(fallbackLoaderStarted && waitedLongEnough)) return;
 
   let catalog;
   try {
     catalog = await registeredCatalog();
   } catch (error) {
-    console.warn("Registered zero-stock T-shirt variants could not be loaded.", error);
+    console.warn("Registered T-shirt variants could not be loaded for zero-count cells.", error);
     return;
   }
 
-  const rowByKey = new Map();
-  tbody.querySelectorAll("tr").forEach(row => rowByKey.set(domRowKey(row), row));
+  tbody.querySelectorAll("tr").forEach(row => {
+    const groupVariants = catalog.groups.get(domRowKey(row));
+    if (!groupVariants?.length) return;
 
-  const groups = new Map();
-  catalog.variants.forEach(variant => {
-    const key = variantGroupKey(variant);
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key).push(variant);
-  });
-
-  groups.forEach(groupVariants => {
     const sample = groupVariants[0];
-    const key = variantGroupKey(sample);
-    let row = rowByKey.get(key);
-    if (!row) {
-      row = document.createElement("tr");
-      row.className = "if-tshirt-fallback-row if-tshirt-registered-zero-row";
-      row.appendChild(createLabelCell(sample));
-      SIZES.forEach(() => row.appendChild(createEmptyCell()));
-      tbody.appendChild(row);
-      rowByKey.set(key, row);
-    }
-
     SIZES.forEach((size, sizeIndex) => {
+      const cell = row.children[sizeIndex + 1];
+      if (!cell || cell.querySelector(".if-physical")) return;
+
       const registered = groupVariants.find(variant => text(variant.size) === size);
       const variant = registered || syntheticVariant(sample, size, catalog.sizeIdByName.get(size));
       if (!variant) return;
-      const cell = row.children[sizeIndex + 1];
       fillZeroCell(cell, variant);
     });
   });
@@ -241,15 +214,15 @@ async function savePhysicalStock(card, button, status) {
   if (running) return;
   const rows = collectPhysicalRows(card);
   if (!rows.length) {
-    window.alert("Tシャツの実数を1点以上入力してください。");
+    window.alert("表示中のTシャツ実数を1点以上入力してください。");
     return;
   }
 
   const zeroCount = rows.filter(row => row.quantity === 0).length;
   const ok = window.confirm(
-    `入力中の ${rows.length} SKUをTシャツの正式な現在庫へ反映します。\n` +
+    `この在庫ボードに表示中の ${rows.length} SKUを正式な現在庫へ反映します。\n` +
     `0で入力した ${zeroCount} SKUも在庫0として保存します。\n\n` +
-    "この操作は tshirtStock/master の実在庫を更新します。進めますか？"
+    "表示されていないカラーやSKUは変更しません。進めますか？"
   );
   if (!ok) return;
 
@@ -264,13 +237,13 @@ async function savePhysicalStock(card, button, status) {
       rows,
       sessionId: selectedSessionId(),
       savedByEmail: currentEmail(),
-      source: card.classList.contains("if-tshirt-fallback-card")
-        ? "inventory_flow_fallback_physical_count"
-        : "inventory_flow_physical_count"
+      source: "inventory_flow_session_physical_count"
     });
 
     card.querySelectorAll(".if-physical[data-variant-id]").forEach(input => {
-      if (input.value !== "") input.dataset.savedPhysicalQty = String(Math.max(0, Math.trunc(Number(input.value) || 0)));
+      if (input.value !== "") {
+        input.dataset.savedPhysicalQty = String(Math.max(0, Math.trunc(Number(input.value) || 0)));
+      }
     });
 
     status.textContent = `正式在庫へ反映済み：${result.savedCount} SKU（変更 ${result.changedCount} SKU）`;
@@ -291,10 +264,11 @@ function ensureCommitAction(card) {
   const host = document.createElement("div");
   host.className = "if-tshirt-stock-commit";
   host.innerHTML = `
-    <div class="if-tshirt-stock-commit-note">入力した実数をTシャツの正式な現在庫へ保存します。表示中の0も有効な実数として反映します。</div>
+    <div class="if-tshirt-stock-commit-note">この在庫ボードに表示されているカラーだけを対象に、入力した実数を正式な現在庫へ保存します。表示中の0も有効な実数です。</div>
     <button type="button" id="${ACTION_ID}">Tシャツ実数を保存・現在庫へ反映</button>
     <div class="if-tshirt-stock-commit-status" aria-live="polite"></div>`;
   card.appendChild(host);
+
   const button = host.querySelector(`#${ACTION_ID}`);
   const status = host.querySelector(".if-tshirt-stock-commit-status");
   button.addEventListener("click", () => void savePhysicalStock(card, button, status));
@@ -303,11 +277,13 @@ function ensureCommitAction(card) {
 function bindZeroStepperDelegation() {
   if (document.documentElement.dataset.tshirtZeroStepperBound === "1") return;
   document.documentElement.dataset.tshirtZeroStepperBound = "1";
+
   document.addEventListener("click", event => {
     const button = event.target.closest?.(".if-tshirt-zero-step");
     if (!button) return;
     const input = button.parentElement?.querySelector(".if-tshirt-zero-input");
     if (!input) return;
+
     const current = Math.max(0, Math.trunc(Number(input.value) || 0));
     input.value = String(Math.max(0, current + Number(button.dataset.step || 0)));
     input.dispatchEvent(new Event("input", { bubbles: true }));
@@ -327,7 +303,7 @@ function schedule() {
     const card = findTshirtCard();
     if (!card) return;
     ensureCommitAction(card);
-    void addRegisteredZeroInputs(card);
+    void addZeroInputsOnlyToDisplayedColors(card);
   });
 }
 
