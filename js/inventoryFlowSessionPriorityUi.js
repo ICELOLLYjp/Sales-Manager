@@ -29,6 +29,13 @@ function openingInventoryMissing(overlay) {
     .some(item => text(item.textContent).includes("開始在庫がありません"));
 }
 
+function requestTshirtFallback(overlay, sessionId) {
+  overlay.dispatchEvent(new CustomEvent("inventory:tshirt-missing", {
+    bubbles: true,
+    detail: { sessionId }
+  }));
+}
+
 function bindManualSelection(select) {
   if (select.dataset.inventorySessionPriorityBound === "1") return;
   select.dataset.inventorySessionPriorityBound = "1";
@@ -60,7 +67,11 @@ function scheduleTshirtRecovery(overlay, sessionId) {
       if (!overlay.isConnected) return;
       const select = overlay.querySelector("#ifSession");
       if (!select || text(select.value) !== sessionId) return;
-      if (hasTshirtRows(overlay) || openingInventoryMissing(overlay)) return;
+      if (hasTshirtRows(overlay)) return;
+      if (openingInventoryMissing(overlay)) {
+        requestTshirtFallback(overlay, sessionId);
+        return;
+      }
 
       select.dispatchEvent(new Event("change", { bubbles: true }));
 
@@ -69,11 +80,8 @@ function scheduleTshirtRecovery(overlay, sessionId) {
           if (!overlay.isConnected) return;
           const current = overlay.querySelector("#ifSession");
           if (!current || text(current.value) !== sessionId) return;
-          if (hasTshirtRows(overlay) || openingInventoryMissing(overlay)) return;
-          overlay.dispatchEvent(new CustomEvent("inventory:tshirt-missing", {
-            bubbles: true,
-            detail: { sessionId }
-          }));
+          if (hasTshirtRows(overlay)) return;
+          requestTshirtFallback(overlay, sessionId);
         }, 250);
       }
     }, delay);
