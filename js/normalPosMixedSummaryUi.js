@@ -50,12 +50,13 @@ function parseMoney(value) {
 }
 
 function normalDisplayedTotal() {
-  const labels = [...document.querySelectorAll("strong")];
-  const label = labels.find(element =>
-    !element.closest(`#${FAST_OVERLAY_ID}`) &&
-    !element.closest(`#${SUMMARY_ID}`) &&
-    text(element.textContent).toUpperCase() === "TOTAL"
-  );
+  const checkoutTitle = Array.from(document.querySelectorAll(".card-title"))
+    .find(element => element.textContent?.trim() === "会計");
+  const checkoutCard = checkoutTitle?.closest("section.card");
+  if (!checkoutCard) return null;
+
+  const label = Array.from(checkoutCard.querySelectorAll("strong"))
+    .find(element => text(element.textContent).toUpperCase() === "TOTAL");
   return parseMoney(label?.nextElementSibling?.textContent);
 }
 
@@ -99,7 +100,6 @@ function installStyles() {
       font-size:12px;
       line-height:1.35;
     }
-    #${SUMMARY_ID} .mixed-summary-row:last-child{border-bottom:0}
     #${SUMMARY_ID} .mixed-summary-fast{color:#5148e5}
     #${SUMMARY_ID} .mixed-summary-total{
       display:flex;
@@ -116,12 +116,17 @@ function installStyles() {
 }
 
 function findAnchor() {
-  const caption = [...document.querySelectorAll(".fp-mode-caption-top")]
-    .find(element => !element.closest(`#${FAST_OVERLAY_ID}`));
-  if (caption) return caption;
+  const quick = document.getElementById("posModeQuick");
+  const sku = document.getElementById("posModeSku");
+  if (!quick || !sku) return null;
 
-  return [...document.querySelectorAll(".fp-mode-switch-top")]
-    .find(element => !element.closest(`#${FAST_OVERLAY_ID}`)) || null;
+  const modeRow = quick.parentElement;
+  if (!modeRow || sku.parentElement !== modeRow) return null;
+
+  const caption = modeRow.nextElementSibling;
+  return caption?.classList.contains("fp-mode-caption-top")
+    ? caption
+    : modeRow;
 }
 
 function render() {
@@ -133,20 +138,27 @@ function render() {
     return;
   }
 
-  const cartBridge = bridge();
-  const items = Array.isArray(cartBridge?.knownItems?.())
-    ? cartBridge.knownItems()
-    : [];
-  const fastItem = cartBridge?.currentItem?.() || null;
-  const fastAmount = number(fastItem?.unitPrice || 0);
-
-  if (!items.length && fastAmount <= 0) {
+  const anchor = findAnchor();
+  if (!anchor) {
     existing?.remove();
     return;
   }
 
-  const anchor = findAnchor();
-  if (!anchor) return;
+  const cartBridge = bridge();
+  const fastItem = cartBridge?.currentItem?.() || null;
+  const fastAmount = number(fastItem?.unitPrice || 0);
+
+  // The normal checkout already shows Quick/SKU-only carts. Add this compact
+  // summary only when a Fast amount is mixed in, which keeps normal navigation
+  // light and avoids duplicating the checkout card unnecessarily.
+  if (fastAmount <= 0) {
+    existing?.remove();
+    return;
+  }
+
+  const items = Array.isArray(cartBridge?.knownItems?.())
+    ? cartBridge.knownItems()
+    : [];
 
   let summary = existing;
   if (!summary) {
@@ -165,19 +177,15 @@ function render() {
     : displayedTotal;
   const knownNet = Math.max(0, total - fastAmount);
 
-  const detailRows = items.map(item => `
-    <div class="mixed-summary-row">
-      <span><strong>${esc(itemMode(item))}</strong> ${esc(lineLabel(item))} × ${Math.max(0, Number(item?.quantity || 0))}</span>
-    </div>
-  `).join("");
-
-  const fastRow = fastAmount > 0
-    ? `<div class="mixed-summary-row mixed-summary-fast"><span><strong>最速・金額入力</strong></span><strong>${esc(formatAmount(fastAmount))}</strong></div>`
-    : "";
-
   const signature = JSON.stringify({
     mode: localStorage.getItem("icelolly-sales-pos-mode") || "quick",
-    items: items.map(item => [text(item?.key), Number(item?.quantity || 0), number(item?.unitPrice || 0), number(item?.manualDiscount || 0)]),
+    currency: currency(),
+    items: items.map(item => [
+      text(item?.key),
+      Number(item?.quantity || 0),
+      number(item?.unitPrice || 0),
+      number(item?.manualDiscount || 0)
+    ]),
     fastAmount,
     total,
     knownNet
@@ -185,10 +193,20 @@ function render() {
 
   if (summary.dataset.signature === signature) return;
   summary.dataset.signature = signature;
+
+  const detailRows = items.map(item => `
+    <div class="mixed-summary-row">
+      <span><strong>${esc(itemMode(item))}</strong> ${esc(lineLabel(item))} × ${Math.max(0, Number(item?.quantity || 0))}</span>
+    </div>
+  `).join("");
+
   summary.innerHTML = `
     <div style="font-size:16px;font-weight:900;margin-bottom:7px">会計内訳</div>
     ${detailRows || `<div style="padding:4px 0 7px;color:#777;font-size:11px">Quick / SKU の商品はまだありません</div>`}
-    ${fastRow}
+    <div class="mixed-summary-row mixed-summary-fast">
+      <span><strong>最速・金額入力</strong></span>
+      <strong>${esc(formatAmount(fastAmount))}</strong>
+    </div>
     <div style="display:flex;justify-content:space-between;gap:10px;padding:8px 0 4px;font-size:12px">
       <span>Quick / SKU 分</span>
       <strong>${esc(formatAmount(knownNet))}</strong>
@@ -214,27 +232,35 @@ function schedule(delay = 0) {
   });
 }
 
-new MutationObserver(() => schedule()).observe(document.body, {
-  childList: true,
-  subtree: true,
-  characterData: true
-});
+const view = document.getElementById("view");
+if (view) {
+  new MutationObserver(() => schedule()).observe(view, {
+    childList: true,
+    subtree: true
+  });
+}
 
 document.addEventListener("icelolly:fast-cart-changed", () => schedule(20));
-document.addEventListener("icelolly:fast-cart-released", () => schedule(80));
+document.addEventListener("icelolly:fast-cart-released", () => schedule(40));
 document.addEventListener("click", event => {
   const target = event.target;
   if (!(target instanceof Element)) return;
-  if (target.closest("#posModeQuick,#posModeSku,#fastPosOpenButton,.fp-mode-choice,.posQtyButton,.posQuickItem,.posSkuItem")) {
+  if (target.closest("#posModeQuick,#posModeSku,.fp-mode-choice,.posQtyButton,.posQuickItem,.posSkuItem")) {
     schedule(20);
-    schedule(120);
-    schedule(300);
+    schedule(100);
   }
 }, true);
 
-document.addEventListener("visibilitychange", () => {
-  if (!document.hidden) schedule(80);
+document.addEventListener("input", event => {
+  const target = event.target;
+  if (!(target instanceof Element)) return;
+  if (target.matches(".posLineDiscountInput,#posOrderDiscount")) {
+    schedule(40);
+  }
 });
-window.addEventListener("focus", () => schedule(80));
 
-schedule(200);
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) schedule(50);
+});
+
+schedule(100);
