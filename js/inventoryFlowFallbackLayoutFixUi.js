@@ -1,4 +1,4 @@
-import "./inventoryFlowSessionScopeGuardUi.js?v=20260928-session-scope-2";
+import "./inventoryFlowSessionScopeGuardUi.js?v=20260928-session-scope-3";
 
 const PANEL_ID = "inventoryFlowOverlay";
 const STYLE_ID = "inventoryFlowFallbackLayoutFixStyles";
