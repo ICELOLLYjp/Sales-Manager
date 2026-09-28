@@ -1,3 +1,5 @@
+import "./inventoryTshirtCountUi.js?v=20260928-count-stepper-1";
+
 const PANEL_ID = "inventoryFlowOverlay";
 
 function text(value) {
