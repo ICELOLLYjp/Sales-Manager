@@ -1,3 +1,5 @@
+import "./normalPosMixedSummaryUi.js?v=20260928-normal-mixed-summary-1";
+
 const FAST_OVERLAY_ID = "fastPosOverlay";
 const BRIDGE_KEY = "__icelollyPosCartBridge";
 
