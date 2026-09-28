@@ -22,9 +22,7 @@ function installStyles() {
       align-items:stretch!important;
       box-sizing:border-box!important;
     }
-    .fp-mode-switch-top{
-      margin-top:0!important;
-    }
+    .fp-mode-switch-top{margin-top:0!important}
     .fp-mode-row>#posModeQuick,
     .fp-mode-row>#posModeSku,
     .fp-mode-row>#fastPosOpenButton,
@@ -39,66 +37,39 @@ function installStyles() {
       transition:background .15s ease,color .15s ease,box-shadow .15s ease,transform .08s ease!important;
       box-sizing:border-box!important;
     }
-
     #posModeQuick,
     #${FAST_OVERLAY_ID} .fp-mode-choice[data-mode="quick"]{
-      border:1px solid #1677d2!important;
-      background:#e9f4ff!important;
-      color:#1264b2!important;
+      border:1px solid #1677d2!important;background:#e9f4ff!important;color:#1264b2!important
     }
     #posModeSku,
     #${FAST_OVERLAY_ID} .fp-mode-choice[data-mode="sku"]{
-      border:1px solid #198754!important;
-      background:#eaf8f0!important;
-      color:#146c43!important;
+      border:1px solid #198754!important;background:#eaf8f0!important;color:#146c43!important
     }
     #fastPosOpenButton,
     #${FAST_OVERLAY_ID} .fp-mode-choice[data-mode="fast"]{
-      border:1px solid #635bff!important;
-      background:#efeeff!important;
-      color:#5148e5!important;
+      border:1px solid #635bff!important;background:#efeeff!important;color:#5148e5!important
     }
-
     #posModeQuick.fp-mode-active,
     #${FAST_OVERLAY_ID} .fp-mode-choice[data-mode="quick"].active{
-      background:#1677d2!important;
-      color:#fff!important;
-      box-shadow:0 3px 10px rgba(22,119,210,.24)!important;
+      background:#1677d2!important;color:#fff!important;box-shadow:0 3px 10px rgba(22,119,210,.24)!important
     }
     #posModeSku.fp-mode-active,
     #${FAST_OVERLAY_ID} .fp-mode-choice[data-mode="sku"].active{
-      background:#198754!important;
-      color:#fff!important;
-      box-shadow:0 3px 10px rgba(25,135,84,.24)!important;
+      background:#198754!important;color:#fff!important;box-shadow:0 3px 10px rgba(25,135,84,.24)!important
     }
     #fastPosOpenButton.fp-mode-active,
     #${FAST_OVERLAY_ID} .fp-mode-choice[data-mode="fast"].active{
-      background:#635bff!important;
-      color:#fff!important;
-      box-shadow:0 3px 10px rgba(99,91,255,.28)!important;
+      background:#635bff!important;color:#fff!important;box-shadow:0 3px 10px rgba(99,91,255,.28)!important
     }
-
     #posModeQuick:active,
     #posModeSku:active,
     #fastPosOpenButton:active,
     #${FAST_OVERLAY_ID} .fp-mode-choice:active{transform:scale(.97)!important}
-
-    #${FAST_OVERLAY_ID} .fp-mode-choice{
-      width:100%;
-      min-width:0;
-    }
     .fp-mode-caption{
-      max-width:480px;
-      margin:5px auto 0;
-      padding:0 12px;
-      box-sizing:border-box;
-      font:600 10px/1.4 system-ui,sans-serif;
-      color:#777;
-      text-align:center;
+      max-width:480px;margin:5px auto 0;padding:0 12px;box-sizing:border-box;
+      font:600 10px/1.4 system-ui,sans-serif;color:#777;text-align:center
     }
-    .fp-mode-caption-top{
-      margin-bottom:14px!important;
-    }
+    .fp-mode-caption-top{margin-bottom:14px!important}
   `;
   document.head.appendChild(style);
 }
@@ -154,8 +125,9 @@ function switchFromFastOverlay(mode) {
 
   window.setTimeout(() => {
     const target = document.getElementById(mode === "sku" ? "posModeSku" : "posModeQuick");
-    if (target) target.click();
-    else {
+    if (target) {
+      target.click();
+    } else {
       localStorage.setItem("icelolly-sales-pos-mode", mode);
       document.querySelector('[data-route="pos"]')?.click();
     }
@@ -205,7 +177,11 @@ function sync() {
 }
 
 let scheduled = false;
-function schedule() {
+function schedule(delay = 0) {
+  if (delay > 0) {
+    window.setTimeout(() => schedule(), delay);
+    return;
+  }
   if (scheduled) return;
   scheduled = true;
   requestAnimationFrame(() => {
@@ -214,12 +190,47 @@ function schedule() {
   });
 }
 
-new MutationObserver(schedule).observe(document.body, { childList: true, subtree: true });
+function addedNodeContains(node, selector) {
+  if (!(node instanceof Element)) return false;
+  return node.matches(selector) || Boolean(node.querySelector(selector));
+}
+
+const view = document.getElementById("view");
+if (view) {
+  new MutationObserver(records => {
+    const relevant = records.some(record =>
+      Array.from(record.addedNodes).some(node =>
+        addedNodeContains(node, "#posModeQuick,#posModeSku,#fastPosOpenButton")
+      )
+    );
+    if (relevant) schedule();
+  }).observe(view, { childList: true, subtree: true });
+}
+
+new MutationObserver(records => {
+  const addedFastOverlay = records.some(record =>
+    Array.from(record.addedNodes).some(node =>
+      addedNodeContains(node, `#${FAST_OVERLAY_ID}`)
+    )
+  );
+  if (addedFastOverlay) {
+    schedule();
+    schedule(80);
+  }
+}).observe(document.body, { childList: true, subtree: true });
+
 document.addEventListener("click", event => {
-  if (event.target?.closest?.("#posModeQuick,#posModeSku,#fastPosOpenButton,.fp-close")) {
-    window.setTimeout(sync, 0);
+  const target = event.target;
+  if (!(target instanceof Element)) return;
+  if (target.closest("#posModeQuick,#posModeSku,#fastPosOpenButton,.fp-mode-choice,.fp-close,[data-route='pos']")) {
+    schedule();
+    schedule(100);
   }
 }, true);
-window.addEventListener("focus", sync);
-document.addEventListener("visibilitychange", () => { if (!document.hidden) sync(); });
+
+window.addEventListener("focus", () => schedule());
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) schedule();
+});
+
 sync();
