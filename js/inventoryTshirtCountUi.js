@@ -70,6 +70,7 @@ function enhanceInput(input) {
   if (!input || input.dataset[READY] === "1") return;
   if (input.closest("#inventoryFlowAccessoryCard")) return;
   if (input.classList.contains("if-tshirt-fallback-input") || input.closest(".if-tshirt-fallback-stepper")) return;
+  if (input.classList.contains("if-session-tshirt-input") || input.closest(".if-session-tshirt-stepper")) return;
 
   const expectedRaw = predictedValue(input);
   const expectedPhysical = Math.max(0, expectedRaw);
