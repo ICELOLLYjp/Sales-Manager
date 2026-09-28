@@ -1,12 +1,13 @@
 const PANEL_ID = "inventoryFlowOverlay";
 const ACTIVE_SESSION_KEY = "icelolly-sales-active-session";
-const APPLY_DELAY_MS = 300;
-const TSHIRT_RETRY_DELAY_MS = 900;
+const APPLY_DELAY_MS = 80;
+const RECOVERY_DELAYS_MS = [250, 700, 1600];
 
 let applying = false;
 let scheduleTimer = null;
 let currentOverlay = null;
 let manualSessionId = "";
+let userSelecting = false;
 
 function text(value) {
   return String(value ?? "").trim();
@@ -16,9 +17,11 @@ function activeSessionId() {
   return text(localStorage.getItem(ACTIVE_SESSION_KEY));
 }
 
-function tshirtCardExists(overlay) {
-  return Array.from(overlay.querySelectorAll(".if-card h3"))
-    .some(heading => text(heading.textContent) === "Tシャツ在庫ボード");
+function hasTshirtRows(overlay) {
+  const heading = Array.from(overlay.querySelectorAll(".if-card h3"))
+    .find(item => text(item.textContent) === "Tシャツ在庫ボード");
+  const card = heading?.closest(".if-card");
+  return Boolean(card?.querySelector(".if-matrix tbody tr"));
 }
 
 function openingInventoryMissing(overlay) {
@@ -26,31 +29,63 @@ function openingInventoryMissing(overlay) {
     .some(item => text(item.textContent).includes("開始在庫がありません"));
 }
 
+function requestTshirtFallback(overlay, sessionId) {
+  overlay.dispatchEvent(new CustomEvent("inventory:tshirt-missing", {
+    bubbles: true,
+    detail: { sessionId }
+  }));
+}
+
 function bindManualSelection(select) {
   if (select.dataset.inventorySessionPriorityBound === "1") return;
   select.dataset.inventorySessionPriorityBound = "1";
+
+  const markUserIntent = () => {
+    userSelecting = true;
+  };
+
+  select.addEventListener("pointerdown", markUserIntent, { capture: true });
+  select.addEventListener("touchstart", markUserIntent, { capture: true, passive: true });
+  select.addEventListener("keydown", markUserIntent, { capture: true });
   select.addEventListener("change", () => {
     if (applying) return;
-    manualSessionId = text(select.value);
+    if (userSelecting) {
+      manualSessionId = text(select.value);
+    }
+    userSelecting = false;
   });
 }
 
 function scheduleTshirtRecovery(overlay, sessionId) {
   if (!overlay || !sessionId) return;
-  if (overlay.dataset.tshirtRecoveryScheduled === sessionId) return;
-  overlay.dataset.tshirtRecoveryScheduled = sessionId;
+  const key = `${sessionId}:${overlay.dataset.inventoryPriorityGeneration || "0"}`;
+  if (overlay.dataset.tshirtRecoveryScheduled === key) return;
+  overlay.dataset.tshirtRecoveryScheduled = key;
 
-  window.setTimeout(() => {
-    if (!overlay.isConnected) return;
+  RECOVERY_DELAYS_MS.forEach((delay, index) => {
+    window.setTimeout(() => {
+      if (!overlay.isConnected) return;
+      const select = overlay.querySelector("#ifSession");
+      if (!select || text(select.value) !== sessionId) return;
+      if (hasTshirtRows(overlay)) return;
+      if (openingInventoryMissing(overlay)) {
+        requestTshirtFallback(overlay, sessionId);
+        return;
+      }
 
-    const select = overlay.querySelector("#ifSession");
-    if (!select || text(select.value) !== sessionId) return;
-    if (tshirtCardExists(overlay) || openingInventoryMissing(overlay)) return;
-    if (overlay.dataset.tshirtRecoveryRetried === sessionId) return;
+      select.dispatchEvent(new Event("change", { bubbles: true }));
 
-    overlay.dataset.tshirtRecoveryRetried = sessionId;
-    select.dispatchEvent(new Event("change", { bubbles: true }));
-  }, TSHIRT_RETRY_DELAY_MS);
+      if (index === RECOVERY_DELAYS_MS.length - 1) {
+        window.setTimeout(() => {
+          if (!overlay.isConnected) return;
+          const current = overlay.querySelector("#ifSession");
+          if (!current || text(current.value) !== sessionId) return;
+          if (hasTshirtRows(overlay)) return;
+          requestTshirtFallback(overlay, sessionId);
+        }, 250);
+      }
+    }, delay);
+  });
 }
 
 function applyPreferredSession() {
@@ -61,45 +96,48 @@ function applyPreferredSession() {
   if (overlay !== currentOverlay) {
     currentOverlay = overlay;
     manualSessionId = "";
+    userSelecting = false;
+    overlay.dataset.inventoryPriorityGeneration = String(Date.now());
   }
 
   bindManualSelection(select);
 
   const activeId = activeSessionId();
-  if (!activeId) return;
-
   const options = Array.from(select.options);
   const activeOption = options.find(option => option.value === activeId);
-  if (!activeOption) return;
 
-  options.forEach(option => {
-    const baseLabel = option.dataset.baseLabel || option.textContent || "";
-    option.dataset.baseLabel = baseLabel.replace(/^販売中\s*・\s*/, "");
-    option.textContent = option.value === activeId
-      ? `販売中 ・ ${option.dataset.baseLabel}`
-      : option.dataset.baseLabel;
-  });
+  if (activeOption) {
+    options.forEach(option => {
+      const baseLabel = option.dataset.baseLabel || option.textContent || "";
+      option.dataset.baseLabel = baseLabel.replace(/^販売中\s*・\s*/, "");
+      option.textContent = option.value === activeId
+        ? `販売中 ・ ${option.dataset.baseLabel}`
+        : option.dataset.baseLabel;
+    });
 
-  if (select.options[0] !== activeOption) {
-    select.insertBefore(activeOption, select.options[0] || null);
+    if (select.options[0] !== activeOption) {
+      select.insertBefore(activeOption, select.options[0] || null);
+    }
   }
 
-  if (manualSessionId && options.some(option => option.value === manualSessionId)) {
-    scheduleTshirtRecovery(overlay, text(select.value));
-    return;
-  }
+  const manualExists = manualSessionId &&
+    options.some(option => option.value === manualSessionId);
+  const preferredId = manualExists
+    ? manualSessionId
+    : activeOption
+      ? activeId
+      : text(select.value);
 
-  if (text(select.value) !== activeId && overlay.dataset.activeSessionApplied !== activeId) {
-    overlay.dataset.activeSessionApplied = activeId;
+  if (preferredId && text(select.value) !== preferredId) {
     applying = true;
-    select.value = activeId;
+    select.value = preferredId;
     select.dispatchEvent(new Event("change", { bubbles: true }));
     window.setTimeout(() => {
       applying = false;
     }, 0);
   }
 
-  scheduleTshirtRecovery(overlay, activeId);
+  scheduleTshirtRecovery(overlay, preferredId);
 }
 
 function schedule() {
