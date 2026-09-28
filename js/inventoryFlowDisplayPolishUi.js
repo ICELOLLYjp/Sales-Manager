@@ -1,4 +1,5 @@
 import { tshirtAdapter } from "./inventoryAdapters/tshirtAdapter.js?v=20260915-empty-size-cells-1";
+import { loadTshirtProductVariants } from "./services/catalogService.js";
 
 const PANEL_ID = "inventoryFlowOverlay";
 const ACCESSORY_CARD_ID = "inventoryFlowAccessoryCard";
@@ -94,7 +95,38 @@ function installStyles() {
     }
     #${ACCESSORY_CARD_ID} .ifa-state{font-size:8px!important}
     .if-tshirt-fallback-note{margin:8px 0}
-    .if-tshirt-fallback-cell .if-expected{font-size:16px}
+    .if-tshirt-fallback-cell{min-width:104px!important;padding:5px 3px!important}
+    .if-tshirt-fallback-cell .if-sub{margin-bottom:3px}
+    .if-tshirt-fallback-stepper{
+      display:grid;
+      grid-template-columns:28px 42px 28px;
+      gap:3px;
+      align-items:center;
+      justify-content:center;
+    }
+    .if-tshirt-fallback-stepper button{
+      width:28px;
+      height:34px;
+      padding:0;
+      border:1px solid #c9c9c4;
+      border-radius:8px;
+      background:#fff;
+      font:700 18px/1 system-ui,sans-serif;
+      touch-action:manipulation;
+    }
+    .if-tshirt-fallback-stepper input{
+      box-sizing:border-box;
+      width:42px!important;
+      height:34px;
+      margin:0!important;
+      padding:0 2px!important;
+      border:1px solid #aeb6bd;
+      border-radius:8px;
+      background:#fff;
+      text-align:center;
+      font-size:15px!important;
+      font-weight:800;
+    }
     @media(max-width:370px){
       #${ACCESSORY_CARD_ID} .ifa-list{gap:5px!important}
       #${ACCESSORY_CARD_ID} .ifa-row{padding:6px!important}
@@ -213,6 +245,31 @@ function createFallbackCard(overlay) {
   return card;
 }
 
+function registeredVariantIdSet(variants) {
+  return new Set(
+    (Array.isArray(variants) ? variants : [])
+      .map(item => text(item?.variantId || item?.id).toLocaleLowerCase())
+      .filter(Boolean)
+  );
+}
+
+function bindFallbackSteppers(tbody) {
+  tbody.querySelectorAll(".if-tshirt-fallback-step").forEach(button => {
+    button.addEventListener("click", () => {
+      const input = button.parentElement?.querySelector(".if-tshirt-fallback-input");
+      if (!input) return;
+      const current = input.value === ""
+        ? 0
+        : Math.max(0, Math.trunc(Number(input.value) || 0));
+      const next = Math.max(0, current + Number(button.dataset.step || 0));
+      input.value = String(next);
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+      if (navigator.vibrate) navigator.vibrate(8);
+    });
+  });
+}
+
 async function fillMissingTshirtRows() {
   const overlay = document.getElementById(PANEL_ID);
   if (!overlay) return;
@@ -225,11 +282,18 @@ async function fillMissingTshirtRows() {
   card.dataset[TSHIRT_FALLBACK_MARKER] = "1";
 
   try {
-    const snapshot = await tshirtAdapter.getInventorySnapshot();
+    const [snapshot, registeredVariants] = await Promise.all([
+      tshirtAdapter.getInventorySnapshot(),
+      loadTshirtProductVariants().catch(error => {
+        console.warn("Registered T-shirt variants could not be loaded for the fallback board.", error);
+        return [];
+      })
+    ]);
     if (!overlay.isConnected || hasTshirtRows(card)) return;
     const rows = Array.isArray(snapshot?.rows) ? snapshot.rows : [];
     if (!rows.length) return;
 
+    const registeredIds = registeredVariantIdSet(registeredVariants);
     const groups = new Map();
     rows.forEach(row => {
       const key = `${text(row.bodyId)}|${text(row.designId)}|${text(row.colorId)}`;
@@ -244,10 +308,15 @@ async function fillMissingTshirtRows() {
       groups.get(key).rows.push(row);
     });
 
+    const visibleGroups = Array.from(groups.values()).filter(group =>
+      !registeredIds.size ||
+      group.rows.some(row => registeredIds.has(text(row.variantId).toLocaleLowerCase()))
+    );
+
     const tbody = card.querySelector(".if-matrix tbody");
     if (!tbody) return;
 
-    tbody.innerHTML = Array.from(groups.values()).map(group => `
+    tbody.innerHTML = visibleGroups.map(group => `
       <tr class="if-tshirt-fallback-row">
         <td>
           <div class="if-design">${esc(group.design)}</div>
@@ -255,21 +324,33 @@ async function fillMissingTshirtRows() {
         </td>
         ${SIZES.map(size => {
           const row = group.rows.find(item => text(item.size) === size);
-          return row
-            ? `<td class="if-cell if-tshirt-fallback-cell"><div class="if-expected">${Number(row.quantity || 0)}</div><div class="if-sub">現在実在庫</div></td>`
-            : `<td class="if-cell"></td>`;
+          if (!row?.variantId) return `<td class="if-cell"></td>`;
+          const quantity = Math.max(0, Math.trunc(Number(row.quantity || 0)));
+          return `<td class="if-cell if-tshirt-fallback-cell">
+            <div class="if-sub">現在実在庫</div>
+            <div class="if-tshirt-fallback-stepper">
+              <button type="button" class="if-tshirt-fallback-step" data-step="-1" aria-label="${esc(`${group.design} ${group.color} ${size} を1減らす`)}">−</button>
+              <input class="if-count if-physical if-tshirt-fallback-input" type="number" inputmode="numeric" min="0" step="1" data-variant-id="${esc(row.variantId)}" value="${quantity}" aria-label="${esc(`${group.design} ${group.color} ${size} 実数`)}">
+              <button type="button" class="if-tshirt-fallback-step" data-step="1" aria-label="${esc(`${group.design} ${group.color} ${size} を1増やす`)}">＋</button>
+            </div>
+          </td>`;
         }).join("")}
       </tr>
     `).join("");
 
-    if (!card.querySelector(".if-tshirt-fallback-note")) {
+    bindFallbackSteppers(tbody);
+
+    let note = card.querySelector(".if-tshirt-fallback-note");
+    if (!note) {
       const matrix = card.querySelector(".if-matrix-wrap");
-      const note = document.createElement("div");
+      note = document.createElement("div");
       note.className = "if-warning if-tshirt-fallback-note";
-      note.textContent = openingMissing(overlay)
-        ? "このイベントは開始在庫が未登録です。Tシャツは現在の実在庫を参照表示しています。"
-        : "このイベントの開始在庫にTシャツSKUがないため、現在の実在庫を表示しています。イベント開始在庫には自動登録していません。";
       matrix?.insertAdjacentElement("beforebegin", note);
+    }
+    if (note) {
+      note.textContent = openingMissing(overlay)
+        ? "このイベントは開始在庫が未登録です。現在の実在庫を初期値にして、＋／−または直接入力で実数を数えられます。"
+        : "イベント開始在庫にTシャツSKUがないため、現在の実在庫を初期値にしています。＋／−または直接入力で実数を修正できます。イベント開始在庫には自動登録しません。";
     }
   } catch (error) {
     console.warn("T-shirt inventory fallback could not be displayed.", error);
