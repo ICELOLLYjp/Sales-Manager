@@ -166,10 +166,13 @@ async function saveCounts(card, button, status) {
   }
 }
 
-async function renderSessionTshirts() {
+async function renderSessionTshirts(force = false) {
   const overlay = document.getElementById(PANEL_ID);
   const sessionId = selectedSessionId();
   if (!overlay || !sessionId || loading) return;
+
+  const existingCard = findTshirtCard(overlay);
+  if (!force && existingCard?.dataset.sessionTshirtRecoveryFor === sessionId) return;
 
   loading = true;
   try {
@@ -179,6 +182,7 @@ async function renderSessionTshirts() {
 
     card.classList.add(CARD_CLASS);
     card.dataset.inventoryTshirtFallbackReady = "1";
+    card.dataset.sessionTshirtRecoveryFor = sessionId;
     card.querySelector(".if-tshirt-stock-commit")?.remove();
 
     const [flow, snapshot] = await Promise.all([
@@ -210,6 +214,7 @@ async function renderSessionTshirts() {
         <h3>Tシャツ在庫ボード</h3>
         <div class="if-warning if-session-tshirt-note">このSessionにはTシャツの開始在庫行がなく、Tシャツの販売・補充・開始在庫修正履歴からも対象カラーを確認できません。会社全体の現在庫は表示しません。</div>
         <div class="if-empty">このSessionで確認できるTシャツSKUはありません。</div>`;
+      card.dataset.sessionTshirtRecoveryFor = sessionId;
       return;
     }
 
@@ -245,6 +250,7 @@ async function renderSessionTshirts() {
       <button type="button" class="if-session-tshirt-save">Tシャツ実数をSessionに保存</button>
       <div class="if-session-tshirt-status" aria-live="polite"></div>`;
 
+    card.dataset.sessionTshirtRecoveryFor = sessionId;
     bindSteppers(card);
     const saveButton = card.querySelector(".if-session-tshirt-save");
     const status = card.querySelector(".if-session-tshirt-status");
@@ -257,21 +263,21 @@ async function renderSessionTshirts() {
 }
 
 let scheduled = false;
-function schedule(delay = 0) {
+function schedule(delay = 0, force = false) {
   if (scheduled) return;
   scheduled = true;
   window.setTimeout(() => {
     scheduled = false;
-    void renderSessionTshirts();
+    void renderSessionTshirts(force);
   }, delay);
 }
 
-new MutationObserver(() => schedule(40)).observe(document.body, { childList: true, subtree: true });
+new MutationObserver(() => schedule(40, false)).observe(document.body, { childList: true, subtree: true });
 document.addEventListener("change", event => {
-  if (event.target?.id === "ifSession") schedule(120);
+  if (event.target?.id === "ifSession") schedule(120, true);
 }, true);
 document.addEventListener("visibilitychange", () => {
-  if (!document.hidden) schedule(120);
+  if (!document.hidden) schedule(120, true);
 });
-window.addEventListener("focus", () => schedule(120));
-schedule(600);
+window.addEventListener("focus", () => schedule(120, true));
+schedule(600, true);
