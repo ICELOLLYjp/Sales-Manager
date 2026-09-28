@@ -1,5 +1,6 @@
+import "./inventoryFlowSessionTshirtRecoveryUi.js?v=20260928-session-recovery-1";
+
 const PANEL_ID = "inventoryFlowOverlay";
-const EMPTY_CLASS = "if-session-scope-empty";
 
 function text(value) {
   return String(value ?? "").trim();
@@ -15,23 +16,12 @@ function enforceSessionScope() {
   if (!overlay) return;
 
   tshirtCards(overlay).forEach(card => {
+    /*
+     * Event inventory must never mutate company-wide T-shirt stock directly.
+     * The recovery module may rebuild a Session-scoped board, but the old
+     * company-stock commit action is always removed.
+     */
     card.querySelector(".if-tshirt-stock-commit")?.remove();
-
-    if (!card.classList.contains("if-tshirt-fallback-card")) return;
-
-    const note = card.querySelector(".if-tshirt-fallback-note");
-    if (note) {
-      note.textContent = "このSessionには開始在庫が登録されていません。会社全体の現在庫はここには表示しません。イベント在庫運用では、このSessionに登録された開始在庫と、その後の補充・修正・販売だけを表示します。";
-    }
-
-    card.querySelector(".if-matrix-wrap")?.remove();
-
-    if (!card.querySelector(`.${EMPTY_CLASS}`)) {
-      const empty = document.createElement("div");
-      empty.className = `if-empty ${EMPTY_CLASS}`;
-      empty.textContent = "このSessionのTシャツ開始在庫は未登録です。";
-      card.appendChild(empty);
-    }
   });
 }
 
