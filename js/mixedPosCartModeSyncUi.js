@@ -1,4 +1,4 @@
-import "./normalPosMixedSummaryUi.js?v=20260928-normal-mixed-summary-1";
+import "./normalPosMixedSummaryUi.js?v=20260928-normal-mixed-summary-2";
 
 const FAST_OVERLAY_ID = "fastPosOverlay";
 const BRIDGE_KEY = "__icelollyPosCartBridge";
@@ -17,11 +17,12 @@ function parseMoney(value) {
 }
 
 function totalElements() {
-  const label = [...document.querySelectorAll("strong")]
-    .find(element =>
-      !element.closest(`#${FAST_OVERLAY_ID}`) &&
-      text(element.textContent).toUpperCase() === "TOTAL"
-    );
+  const checkoutTitle = Array.from(document.querySelectorAll(".card-title"))
+    .find(element => element.textContent?.trim() === "会計");
+  const checkoutCard = checkoutTitle?.closest("section.card");
+  const label = Array.from(checkoutCard?.querySelectorAll("strong") || [])
+    .find(element => text(element.textContent).toUpperCase() === "TOTAL");
+
   return {
     label: label || null,
     value: label?.nextElementSibling || null
@@ -85,8 +86,9 @@ function syncBeforeLeavingFast(mode) {
   bridge()?.refreshSummary?.();
 }
 
-// Capture before Fast POS keypad/mode target handlers so the existing
-// Quick/SKU subtotal is remembered before the amount-only line changes.
+// Capture the Quick/SKU subtotal before Fast keypad input changes the shared
+// amount-only line. Event-driven sync replaces the previous body-wide
+// MutationObserver, which was doing work on every route/UI mutation.
 document.addEventListener("click", event => {
   const target = event.target;
   if (!(target instanceof Element)) return;
@@ -104,13 +106,11 @@ document.addEventListener("click", event => {
 
 document.addEventListener("icelolly:fast-cart-changed", event => {
   reflectCombinedTotal(event.detail?.amount || 0);
+  bridge()?.refreshSummary?.();
 }, false);
 
-const observer = new MutationObserver(() => {
-  const overlay = document.getElementById(FAST_OVERLAY_ID);
-  if (!overlay) return;
-  ensureKnownSubtotalBaseline();
-  bridge()?.refreshSummary?.();
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden && document.getElementById(FAST_OVERLAY_ID)) {
+    bridge()?.refreshSummary?.();
+  }
 });
-
-observer.observe(document.body, { childList: true, subtree: true });
