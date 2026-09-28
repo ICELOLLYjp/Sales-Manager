@@ -10,6 +10,7 @@ let manualSessionSelection = false;
 let applyingSession = false;
 let scheduled = false;
 let preferredRun = 0;
+let userSelecting = false;
 
 function text(value) {
   return String(value ?? "").trim();
@@ -130,9 +131,17 @@ function installOperationalStyles() {
 function bindManualSelection(select) {
   if (select.dataset.inventoryPriorityBound === "1") return;
   select.dataset.inventoryPriorityBound = "1";
+
+  const markUserIntent = () => {
+    userSelecting = true;
+  };
+
+  select.addEventListener("pointerdown", markUserIntent, { capture: true });
+  select.addEventListener("touchstart", markUserIntent, { capture: true, passive: true });
+  select.addEventListener("keydown", markUserIntent, { capture: true });
   select.addEventListener("change", () => {
-    if (applyingSession) return;
-    manualSessionSelection = true;
+    if (!applyingSession && userSelecting) manualSessionSelection = true;
+    userSelecting = false;
   });
 }
 
@@ -158,9 +167,10 @@ function relabelAndPrioritize(select, preferred) {
     const raw = option.dataset.baseLabel || text(option.textContent);
     const base = raw.replace(/^(販売中|開催中)\s*・\s*/, "");
     option.dataset.baseLabel = base;
-    option.textContent = text(option.value) === preferred.id && preferred.label
+    const next = text(option.value) === preferred.id && preferred.label
       ? `${preferred.label} ・ ${base}`
       : base;
+    if (text(option.textContent) !== next) option.textContent = next;
   });
 
   if (select.options[0] !== preferredOption) {
@@ -279,7 +289,7 @@ async function ensureTshirtFallback(overlay, sessionId) {
     const headerCells = table.querySelectorAll("thead th");
     if (headerCells.length > 1 && sizes.length) {
       Array.from(headerCells).slice(1).forEach((th, index) => {
-        if (sizes[index]) th.textContent = sizes[index];
+        if (sizes[index] && text(th.textContent) !== sizes[index]) th.textContent = sizes[index];
       });
     }
 
@@ -324,12 +334,14 @@ async function apply() {
   if (!overlay) {
     currentOverlay = null;
     manualSessionSelection = false;
+    userSelecting = false;
     return;
   }
 
   if (overlay !== currentOverlay) {
     currentOverlay = overlay;
     manualSessionSelection = false;
+    userSelecting = false;
     preferredRun += 1;
   }
 
@@ -361,6 +373,7 @@ new MutationObserver(schedule).observe(document.body, { childList: true, subtree
 window.addEventListener("storage", event => {
   if (event.key === ACTIVE_SESSION_KEY) {
     manualSessionSelection = false;
+    userSelecting = false;
     schedule();
   }
 });
