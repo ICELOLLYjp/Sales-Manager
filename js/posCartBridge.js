@@ -90,17 +90,20 @@
     }
   }
 
+  function knownItems() {
+    return cartValues().filter(item =>
+      text(item?.key) !== FAST_KEY &&
+      Number(item?.quantity || 0) > 0
+    );
+  }
+
   function knownQuantity() {
-    return cartValues()
-      .filter(item => text(item?.key) !== FAST_KEY)
+    return knownItems()
       .reduce((sum, item) => sum + Math.max(0, Number(item?.quantity || 0)), 0);
   }
 
   function hasOtherItems() {
-    return cartValues().some(item =>
-      text(item?.key) !== FAST_KEY &&
-      Number(item?.quantity || 0) > 0
-    );
+    return knownItems().length > 0;
   }
 
   function currentFastItem() {
@@ -225,17 +228,67 @@
     );
   }
 
-  function formatAmount(value) {
-    const currency = text(
+  function currentCurrency() {
+    return text(
       document.querySelector("#fastPosOverlay .fp-currency")?.value ||
       localStorage.getItem("icelolly-sales-pos-currency") ||
       "JPY"
     );
+  }
+
+  function formatAmount(value) {
+    const currency = currentCurrency();
     const digits = currency === "JPY" ? 0 : 2;
     return `${currency} ${number(value).toLocaleString(undefined, {
       minimumFractionDigits: digits,
       maximumFractionDigits: digits
     })}`;
+  }
+
+  function parseMoney(value) {
+    const raw = text(value)
+      .replace(/[^0-9.,-]/g, "")
+      .replace(/,/g, "");
+    if (!raw || raw === "-" || raw === ".") return null;
+    const result = Number(raw);
+    return Number.isFinite(result) ? Math.max(0, result) : null;
+  }
+
+  function normalDisplayedTotal() {
+    const labels = Array.from(document.querySelectorAll("strong"));
+    const totalLabel = labels.find(element =>
+      !element.closest("#fastPosOverlay") &&
+      text(element.textContent).toUpperCase() === "TOTAL"
+    );
+    return parseMoney(totalLabel?.nextElementSibling?.textContent);
+  }
+
+  function fallbackKnownSubtotal() {
+    return knownItems().reduce((sum, item) => {
+      const quantity = Math.max(0, Number(item?.quantity || 0));
+      const unitPrice = number(item?.unitPrice || 0);
+      const discount = number(item?.manualDiscount || 0);
+      return sum + Math.max(0, unitPrice * quantity - discount);
+    }, 0);
+  }
+
+  function knownSubtotal() {
+    const displayed = normalDisplayedTotal();
+    if (displayed !== null) {
+      return Math.max(0, displayed - fastAmount());
+    }
+    return fallbackKnownSubtotal();
+  }
+
+  function itemMode(item) {
+    const key = text(item?.key);
+    return key.startsWith("sku:") || key.startsWith("tshirt:")
+      ? "SKU"
+      : "Quick";
+  }
+
+  function lineLabel(item) {
+    return text(item?.label || item?.detail || item?.category || item?.key || "商品");
   }
 
   function syncFromFastOverlay() {
@@ -269,6 +322,88 @@
     if (note.textContent !== nextText) {
       note.textContent = nextText;
     }
+
+    renderFastCartSummary();
+  }
+
+  function renderFastCartSummary() {
+    const overlay = document.getElementById("fastPosOverlay");
+    if (!overlay) return;
+    const wrap = overlay.querySelector(".fp-wrap");
+    if (!wrap) return;
+
+    let summary = overlay.querySelector("#fastCombinedCartSummary");
+    if (!summary) {
+      summary = document.createElement("section");
+      summary.id = "fastCombinedCartSummary";
+      summary.className = "fp-card";
+      summary.style.cssText = "border-color:#d9d5ff;background:#fbfaff";
+      wrap.prepend(summary);
+    }
+
+    const items = knownItems();
+    const amount = fastAmount();
+    const knownTotal = knownSubtotal();
+    const combined = knownTotal + amount;
+
+    const detailRows = items.length
+      ? items.map(item => `
+          <div style="display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px solid #eceaf8;font-size:11px;line-height:1.35">
+            <span style="min-width:0"><strong>${itemMode(item)}</strong> ${lineLabel(item)} × ${Math.max(0, Number(item?.quantity || 0))}</span>
+          </div>
+        `).join("")
+      : `<div style="padding:5px 0;color:#777;font-size:11px">Quick / SKU の商品はまだありません</div>`;
+
+    summary.innerHTML = `
+      <div style="font-size:13px;font-weight:900;margin-bottom:6px">会計内訳</div>
+      ${detailRows}
+      <div style="display:flex;justify-content:space-between;gap:10px;padding:7px 0 4px;font-size:12px">
+        <span>Quick / SKU 小計</span>
+        <strong>${formatAmount(knownTotal)}</strong>
+      </div>
+      <div style="display:flex;justify-content:space-between;gap:10px;padding:4px 0 7px;font-size:12px;color:#5148e5">
+        <span>最速・金額入力</span>
+        <strong>${formatAmount(amount)}</strong>
+      </div>
+      <div style="display:flex;justify-content:space-between;gap:10px;padding-top:8px;border-top:2px solid #d9d5ff;font-size:17px;font-weight:900">
+        <span>TOTAL</span>
+        <strong>${formatAmount(combined)}</strong>
+      </div>
+      ${items.length ? `<div style="margin-top:7px;font-size:10px;line-height:1.45;color:#6b6596">Quick / SKUの商品を含む場合は、QuickまたはSKUへ戻ってこのTOTALで会計します。</div>` : ""}
+    `;
+  }
+
+  function renderNormalFastSummary(checkoutCard) {
+    let summary = checkoutCard?.querySelector("#normalFastAmountSummary");
+    const item = currentFastItem();
+
+    if (!item) {
+      summary?.remove();
+      return;
+    }
+
+    if (!summary) {
+      summary = document.createElement("div");
+      summary.id = "normalFastAmountSummary";
+      summary.style.cssText = [
+        "margin:8px 0 10px",
+        "padding:9px 10px",
+        "border:1px solid #d9d5ff",
+        "border-radius:10px",
+        "background:#fbfaff",
+        "font-size:12px",
+        "line-height:1.4"
+      ].join(";");
+      const title = checkoutCard.querySelector(".card-title");
+      (title?.parentElement || title || checkoutCard).insertAdjacentElement("afterend", summary);
+    }
+
+    summary.innerHTML = `
+      <div style="display:flex;justify-content:space-between;gap:10px;align-items:center">
+        <span><strong style="color:#5148e5">最速・金額入力</strong><br><span style="font-size:10px;color:#777">この金額はTOTALに含まれています</span></span>
+        <strong style="font-size:15px;color:#5148e5">${formatAmount(item.unitPrice)}</strong>
+      </div>
+    `;
   }
 
   function polishNormalCart() {
@@ -277,6 +412,8 @@
 
     if (row) {
       row.dataset.fastAmountLine = "true";
+      row.style.borderColor = "#d9d5ff";
+      row.style.background = "#fbfaff";
 
       const controls = fastMinus.parentElement;
       if (controls) {
@@ -294,6 +431,8 @@
     const checkoutCard = cards.find(section =>
       section.querySelector(".card-title")?.textContent?.trim() === "会計"
     );
+
+    renderNormalFastSummary(checkoutCard);
 
     if (checkoutCard && currentFastItem()) {
       const heading = checkoutCard.querySelector(".card-title")?.parentElement;
@@ -316,17 +455,25 @@
     requestAnimationFrame(() => {
       scheduledPolish = false;
       polishNormalCart();
+      renderFastCartSummary();
+
       const overlay = document.getElementById("fastPosOverlay");
       if (overlay && !overlay.dataset.fastCartBridgeReady) {
         overlay.dataset.fastCartBridgeReady = "true";
         const existing = fastAmount();
         if (existing > 0) {
+          const amountElement = overlay.querySelector("#fpAmount");
+          if (amountElement && parseDisplayedAmount() <= 0) {
+            amountElement.textContent = formatAmount(existing);
+          }
+
           const note = document.createElement("div");
           note.id = "fastExistingCartAmount";
           note.style.cssText = "margin:0 10px 8px;padding:8px 10px;border-radius:10px;background:#fff8df;font-size:11px;font-weight:700;line-height:1.45";
           note.textContent = `カートには最速入力 ${formatAmount(existing)} が入っています。新しく入力すると置き換わります。`;
           overlay.querySelector(".fp-wrap")?.prepend(note);
         }
+        renderFastCartSummary();
       }
     });
   }
@@ -361,7 +508,7 @@
       event.preventDefault();
       event.stopPropagation();
       event.stopImmediatePropagation();
-      window.alert("最速入力はQuick・SKUの商品と同じカートに入っています。QuickまたはSKUへ切り替えて、合計金額から会計してください。");
+      window.alert("Quick・SKUの商品も同じカートに入っています。上の会計内訳でTOTALを確認し、QuickまたはSKUへ切り替えて会計してください。");
     }
   }, true);
 
@@ -394,7 +541,10 @@
     fastAmount,
     hasOtherItems,
     knownQuantity,
-    currentItem: currentFastItem
+    knownItems: () => knownItems().map(item => ({ ...item })),
+    currentItem: currentFastItem,
+    syncFromFastOverlay,
+    refreshSummary: schedulePolish
   };
 
   schedulePolish();
