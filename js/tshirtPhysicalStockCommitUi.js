@@ -1,4 +1,5 @@
 import { getFirebaseState } from "./firebase.js";
+import { tshirtAdapter } from "./inventoryAdapters/tshirtAdapter.js?v=20260915-empty-size-cells-1";
 import { loadTshirtProductVariants } from "./services/catalogService.js";
 import { saveTshirtPhysicalStock } from "./services/tshirtPhysicalStockService.js?v=20260928-physical-stock-1";
 
@@ -6,8 +7,8 @@ const PANEL_ID = "inventoryFlowOverlay";
 const ACTION_ID = "ifSaveTshirtPhysicalStock";
 const SIZES = ["S", "M", "L", "XL", "XXL"];
 const fallbackFirstSeen = new WeakMap();
-let variantsCache = null;
-let variantsLoadedAt = 0;
+let catalogCache = null;
+let catalogLoadedAt = 0;
 let running = false;
 
 function text(value) {
@@ -25,6 +26,14 @@ function esc(value) {
 
 function norm(value) {
   return text(value).toLocaleLowerCase("ja");
+}
+
+function encodePart(value) {
+  return encodeURIComponent(text(value));
+}
+
+function createVariantId(bodyId, designId, colorId, sizeId) {
+  return ["tshirt", encodePart(bodyId), encodePart(designId), encodePart(colorId), encodePart(sizeId)].join("__");
 }
 
 function currentEmail() {
@@ -82,17 +91,26 @@ function installStyles() {
   document.head.appendChild(style);
 }
 
-async function registeredVariants() {
-  if (variantsCache && Date.now() - variantsLoadedAt < 30000) return variantsCache;
-  const rows = await loadTshirtProductVariants();
-  variantsCache = (Array.isArray(rows) ? rows : []).filter(row => {
+async function registeredCatalog() {
+  if (catalogCache && Date.now() - catalogLoadedAt < 30000) return catalogCache;
+  const [rows, options] = await Promise.all([
+    loadTshirtProductVariants(),
+    tshirtAdapter.getMasterOptions()
+  ]);
+  const variants = (Array.isArray(rows) ? rows : []).filter(row => {
     if (row?.active === false) return false;
     const saleStatus = norm(row?.saleStatus);
     if (["inactive", "disabled", "retired", "archived"].includes(saleStatus)) return false;
-    return text(row?.variantId || row?.id) && SIZES.includes(text(row?.size));
+    return text(row?.variantId || row?.id) && text(row?.bodyId) && text(row?.designId) && text(row?.colorId);
   });
-  variantsLoadedAt = Date.now();
-  return variantsCache;
+  const sizeIdByName = new Map(
+    (Array.isArray(options?.sizes) ? options.sizes : [])
+      .filter(item => SIZES.includes(text(item?.name)))
+      .map(item => [text(item.name), text(item.id)])
+  );
+  catalogCache = { variants, sizeIdByName };
+  catalogLoadedAt = Date.now();
+  return catalogCache;
 }
 
 function variantGroupKey(row) {
@@ -127,10 +145,29 @@ function fillZeroCell(cell, variant) {
   cell.innerHTML = `
     <div class="if-sub">現在実在庫</div>
     <div class="if-tshirt-fallback-stepper">
-      <button type="button" class="if-tshirt-zero-step" data-step="-1" aria-label="${esc(`${label} を1減らす`)}">−</button>
+      <button type="button" class="if-tshirt-fallback-step if-tshirt-zero-step" data-step="-1" aria-label="${esc(`${label} を1減らす`)}">−</button>
       <input class="if-count if-physical if-tshirt-fallback-input if-tshirt-zero-input" type="number" inputmode="numeric" min="0" step="1" data-variant-id="${esc(variantId)}" value="0" aria-label="${esc(`${label} 実数`)}">
-      <button type="button" class="if-tshirt-zero-step" data-step="1" aria-label="${esc(`${label} を1増やす`)}">＋</button>
+      <button type="button" class="if-tshirt-fallback-step if-tshirt-zero-step" data-step="1" aria-label="${esc(`${label} を1増やす`)}">＋</button>
     </div>`;
+}
+
+function syntheticVariant(sample, size, sizeId) {
+  if (!sample || !sizeId) return null;
+  const bodyId = text(sample.bodyId);
+  const designId = text(sample.designId);
+  const colorId = text(sample.colorId);
+  if (!bodyId || !designId || !colorId) return null;
+  return {
+    variantId: createVariantId(bodyId, designId, colorId, sizeId),
+    bodyId,
+    designId,
+    colorId,
+    sizeId,
+    body: text(sample.body),
+    design: text(sample.design),
+    color: text(sample.color),
+    size
+  };
 }
 
 async function addRegisteredZeroInputs(card) {
@@ -144,9 +181,9 @@ async function addRegisteredZeroInputs(card) {
   const waitedLongEnough = Date.now() - fallbackFirstSeen.get(card) > 3500;
   if (!hasRows && !(fallbackLoaderStarted && waitedLongEnough)) return;
 
-  let variants;
+  let catalog;
   try {
-    variants = await registeredVariants();
+    catalog = await registeredCatalog();
   } catch (error) {
     console.warn("Registered zero-stock T-shirt variants could not be loaded.", error);
     return;
@@ -156,7 +193,7 @@ async function addRegisteredZeroInputs(card) {
   tbody.querySelectorAll("tr").forEach(row => rowByKey.set(domRowKey(row), row));
 
   const groups = new Map();
-  variants.forEach(variant => {
+  catalog.variants.forEach(variant => {
     const key = variantGroupKey(variant);
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(variant);
@@ -175,9 +212,10 @@ async function addRegisteredZeroInputs(card) {
       rowByKey.set(key, row);
     }
 
-    groupVariants.forEach(variant => {
-      const sizeIndex = SIZES.indexOf(text(variant.size));
-      if (sizeIndex < 0) return;
+    SIZES.forEach((size, sizeIndex) => {
+      const registered = groupVariants.find(variant => text(variant.size) === size);
+      const variant = registered || syntheticVariant(sample, size, catalog.sizeIdByName.get(size));
+      if (!variant) return;
       const cell = row.children[sizeIndex + 1];
       fillZeroCell(cell, variant);
     });
@@ -253,7 +291,7 @@ function ensureCommitAction(card) {
   const host = document.createElement("div");
   host.className = "if-tshirt-stock-commit";
   host.innerHTML = `
-    <div class="if-tshirt-stock-commit-note">入力した実数をTシャツの正式な現在庫へ保存します。0も有効な実数として反映します。</div>
+    <div class="if-tshirt-stock-commit-note">入力した実数をTシャツの正式な現在庫へ保存します。表示中の0も有効な実数として反映します。</div>
     <button type="button" id="${ACTION_ID}">Tシャツ実数を保存・現在庫へ反映</button>
     <div class="if-tshirt-stock-commit-status" aria-live="polite"></div>`;
   card.appendChild(host);
