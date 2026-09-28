@@ -51,6 +51,7 @@ function installStyles() {
       padding:8px!important;
       border-radius:11px!important;
     }
+    #${ACCESSORY_CARD_ID} .ifa-row[hidden]{display:none!important}
     #${ACCESSORY_CARD_ID} .ifa-row[data-category="pierce"],
     #${ACCESSORY_CARD_ID} .ifa-row[data-category="earring"]{
       background:#edf7fc!important;
@@ -92,7 +93,7 @@ function installStyles() {
       font-size:9px!important;
     }
     #${ACCESSORY_CARD_ID} .ifa-state{font-size:8px!important}
-    .if-tshirt-fallback-note{margin:8px 0 0}
+    .if-tshirt-fallback-note{margin:8px 0}
     .if-tshirt-fallback-cell .if-expected{font-size:16px}
     @media(max-width:370px){
       #${ACCESSORY_CARD_ID} .ifa-list{gap:5px!important}
@@ -174,7 +175,7 @@ function tshirtCard(overlay) {
     .find(card => text(card.querySelector("h3")?.textContent) === "Tシャツ在庫ボード") || null;
 }
 
-function hasRealTshirtRows(card) {
+function hasTshirtRows(card) {
   return Boolean(card?.querySelector(".if-matrix tbody tr"));
 }
 
@@ -183,17 +184,49 @@ function openingMissing(overlay) {
     .some(item => text(item.textContent).includes("開始在庫がありません"));
 }
 
+function createFallbackCard(overlay) {
+  const wrap = overlay.querySelector(".if-wrap");
+  if (!wrap) return null;
+  const card = document.createElement("section");
+  card.className = "if-card if-tshirt-fallback-card";
+  card.innerHTML = `
+    <h3>Tシャツ在庫ボード</h3>
+    <div class="if-warning if-tshirt-fallback-note">イベント開始在庫にTシャツSKUがないため、現在の実在庫を表示しています。イベント開始在庫には自動登録していません。</div>
+    <div class="if-matrix-wrap">
+      <table class="if-matrix">
+        <thead><tr><th>Design / Body / Color</th>${SIZES.map(size => `<th>${size}</th>`).join("")}</tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  `;
+  const accessory = document.getElementById(ACCESSORY_CARD_ID);
+  if (accessory?.parentElement === wrap) {
+    accessory.insertAdjacentElement("beforebegin", card);
+    return card;
+  }
+  const sessionCard = wrap.querySelector(":scope > .if-card");
+  if (sessionCard) {
+    sessionCard.insertAdjacentElement("afterend", card);
+    return card;
+  }
+  wrap.prepend(card);
+  return card;
+}
+
 async function fillMissingTshirtRows() {
   const overlay = document.getElementById(PANEL_ID);
-  if (!overlay || openingMissing(overlay)) return;
-  const card = tshirtCard(overlay);
-  if (!card || hasRealTshirtRows(card)) return;
+  if (!overlay) return;
+
+  let card = tshirtCard(overlay);
+  if (card && hasTshirtRows(card)) return;
+  if (!card) card = createFallbackCard(overlay);
+  if (!card) return;
   if (card.dataset[TSHIRT_FALLBACK_MARKER] === "1") return;
   card.dataset[TSHIRT_FALLBACK_MARKER] = "1";
 
   try {
     const snapshot = await tshirtAdapter.getInventorySnapshot();
-    if (!overlay.isConnected || hasRealTshirtRows(card)) return;
+    if (!overlay.isConnected || hasTshirtRows(card)) return;
     const rows = Array.isArray(snapshot?.rows) ? snapshot.rows : [];
     if (!rows.length) return;
 
@@ -229,12 +262,14 @@ async function fillMissingTshirtRows() {
       </tr>
     `).join("");
 
-    const matrix = card.querySelector(".if-matrix-wrap");
-    if (matrix && !card.querySelector(".if-tshirt-fallback-note")) {
+    if (!card.querySelector(".if-tshirt-fallback-note")) {
+      const matrix = card.querySelector(".if-matrix-wrap");
       const note = document.createElement("div");
       note.className = "if-warning if-tshirt-fallback-note";
-      note.textContent = "このイベントの開始在庫にTシャツSKUがないため、現在の実在庫を表示しています。イベント開始在庫には自動登録していません。";
-      matrix.insertAdjacentElement("beforebegin", note);
+      note.textContent = openingMissing(overlay)
+        ? "このイベントは開始在庫が未登録です。Tシャツは現在の実在庫を参照表示しています。"
+        : "このイベントの開始在庫にTシャツSKUがないため、現在の実在庫を表示しています。イベント開始在庫には自動登録していません。";
+      matrix?.insertAdjacentElement("beforebegin", note);
     }
   } catch (error) {
     console.warn("T-shirt inventory fallback could not be displayed.", error);
