@@ -7352,7 +7352,7 @@ async function renderSessions(
                             padding:0 12px;
                           "
                         >
-                          編集
+                          イベント情報を編集
                         </button>
 
                         <button
@@ -7366,7 +7366,7 @@ async function renderSessions(
                             padding:0 12px;
                           "
                         >
-                          売上詳細
+                          売上・経費・収支を見る
                         </button>
 
                         <button
@@ -7380,8 +7380,23 @@ async function renderSessions(
                             padding:0 12px;
                           "
                         >
-                          在庫確認
+                          持参・終了在庫を見る
                         </button>
+                        <a
+                          class="button button-secondary"
+                          href="./gmail-expense-intake.html?eventId=${escapeHtml(encodeURIComponent(session.sessionId))}"
+                          style="
+                            min-height:40px;
+                            padding:8px 12px;
+                            display:flex;
+                            align-items:center;
+                            justify-content:center;
+                            text-align:center;
+                            text-decoration:none;
+                          "
+                        >
+                          Gmail経費を取り込む
+                        </a>
 
                         <button
                           type="button"
@@ -7552,7 +7567,7 @@ async function renderSessions(
                             padding:0 12px;
                           "
                         >
-                          売上詳細
+                          売上・経費・収支を見る
                         </button>
 
                         <button
@@ -7566,8 +7581,23 @@ async function renderSessions(
                             padding:0 12px;
                           "
                         >
-                          在庫確認
+                          持参・終了在庫を見る
                         </button>
+                        <a
+                          class="button button-secondary"
+                          href="./gmail-expense-intake.html?eventId=${escapeHtml(encodeURIComponent(session.sessionId))}"
+                          style="
+                            min-height:40px;
+                            padding:8px 12px;
+                            display:flex;
+                            align-items:center;
+                            justify-content:center;
+                            text-align:center;
+                            text-decoration:none;
+                          "
+                        >
+                          Gmail経費を取り込む
+                        </a>
 
                         <button
                           type="button"
@@ -7707,7 +7737,7 @@ async function renderSessions(
                             padding:0 12px;
                           "
                         >
-                          売上詳細
+                          売上・経費・収支を見る
                         </button>
 
                         <button
