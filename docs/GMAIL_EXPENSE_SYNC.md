@@ -1,6 +1,17 @@
 # Gmail expense candidates — development handoff
 
-Updated: 2026-09-17 (Japan time). Repo: `ICELOLLYjp/Sales-Manager`.
+Updated: 2026-09-30 (Japan time). Repo: `ICELOLLYjp/Sales-Manager`.
+
+## 現在の操作と反映状況
+
+1. イベント一覧の「Gmail経費を取り込む」または経費管理の「イベント経費をGmailから取り込む」から `gmail-expense-intake.html` を開く。従来の取得画面と確認画面も残るが、イベントの通常の取り込みは一画面で進める。
+2. イベント、検索を始める月、検索期間を選び、2つのGmailを検索する。対象月だけ、過去3か月、過去6か月を選べる。検索結果の「本文を確認」は保存前の本文表示だけを行い、添付解析や候補保存、経費登録はしない。
+3. 関係するメールだけ選び、「選んだ候補を保存してイベントに割り当てる」を押す。PR 101で欠落していたクリック処理を接続した。成功すると候補の保存件数とイベント割り当て件数を表示する。既存の別イベントへの割り当てや登録済み経費を上書きしない。
+4. 下部の保存済み候補で本文とPDFやExcel添付の抽出結果を確認し、金額、通貨、支払状態を人が入力する。未払いは下書きにする。経費台帳への登録は支払済みの証拠を確認した1件を明示的に選んだときだけ行う。抽出結果は元ファイル全体の代わりにはならない。
+5. PR 102ではExcelの最大20シートを扱い、書式だけの空セルを行列上限に数えないよう変更した。実ファイル10シートで解析成功を確認した。ZIP項目200、展開後20 MiB、添付5 MiBの上限は維持する。各シートの実データ200行、24列までを判定し、表示は各シートから合計12,000文字までの抜粋となる。旧形式の `.xls` は対象外。
+6. PR 99からPR 101までの画面修正は `main` に反映済み。PR 102も `main` に反映済みだが、Excel解析はFirebase Functionsを再デプロイするまで公開環境には反映されない。前回使用したPCで最新の `main` を取得し、`firebase.cmd deploy --only functions:gmail-expenses --project t-shirtstock` を実行する。
+
+以下の段階別記録は開発時点の履歴であり、現在の機能範囲は上記を優先する。
 
 ## Production state reported by the owner
 
@@ -117,6 +128,6 @@ Updated: 2026-09-17 (Japan time). Repo: `ICELOLLYjp/Sales-Manager`.
 ## Expense management navigation
 
 - Global Gmail expense work starts from `More -> 経費管理`.
-- The independent expense-management hub links to candidate acquisition, saved-candidate review and Gmail connection.
-- Event detail provides `このイベントの経費を管理`, opening saved candidates prefiltered to that Session and month.
+- The expense-management hub prominently links to `gmail-expense-intake.html`; older acquisition and review pages remain under other operations.
+- The Sessions event row links directly to Gmail intake with the event selected. Sales detail also provides `2つのGmailから経費候補を取り込む` and a link to the older saved-candidate review.
 - The main Sales Manager navigation, including `Inventory`, remains unchanged.
