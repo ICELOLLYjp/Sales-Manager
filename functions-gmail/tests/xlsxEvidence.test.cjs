@@ -24,6 +24,22 @@ test("reads a bounded invoice workbook and only uses cached formula values", asy
   assert.ok(result.moneyHints.includes("TWD 13,050"));
 });
 
+test("previews every sheet when unused styled cells inflate workbook dimensions", async () => {
+  const workbook = new ExcelJS.Workbook();
+  for (let index = 1; index <= 10; index++) {
+    const sheet = workbook.addWorksheet(`Month ${index}`);
+    sheet.getCell("A1").value = `Report ${index}`;
+    sheet.getCell("B2").value = `TWD ${index},000`;
+    sheet.getCell("AB1028").fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFFFFF" } };
+  }
+  const result = await parseXlsxData(await workbook.xlsx.writeBuffer(), "many-months.xlsx", findMoneyHints);
+  assert.equal(result.status, "parsed");
+  assert.equal(result.sheetCount, 10);
+  assert.match(result.excerpt, /シート: Month 1/);
+  assert.match(result.excerpt, /シート: Month 10/);
+  assert.match(result.excerpt, /TWD 10,000/);
+});
+
 test("rejects oversized or expanded archives and malformed data", async () => {
   assert.equal((await parseXlsxData(Buffer.alloc(MAX_XLSX_BYTES + 1), "large.xlsx", findMoneyHints)).status, "too_large");
   const zip = new JSZip();
