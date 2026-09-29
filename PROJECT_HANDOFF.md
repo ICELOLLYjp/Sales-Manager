@@ -12,7 +12,7 @@ This is the canonical handoff for future development chats. Inspect latest `main
 2. 取り込み画面では対象イベントを選び、開始月から過去1か月、3か月、6か月を2つのGmailで検索する。本文プレビューだけでは候補保存や経費登録をしない。必要なメールを選び、「選んだ候補を保存してイベントに割り当てる」を押す。PR 101で、このボタンに欠けていたクリック処理を接続した。
 3. 保存済み候補は同じ画面の下部で本文、PDF、Excel添付の抽出結果を一時確認できる。元ファイル全体はGmailで確認する。人が金額、通貨、支払証拠を確認する。未払いは下書き保存し、支払済みの証拠がある候補だけを個別に経費登録する。売上報告など、検索に混じる経費以外のメールを自動計上しない。
 4. `.xlsx` の解析は最大5 MiB、ZIP項目200、展開後20 MiB、最大20シート。実データで各シート200行、24列までを判定し、表示は全シートから合計12,000文字までの抜粋。PR 102では書式だけが付いた空セルを行列の上限に含めないよう修正した。月次売上報告の実ファイル10シートで解析成功を確認した。旧形式の `.xls` と元ファイルのダウンロードには対応していない。
-5. PR 99からPR 101までの画面修正は `main` に反映済み。PR 102のExcel解析修正も `main` に反映済みだが、**Firebase Functionsの再デプロイ前は公開アプリで旧解析が動く**。前回と同じPCで最新の `main` を取得し、`firebase.cmd deploy --only functions:gmail-expenses --project t-shirtstock` を実行する。Stripe FunctionsやFirestore Rulesは対象にしない。
+5. PR 99からPR 102まで `main` に反映済み。2026年9月30日に利用者から Firebase Functions の `Deploy complete!` が報告された。実行時のコード版と公開画面でのExcel再解析結果は未確認なので、保存済み候補で同じ添付を再確認する。Stripe FunctionsやFirestore Rulesは対象にしない。
 
 ---
 
