@@ -318,6 +318,9 @@ fetchBoth.addEventListener("click", fetchBothAccounts);
 retryFailedMonths.addEventListener("click", retryFailedSearches);
 selectAll.addEventListener("click", () => { selected = new Set(previews.map(intakeKey)); renderResults(); });
 clearSelection.addEventListener("click", () => { selected.clear(); renderResults(); });
+saveSelected.addEventListener("click", () => {
+  saveAndAssign().catch(error => showMessage(notice, `保存処理を完了できませんでした: ${error?.message || error}`, true));
+});
 month.addEventListener("change", () => {
   ++version; clearPreviews(); inlineReview.reset();
   showMessage(notice, "月を変更しました。候補を読み込み直してください。");
