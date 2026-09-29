@@ -1,10 +1,18 @@
 # ICELOLLY Sales Manager — PROJECT HANDOFF
 
-Last reconciled: 2026-09-17
+Last reconciled: 2026-09-30
 Repository: `ICELOLLYjp/Sales-Manager`
-Reference `main` at reconciliation: `3ad30c96a0fc8157d8098d27fd4ac33b064ef57e`
+Reference `main` at reconciliation: `34a4d6c9d2f5c9de1258da42b64cdec1cc061dd0`
 
 This is the canonical handoff for future development chats. Inspect latest `main` before editing; this file describes the intended invariants, what is already implemented, and what still needs work.
+
+## Gmail経費取り込みの現在地 2026年9月30日
+
+1. 通常の入口はイベント一覧の「Gmail経費を取り込む」、または経費管理の「イベント経費をGmailから取り込む」。どちらも `gmail-expense-intake.html` を開く。イベント一覧には「イベント情報を編集」「売上・経費・収支を見る」「持参・終了在庫を見る」も表示する。従来の個別取得画面と確認画面は補助的に残す。
+2. 取り込み画面では対象イベントを選び、開始月から過去1か月、3か月、6か月を2つのGmailで検索する。本文プレビューだけでは候補保存や経費登録をしない。必要なメールを選び、「選んだ候補を保存してイベントに割り当てる」を押す。PR 101で、このボタンに欠けていたクリック処理を接続した。
+3. 保存済み候補は同じ画面の下部で本文、PDF、Excel添付の抽出結果を一時確認できる。元ファイル全体はGmailで確認する。人が金額、通貨、支払証拠を確認する。未払いは下書き保存し、支払済みの証拠がある候補だけを個別に経費登録する。売上報告など、検索に混じる経費以外のメールを自動計上しない。
+4. `.xlsx` の解析は最大5 MiB、ZIP項目200、展開後20 MiB、最大20シート。実データで各シート200行、24列までを判定し、表示は全シートから合計12,000文字までの抜粋。PR 102では書式だけが付いた空セルを行列の上限に含めないよう修正した。月次売上報告の実ファイル10シートで解析成功を確認した。旧形式の `.xls` と元ファイルのダウンロードには対応していない。
+5. PR 99からPR 101までの画面修正は `main` に反映済み。PR 102のExcel解析修正も `main` に反映済みだが、**Firebase Functionsの再デプロイ前は公開アプリで旧解析が動く**。前回と同じPCで最新の `main` を取得し、`firebase.cmd deploy --only functions:gmail-expenses --project t-shirtstock` を実行する。Stripe FunctionsやFirestore Rulesは対象にしない。
 
 ---
 
