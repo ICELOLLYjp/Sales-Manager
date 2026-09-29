@@ -37,7 +37,7 @@ class Node {
   removeAttribute(name) { delete this[name]; }
 }
 
-function setup({ eventId = "eventA", duplicates = [], amount = 50, months, xlsx = false } = {}) {
+function setup({ eventId = "eventA", duplicates = [], amount = 50, months, xlsx = false, structuredXlsx = false } = {}) {
   const nodes = Object.fromEntries(["inlineReview", "inlineReviewList", "inlineReviewStatus", "inlineReviewLoad"].map(id => [id, new Node()]));
   globalThis.document = {
     getElementById: id => nodes[id],
@@ -64,7 +64,8 @@ function setup({ eventId = "eventA", duplicates = [], amount = 50, months, xlsx 
       ? { ...snapshot(), candidates: [] } : snapshot();
     if (name === "gmailExpenseCandidateReview") { candidate.reviewStatus = args.status; return {}; }
     if (name === "gmailExpenseInspectEvidence") return { excerpt: "支払領収書", moneyHints: ["JPY 20"], pdfResults: [], attachments: [],
-      xlsxResults: xlsx ? [{ filename: "invoice.xlsx", status: "parsed", excerpt: "シート: Invoice\nB1: TWD 13,050", moneyHints: ["TWD 13,050"] }] : [] };
+      xlsxResults: xlsx ? [{ filename: "invoice.xlsx", status: "parsed", excerpt: "シート: Invoice\nB1: TWD 13,050", moneyHints: ["TWD 13,050"],
+        sheetPreviews: structuredXlsx ? [{ name: "Invoice", rows: [{ rowNumber: 1, cells: [{ column: 1, text: "請求額" }, { column: 2, text: "TWD 13,050" }] }], rowsOmitted: 3 }] : [] }] : [] };
     if (name === "gmailExpenseSaveEvidenceReview") {
       candidate.evidenceReview = { ...args.review, amount: Number(args.review.amount) }; return {};
     }
@@ -117,6 +118,17 @@ test("Excel invoice preview shows content without posting an expense", async () 
   const rendered = app.nodes.inlineReviewList.children[0].textContent;
   assert.match(rendered, /invoice\.xlsx/);
   assert.match(rendered, /TWD 13,050/);
+  assert.equal(app.calls.some(item => item.name === "gmailExpensePostReviewedCandidate"), false);
+});
+
+test("structured Excel preview renders a sheet as a table with omitted rows noted", async () => {
+  const app = setup({ xlsx: true, structuredXlsx: true });
+  await app.review.load(); app.click("inspect"); await app.settle();
+  const article = app.nodes.inlineReviewList.children[0];
+  const table = article.all().find(node => node.tag === "table");
+  assert.ok(table);
+  assert.match(table.textContent, /行AB1請求額TWD 13,050/);
+  assert.match(article.textContent, /中間の3行を省略/);
   assert.equal(app.calls.some(item => item.name === "gmailExpensePostReviewedCandidate"), false);
 });
 

@@ -47,6 +47,13 @@
     .inline-evidence{background:#f8fafc;border:1px solid #dce3eb;border-radius:10px;padding:12px;margin-top:12px;min-width:0}
     .inline-proof{margin:8px 0}.inline-proof summary{cursor:pointer;color:#225b96}
     .inline-proof pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:280px;overflow:auto;font:inherit;font-size:.9rem}
+    .sheet-preview{margin:12px 0 12px 10px}
+    .sheet-table-wrap{max-width:100%;max-height:430px;overflow:auto;border:1px solid #dce3eb;border-radius:8px;margin-top:8px}
+    .sheet-table{border-collapse:collapse;width:max-content;min-width:100%;font-size:.86rem;line-height:1.4}
+    .sheet-table th,.sheet-table td{border:1px solid #dce3eb;padding:6px 8px;min-width:72px;max-width:240px;vertical-align:top;white-space:pre-wrap;overflow-wrap:anywhere}
+    .sheet-table thead th{position:sticky;top:0;background:#eaf1f8;z-index:1}
+    .sheet-table tbody th{position:sticky;left:0;background:#f1f5f9;z-index:1;min-width:44px;text-align:right}
+    .sheet-table thead th:first-child{left:0;z-index:2}
     .inline-review-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:12px}
     .inline-field{display:grid;grid-template-columns:minmax(0,1fr);gap:6px;min-width:0;font-weight:600}
     .inline-field.full,.inline-actions{grid-column:1/-1}
@@ -134,6 +141,6 @@
   }
   monthSelect.selectedIndex = 0;
 </script>
-<script type="module" src="./js/gmailExpenseIntake.js?v=20260930-save-click-1"></script>
+<script type="module" src="./js/gmailExpenseIntake.js?v=20260930-sheet-preview-1"></script>
 </body>
 </html>

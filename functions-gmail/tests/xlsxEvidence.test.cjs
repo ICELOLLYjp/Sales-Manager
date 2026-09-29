@@ -30,6 +30,10 @@ test("previews every sheet when unused styled cells inflate workbook dimensions"
     const sheet = workbook.addWorksheet(`Month ${index}`);
     sheet.getCell("A1").value = `Report ${index}`;
     sheet.getCell("B2").value = `TWD ${index},000`;
+    if (index === 10) {
+      for (let row = 3; row <= 40; row++) sheet.getCell(`A${row}`).value = `Item ${row}`;
+      sheet.getCell("B80").value = "Total TWD 99,000";
+    }
     sheet.getCell("AB1028").fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFFFFF" } };
   }
   const result = await parseXlsxData(await workbook.xlsx.writeBuffer(), "many-months.xlsx", findMoneyHints);
@@ -38,6 +42,10 @@ test("previews every sheet when unused styled cells inflate workbook dimensions"
   assert.match(result.excerpt, /シート: Month 1/);
   assert.match(result.excerpt, /シート: Month 10/);
   assert.match(result.excerpt, /TWD 10,000/);
+  assert.equal(result.sheetPreviews.length, 10);
+  assert.equal(result.sheetPreviews[9].rowsOmitted > 0, true);
+  assert.equal(result.sheetPreviews[9].rows[0].cells[0].text, "Report 10");
+  assert.equal(result.sheetPreviews[9].rows.at(-1).cells[0].text, "Total TWD 99,000");
 });
 
 test("rejects oversized or expanded archives and malformed data", async () => {
