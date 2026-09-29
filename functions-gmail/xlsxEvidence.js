@@ -6,7 +6,7 @@ const JSZip = require("jszip");
 const MAX_XLSX_BYTES = 5 * 1024 * 1024;
 const MAX_XLSX_ENTRIES = 200;
 const MAX_UNCOMPRESSED_BYTES = 20 * 1024 * 1024;
-const MAX_SHEETS = 5;
+const MAX_SHEETS = 20;
 const MAX_ROWS = 200;
 const MAX_COLUMNS = 24;
 const MAX_EXCERPT = 12000;
@@ -40,12 +40,14 @@ async function parseXlsxData(bytes, filename, findMoneyHints) {
     }
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(Buffer.from(bytes), { ignoreNodes: ["dataValidations", "extLst"] });
-    if (workbook.worksheets.length > MAX_SHEETS || workbook.worksheets.some(sheet => sheet.rowCount > MAX_ROWS || sheet.columnCount > MAX_COLUMNS)) {
+    if (workbook.worksheets.length > MAX_SHEETS || workbook.worksheets.some(sheet => sheet.actualRowCount > MAX_ROWS || sheet.actualColumnCount > MAX_COLUMNS)) {
       return empty("too_complex", { sheetCount: workbook.worksheets.length });
     }
-    const lines = [];
+    const sections = [];
+    const sectionLimit = Math.floor(MAX_EXCERPT / Math.max(1, workbook.worksheets.length)) - 1;
+    let excerptTruncated = false;
     for (const sheet of workbook.worksheets) {
-      lines.push(`シート: ${sheet.name.slice(0, 80)}`);
+      const lines = [`シート: ${sheet.name.slice(0, 80)}`];
       sheet.eachRow((row, rowNumber) => {
         const cells = [];
         row.eachCell((cell, columnNumber) => {
@@ -54,11 +56,13 @@ async function parseXlsxData(bytes, filename, findMoneyHints) {
         });
         if (cells.length) lines.push(cells.join(" ／ "));
       });
+      const content = lines.join("\n");
+      if (content.length > sectionLimit) excerptTruncated = true;
+      sections.push(content.slice(0, sectionLimit));
     }
-    const content = lines.join("\n");
-    const excerpt = content.slice(0, MAX_EXCERPT);
-    return { filename, status: content ? "parsed" : "no_text", sheetCount: workbook.worksheets.length,
-      excerpt, excerptTruncated: content.length > MAX_EXCERPT, moneyHints: findMoneyHints(excerpt) };
+    const excerpt = sections.join("\n");
+    return { filename, status: workbook.worksheets.length ? "parsed" : "no_text", sheetCount: workbook.worksheets.length,
+      excerpt, excerptTruncated, moneyHints: findMoneyHints(excerpt) };
   } catch {
     return empty("failed");
   }
