@@ -90,11 +90,47 @@ export function createInlineExpenseReview({ call, getContext, setIntakeBusy }) {
     select.value = value ?? "";
     return select;
   }
+  function columnLabel(number) {
+    let value = Number(number);
+    if (!Number.isInteger(value) || value < 1 || value > 16384) return "";
+    let label = "";
+    while (value) { value--; label = String.fromCharCode(65 + value % 26) + label; value = Math.floor(value / 26); }
+    return label;
+  }
+  function renderSheetPreview(sheet) {
+    const details = el("details", "inline-proof sheet-preview");
+    details.append(el("summary", "", `${sheet.name || "名称なし"}（${(sheet.rows || []).length}行表示）`));
+    const rows = Array.isArray(sheet.rows) ? sheet.rows : [];
+    const columns = [...new Set(rows.flatMap(row => (row.cells || []).map(cell => cell.column)))]
+      .filter(column => Number.isInteger(column) && column > 0 && column <= 16384).sort((a, b) => a - b);
+    if (!rows.length || !columns.length) {
+      details.append(el("p", "inline-hint", "表示できるセルはありません。"));
+      return details;
+    }
+    const wrap = el("div", "sheet-table-wrap");
+    const table = el("table", "sheet-table");
+    const head = el("thead");
+    const heading = el("tr");
+    heading.append(el("th", "", "行"));
+    for (const column of columns) heading.append(el("th", "", columnLabel(column)));
+    head.append(heading);
+    const body = el("tbody");
+    for (const row of rows) {
+      const tr = el("tr");
+      tr.append(el("th", "", String(row.rowNumber || "")));
+      const cells = new Map((row.cells || []).map(cell => [cell.column, cell.text]));
+      for (const column of columns) tr.append(el("td", "", cells.get(column) || ""));
+      body.append(tr);
+    }
+    table.append(head, body); wrap.append(table); details.append(wrap);
+    if (sheet.rowsOmitted > 0) details.append(el("p", "inline-hint", `中間の${sheet.rowsOmitted}行を省略しています。先頭と末尾を表示しています。`));
+    return details;
+  }
   function renderEvidence(article, item) {
     const data = evidence.get(item.id);
     if (!data) return;
     const panel = el("div", "inline-evidence");
-    panel.append(el("p", "inline-hint", "本文とPDFから確認した金額を入力してください。候補の数字を自動確定しません。"));
+    panel.append(el("p", "inline-hint", "本文と添付から確認した金額を入力してください。候補の数字を自動確定しません。"));
     if (data.excerpt) {
       const details = el("details", "inline-proof");
       details.append(el("summary", "", "メール本文を表示"), el("pre", "", data.excerpt));
@@ -114,8 +150,12 @@ export function createInlineExpenseReview({ call, getContext, setIntakeBusy }) {
     for (const sheet of data.xlsxResults || []) {
       const details = el("details", "inline-proof");
       details.append(el("summary", "", `${sheet.filename || "Excel添付"} ／ ${excelStatus[sheet.status] || "未解析"}`));
-      if (sheet.excerpt) details.append(el("pre", "", sheet.excerpt));
-      if (sheet.excerptTruncated) details.append(el("p", "inline-hint", "内容の一部を表示しています。元ファイルも確認してください。"));
+      if (sheet.sheetPreviews?.length) {
+        details.append(el("p", "inline-hint", "各シートの先頭と末尾を表で表示します。元の書式や結合セルは再現しません。"));
+        for (const preview of sheet.sheetPreviews) details.append(renderSheetPreview(preview));
+      } else if (sheet.excerpt) details.append(el("pre", "", sheet.excerpt));
+      if (sheet.excerptTruncated || sheet.sheetPreviews?.some(preview => preview.rowsOmitted > 0))
+        details.append(el("p", "inline-hint", "内容の一部を表示しています。元ファイルも確認してください。"));
       if (sheet.moneyHints?.length) details.append(el("p", "inline-hint", `金額候補: ${sheet.moneyHints.join(" ／ ")}`));
       panel.append(details);
     }
@@ -158,7 +198,7 @@ export function createInlineExpenseReview({ call, getContext, setIntakeBusy }) {
       } else if (item.reviewStatus === "excluded") {
         article.append(el("p", "inline-hint", "除外済みの候補です。確認画面で状態を変更してください。"));
       } else {
-        const button = el("button", "secondary", item.reviewStatus === "kept" ? "本文・PDFを確認する" : "経費候補として残して本文・PDFを確認");
+        const button = el("button", "secondary", item.reviewStatus === "kept" ? "本文・添付を確認する" : "経費候補として残して本文・添付を確認");
         button.type = "button"; button.dataset.action = "inspect"; button.dataset.id = item.id;
         article.append(button);
         renderEvidence(article, item);
@@ -170,7 +210,7 @@ export function createInlineExpenseReview({ call, getContext, setIntakeBusy }) {
   async function inspect(id) {
     const item = candidate(id);
     if (!item || item.expensePosted || item.reviewStatus === "excluded") return;
-    setBusy(true); say("本文とPDFを確認しています。まだ経費登録は行いません…");
+    setBusy(true); say("本文と添付を確認しています。まだ経費登録は行いません…");
     try {
       if (item.reviewStatus !== "kept") await call("gmailExpenseCandidateReview", { candidateId: id, status: "kept" });
       if (!sameContext()) throw new Error("イベントまたは月が変更されました。読み込み直してください。");
