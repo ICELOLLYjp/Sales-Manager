@@ -86,6 +86,8 @@ export async function saveTshirtPhysicalStock({
 
     const master = snapshot.data();
     const inventory = cloneInventory(master?.inventory_v2);
+    const inventoryColorMeta = cloneInventory(master?.inventory_color_meta);
+    const savedAtIso = new Date().toISOString();
     let changedCount = 0;
     let totalBefore = 0;
     let totalAfter = 0;
@@ -108,13 +110,22 @@ export async function saveTshirtPhysicalStock({
 
       sizeTree[row.sizeId] = {
         ...previousCell,
-        qty: after
+        qty: after,
+        updatedAt: savedAtIso,
+        updateSource: "sales_manager"
+      };
+
+      inventoryColorMeta[row.bodyId] ||= {};
+      inventoryColorMeta[row.bodyId][row.designId] ||= {};
+      inventoryColorMeta[row.bodyId][row.designId][row.colorId] = {
+        updatedAt: savedAtIso,
+        source: "sales_manager"
       };
     });
 
-    const savedAtIso = new Date().toISOString();
     transaction.set(ref, {
       inventory_v2: inventory,
+      inventory_color_meta: inventoryColorMeta,
       physicalCountUpdatedAt: serverTimestamp(),
       physicalCountUpdatedAtIso: savedAtIso,
       physicalCountUpdatedByEmail: text(savedByEmail),

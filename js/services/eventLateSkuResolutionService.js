@@ -552,6 +552,14 @@ export async function resolveClosedQuickGroupToSku({
         tshirtRef,
         new FieldPath("inventory_v2", target.bodyId, target.designId, target.colorId, target.sizeId, "qty"),
         stockAfter,
+        new FieldPath("inventory_v2", target.bodyId, target.designId, target.colorId, target.sizeId, "updatedAt"),
+        serverTimestamp(),
+        new FieldPath("inventory_v2", target.bodyId, target.designId, target.colorId, target.sizeId, "updateSource"),
+        "sales_manager",
+        new FieldPath("inventory_color_meta", target.bodyId, target.designId, target.colorId, "updatedAt"),
+        serverTimestamp(),
+        new FieldPath("inventory_color_meta", target.bodyId, target.designId, target.colorId, "source"),
+        "sales_manager",
         "updatedAt",
         serverTimestamp()
       );

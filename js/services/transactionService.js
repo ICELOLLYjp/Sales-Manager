@@ -2073,23 +2073,63 @@ export async function commitQuickSale({
           const args = [
             tshirtMasterRef
           ];
+          const colorMetaKeys = new Set();
 
           tshirtTargets.forEach(
             entry => {
+              const target = entry.target;
               args.push(
                 new FieldPath(
                   "inventory_v2",
-                  entry.target.bodyId,
-                  entry.target.designId,
-                  entry.target.colorId,
-                  entry.target.sizeId,
+                  target.bodyId,
+                  target.designId,
+                  target.colorId,
+                  target.sizeId,
                   "qty"
-                )
+                ),
+                entry.nextQty,
+                new FieldPath(
+                  "inventory_v2",
+                  target.bodyId,
+                  target.designId,
+                  target.colorId,
+                  target.sizeId,
+                  "updatedAt"
+                ),
+                serverTimestamp(),
+                new FieldPath(
+                  "inventory_v2",
+                  target.bodyId,
+                  target.designId,
+                  target.colorId,
+                  target.sizeId,
+                  "updateSource"
+                ),
+                "sales_manager"
               );
 
-              args.push(
-                entry.nextQty
-              );
+              const colorMetaKey = [target.bodyId, target.designId, target.colorId].join("|");
+              if (!colorMetaKeys.has(colorMetaKey)) {
+                colorMetaKeys.add(colorMetaKey);
+                args.push(
+                  new FieldPath(
+                    "inventory_color_meta",
+                    target.bodyId,
+                    target.designId,
+                    target.colorId,
+                    "updatedAt"
+                  ),
+                  serverTimestamp(),
+                  new FieldPath(
+                    "inventory_color_meta",
+                    target.bodyId,
+                    target.designId,
+                    target.colorId,
+                    "source"
+                  ),
+                  "sales_manager"
+                );
+              }
             }
           );
 
@@ -2943,31 +2983,70 @@ export async function voidSaleTransaction({
         const args = [
           tshirtMasterRef
         ];
+        const colorMetaKeys = new Set();
 
         tshirtRestore
           .forEach(
             entry => {
+              const target = entry.target;
               const currentQty =
                 readTshirtQty(
                   tshirtMaster,
-                  entry.target
+                  target
                 );
 
               args.push(
                 new FieldPath(
                   "inventory_v2",
-                  entry.target.bodyId,
-                  entry.target.designId,
-                  entry.target.colorId,
-                  entry.target.sizeId,
+                  target.bodyId,
+                  target.designId,
+                  target.colorId,
+                  target.sizeId,
                   "qty"
-                )
+                ),
+                currentQty + entry.quantity,
+                new FieldPath(
+                  "inventory_v2",
+                  target.bodyId,
+                  target.designId,
+                  target.colorId,
+                  target.sizeId,
+                  "updatedAt"
+                ),
+                serverTimestamp(),
+                new FieldPath(
+                  "inventory_v2",
+                  target.bodyId,
+                  target.designId,
+                  target.colorId,
+                  target.sizeId,
+                  "updateSource"
+                ),
+                "sales_manager"
               );
 
-              args.push(
-                currentQty +
-                entry.quantity
-              );
+              const colorMetaKey = [target.bodyId, target.designId, target.colorId].join("|");
+              if (!colorMetaKeys.has(colorMetaKey)) {
+                colorMetaKeys.add(colorMetaKey);
+                args.push(
+                  new FieldPath(
+                    "inventory_color_meta",
+                    target.bodyId,
+                    target.designId,
+                    target.colorId,
+                    "updatedAt"
+                  ),
+                  serverTimestamp(),
+                  new FieldPath(
+                    "inventory_color_meta",
+                    target.bodyId,
+                    target.designId,
+                    target.colorId,
+                    "source"
+                  ),
+                  "sales_manager"
+                );
+              }
             }
           );
 
