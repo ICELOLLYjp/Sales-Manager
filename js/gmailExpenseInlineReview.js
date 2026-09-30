@@ -17,6 +17,11 @@ export function createInlineExpenseReview({ call, getContext, setIntakeBusy }) {
   const status = document.getElementById("inlineReviewStatus");
   const reload = document.getElementById("inlineReviewLoad");
   const evidence = new Map();
+  const pdfUrls = new Set();
+  function releasePdfUrls() {
+    for (const url of pdfUrls) URL.revokeObjectURL(url);
+    pdfUrls.clear();
+  }
   let state = null;
   let context = null;
   let busy = false;
@@ -53,6 +58,7 @@ export function createInlineExpenseReview({ call, getContext, setIntakeBusy }) {
   }
   function reset() {
     // Hide private proof text immediately even when sign-out occurs during an in-flight request.
+    releasePdfUrls();
     state = null; context = null; evidence.clear(); section.hidden = true;
     list.replaceChildren(); say("");
   }
@@ -141,8 +147,43 @@ export function createInlineExpenseReview({ call, getContext, setIntakeBusy }) {
     }
     for (const pdf of data.pdfResults || []) {
       const details = el("details", "inline-proof");
-      details.append(el("summary", "", `${pdf.filename || "PDF"} ／ ${pdf.status || "未解析"}`));
-      if (pdf.excerpt) details.append(el("pre", "", pdf.excerpt));
+      details.append(el("summary", "", `${pdf.filename || "PDF"} ／ ${{ parsed: "文字読み取り済み", no_text: "文字なし", too_large: "サイズ上限超過", too_many_pages: "文字解析のページ上限超過", failed: "文字読み取り失敗" }[pdf.status] || "未解析"}`));
+      if (pdf.previewBase64) {
+        try {
+          const binary = atob(pdf.previewBase64);
+          if (binary.length > 5 * 1024 * 1024) throw new Error("preview too large");
+          const bytes = Uint8Array.from(binary, char => char.charCodeAt(0));
+          const url = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
+          pdfUrls.add(url);
+          const open = el("a", "pdf-open", "PDFを別画面で開く");
+          open.href = url; open.target = "_blank"; open.rel = "noopener noreferrer";
+          details.append(open);
+          const pages = el("details", "pdf-pages");
+          pages.append(el("summary", "", "元のPDFページを表示"));
+          let viewer;
+          pages.addEventListener("toggle", () => {
+            if (!pages.open || viewer) return;
+            viewer = el("iframe", "pdf-viewer");
+            viewer.title = pdf.filename || "PDF";
+            viewer.src = url;
+            pages.append(viewer);
+          });
+          details.append(pages, el("p", "inline-hint", "表示できない場合や全ページの確認には「PDFを別画面で開く」を使ってください。"));
+        } catch {
+          details.append(el("p", "inline-hint", "PDFページを表示できません。元メールの添付を確認してください。"));
+        }
+      } else {
+        details.append(el("p", "inline-hint", pdf.previewOmitted
+          ? "PDFページ表示の合計サイズ上限に達しました。元メールの添付を確認してください。"
+          : "PDFページを取得できません。元メールの添付を確認してください。"));
+      }
+      if (pdf.excerpt) {
+        const text = el("details", "inline-proof");
+        text.append(el("summary", "", "抽出した文字を表示"), el("pre", "", pdf.excerpt));
+        details.append(text);
+      } else if (pdf.status === "no_text") {
+        details.append(el("p", "inline-hint", "文字を抽出できないPDFです。元のPDFページで確認してください。"));
+      }
       if (pdf.moneyHints?.length) details.append(el("p", "", `金額候補: ${pdf.moneyHints.join(" ／ ")}`));
       panel.append(details);
     }
@@ -183,6 +224,7 @@ export function createInlineExpenseReview({ call, getContext, setIntakeBusy }) {
     panel.append(form); article.append(panel);
   }
   function render() {
+    releasePdfUrls();
     list.replaceChildren();
     if (!state || !context) return;
     const rows = state.candidates.filter(item => item.expenseScope === "event" && item.eventId === context.eventId);
@@ -214,7 +256,7 @@ export function createInlineExpenseReview({ call, getContext, setIntakeBusy }) {
     try {
       if (item.reviewStatus !== "kept") await call("gmailExpenseCandidateReview", { candidateId: id, status: "kept" });
       if (!sameContext()) throw new Error("イベントまたは月が変更されました。読み込み直してください。");
-      const data = await call("gmailExpenseInspectEvidence", { candidateId: id });
+      const data = await call("gmailExpenseInspectEvidence", { candidateId: id, includePdfPreview: true });
       if (!sameContext()) throw new Error("イベントまたは月が変更されました。読み込み直してください。");
       evidence.set(id, data);
       item.reviewStatus = "kept";
