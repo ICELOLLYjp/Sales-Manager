@@ -15,6 +15,8 @@ This is the canonical handoff for future development chats. Inspect latest `main
 5. PR 99からPR 102まで `main` に反映済み。2026年9月30日に利用者から Firebase Functions の `Deploy complete!` が報告され、その後Excelの文字表示も確認された。Stripe FunctionsやFirestore Rulesは対象にしない。
 6. Excelの文字列だけでは列の関係が分かりにくいため、構造化したシート別の表表示を追加した。先頭と末尾の行を最大合計240行表示し、省略行数を示す。元の書式と結合セルは再現しない。表表示には今回の画面更新と Firebase Functions の再デプロイが必要。
 
+2026年9月30日追記: PR 105のExcel表表示について、利用者から Functions のデプロイ完了と、見やすく確認できたことが報告された。PDFは今回、元ページの埋め込み表示、別画面で開くリンク、抽出文字の折りたたみ表示を追加。新しい画面は認証済みの添付確認時にだけ元PDFを要求する。1ファイル5 MiB、1回の応答の元PDF合計5 MiBまでで、超過分は元メールで確認する。元PDFはブラウザ内で一時表示し、Firestoreやログに保存しない。画面更新時とログアウト時にBlob URLを解放する。文字解析は従来どおり最大3添付、20ページ。画像PDFは元ページで目視確認する。PDF変更は今回の Functions 再デプロイが必要で、iPhone実機での表示確認は未完了。
+
 ---
 
 # 1. Core operating rules
