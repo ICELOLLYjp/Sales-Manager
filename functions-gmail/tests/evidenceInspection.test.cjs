@@ -3,8 +3,15 @@ const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const {
   decodeBase64Url, decodeHtmlEntities, htmlToText, inspectPayload, collectPdfAttachmentRefs,
-  parsePdfData, findMoneyHints
+  parsePdfData, pdfPreviewData, findMoneyHints
 } = require("../evidenceInspection");
+
+test("original PDF preview is bounded and rejects non-PDF payloads", () => {
+  const bytes = Buffer.from("%PDF-1.4\n");
+  assert.equal(pdfPreviewData(bytes), bytes.toString("base64"));
+  assert.equal(pdfPreviewData(Buffer.from("<html>private</html>")), null);
+  assert.equal(pdfPreviewData(Buffer.concat([bytes, Buffer.alloc(5 * 1024 * 1024)])), null);
+});
 
 function encoded(value) {
   return Buffer.from(value, "utf8").toString("base64url");
