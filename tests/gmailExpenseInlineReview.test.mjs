@@ -37,7 +37,7 @@ class Node {
   removeAttribute(name) { delete this[name]; }
 }
 
-function setup({ eventId = "eventA", duplicates = [], amount = 50, months, xlsx = false, structuredXlsx = false } = {}) {
+function setup({ eventId = "eventA", duplicates = [], amount = 50, months, xlsx = false, structuredXlsx = false, pdf = false } = {}) {
   const nodes = Object.fromEntries(["inlineReview", "inlineReviewList", "inlineReviewStatus", "inlineReviewLoad"].map(id => [id, new Node()]));
   globalThis.document = {
     getElementById: id => nodes[id],
@@ -63,7 +63,7 @@ function setup({ eventId = "eventA", duplicates = [], amount = 50, months, xlsx 
     if (name === "gmailExpenseCandidateList") return months && args.month !== months.at(-1)
       ? { ...snapshot(), candidates: [] } : snapshot();
     if (name === "gmailExpenseCandidateReview") { candidate.reviewStatus = args.status; return {}; }
-    if (name === "gmailExpenseInspectEvidence") return { excerpt: "支払領収書", moneyHints: ["JPY 20"], pdfResults: [], attachments: [],
+    if (name === "gmailExpenseInspectEvidence") return { excerpt: "支払領収書", moneyHints: ["JPY 20"], pdfResults: pdf ? [{ filename: "scan.pdf", status: "no_text", previewBase64: Buffer.from("%PDF-1.4\n").toString("base64") }] : [], attachments: [],
       xlsxResults: xlsx ? [{ filename: "invoice.xlsx", status: "parsed", excerpt: "シート: Invoice\nB1: TWD 13,050", moneyHints: ["TWD 13,050"],
         sheetPreviews: structuredXlsx ? [{ name: "Invoice", rows: [{ rowNumber: 1, cells: [{ column: 1, text: "請求額" }, { column: 2, text: "TWD 13,050" }] }], rowsOmitted: 3 }] : [] }] : [] };
     if (name === "gmailExpenseSaveEvidenceReview") {
@@ -130,6 +130,30 @@ test("structured Excel preview renders a sheet as a table with omitted rows note
   assert.match(table.textContent, /行AB1請求額TWD 13,050/);
   assert.match(article.textContent, /中間の3行を省略/);
   assert.equal(app.calls.some(item => item.name === "gmailExpensePostReviewedCandidate"), false);
+});
+
+test("image PDF has a lazy page viewer and releases private URLs on reset", async () => {
+  const create = URL.createObjectURL;
+  const revoke = URL.revokeObjectURL;
+  const created = [], released = [];
+  URL.createObjectURL = blob => { assert.equal(blob.type, "application/pdf"); const url = "blob:test/" + created.length; created.push(url); return url; };
+  URL.revokeObjectURL = url => released.push(url);
+  try {
+    const app = setup({ pdf: true });
+    await app.review.load(); app.click("inspect"); await app.settle();
+    const article = app.nodes.inlineReviewList.children[0];
+    const link = article.all().find(node => node.tag === "a");
+    assert.equal(link.href, created[0]);
+    assert.equal(link.rel, "noopener noreferrer");
+    assert.equal(article.all().some(node => node.tag === "iframe"), false);
+    const pages = article.all().find(node => node.className === "pdf-pages");
+    pages.open = true; pages.listeners.toggle();
+    assert.equal(article.all().find(node => node.tag === "iframe").src, link.href);
+    assert.equal(app.calls.find(item => item.name === "gmailExpenseInspectEvidence").args.includePdfPreview, true);
+    app.review.reset();
+    assert.deepEqual(released, created);
+    assert.equal(app.nodes.inlineReviewList.children.length, 0);
+  } finally { URL.createObjectURL = create; URL.revokeObjectURL = revoke; }
 });
 
 test("confirmed posting uses the current server total and posts exactly once", async () => {

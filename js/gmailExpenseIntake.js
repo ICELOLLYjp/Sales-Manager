@@ -2,7 +2,7 @@ import { initFirebase, getFirebaseState } from "./firebase.js";
 import { initAuth, loginWithGoogle } from "./auth.js";
 import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-functions.js";
 import { GMAIL_INTAKE_ACCOUNTS, intakeKey, groupIntakeSelectionByMonth, planIntakeAssignments, searchMonths } from "./gmailExpenseIntakeModel.js?v=20260927-2";
-import { createInlineExpenseReview } from "./gmailExpenseInlineReview.js?v=20260930-sheet-preview-1";
+import { createInlineExpenseReview } from "./gmailExpenseInlineReview.js?v=20260930-pdf-preview-1";
 import { createEventPicker } from "./gmailExpenseEventPicker.js";
 
 const $ = selector => document.querySelector(selector);

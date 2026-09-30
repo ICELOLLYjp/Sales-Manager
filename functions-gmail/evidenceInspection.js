@@ -201,6 +201,13 @@ function collectXlsxAttachmentRefs(payload) {
   return refs;
 }
 
+function pdfPreviewData(data) {
+  const bytes = Buffer.from(data || []);
+  if (!bytes.length || bytes.length > MAX_PDF_BYTES ||
+      !bytes.subarray(0, 1024).includes(Buffer.from("%PDF-"))) return null;
+  return bytes.toString("base64");
+}
+
 async function parsePdfData(data, filename, pdfTools) {
   // pdf.js rejects Node.js Buffer even though Buffer extends Uint8Array.
   // Copy into a plain Uint8Array before handing Gmail attachment bytes to unpdf.
@@ -304,6 +311,7 @@ function createEvidenceInspection({ requireStaff, db, clientId, clientSecret, to
     const message = await fetchGoogleJson(url, { headers: { Authorization: `Bearer ${token.access_token}` } });
     const evidence = inspectPayload(message.payload);
     const pdfResults = [];
+    let previewBytes = 0;
     for (const ref of collectPdfAttachmentRefs(message.payload)) {
       if (ref.declaredSize !== null && ref.declaredSize > MAX_PDF_BYTES) {
         pdfResults.push({ filename: ref.filename, status: "too_large", pages: null, excerpt: "", excerptTruncated: false, moneyHints: [] });
@@ -322,7 +330,16 @@ function createEvidenceInspection({ requireStaff, db, clientId, clientSecret, to
         continue;
       }
       const bytes = Buffer.from(encoded.replace(/-/g, "+").replace(/_/g, "/"), "base64");
-      pdfResults.push(await parsePdfData(bytes, ref.filename));
+      const result = await parsePdfData(bytes, ref.filename);
+      if (request.data?.includePdfPreview === true) {
+        // Original bytes are returned only to the authorized caller, never persisted.
+        // Cap total preview bytes per response as well as each individual attachment.
+        if (previewBytes + bytes.length <= MAX_PDF_BYTES) {
+          const preview = pdfPreviewData(bytes);
+          if (preview) { result.previewBase64 = preview; previewBytes += bytes.length; }
+        } else result.previewOmitted = true;
+      }
+      pdfResults.push(result);
     }
     const xlsxResults = [];
     for (const ref of collectXlsxAttachmentRefs(message.payload)) {
@@ -380,6 +397,7 @@ module.exports = {
   collectPdfAttachmentRefs,
   collectXlsxAttachmentRefs,
   parsePdfData,
+  pdfPreviewData,
   findMoneyHints,
   createEvidenceInspection
 };
