@@ -6,6 +6,10 @@ Reference `main` at reconciliation: `27bdacbcaa0d307c9cbbef4da0f825220e3ec5ee`
 
 This is the canonical handoff for future development chats. Inspect latest `main` before editing; this file describes the intended invariants, what is already implemented, and what still needs work.
 
+## キーボードでの数量入力 2026年10月1日
+
+Sales Manager、T-shirts-Stock、Accessories の通常在庫およびイベント棚卸の数量欄に、Tab / Shift+Tab、Enter、上下左右の移動を追加。対象は数値入力欄で、操作ボタンを飛ばして次の数量欄へ移動する。通常在庫の保存後に画面が描き直されても、移動先SKUの入力欄へフォーカスを戻す。保存のタイミング、在庫権限、0と不明の扱いは既存の処理を使う。各リポジトリの反映と実機確認は別途記録する。
+
 ## Gmail経費取り込みの現在地 2026年9月30日
 
 1. 通常の入口はイベント一覧の「Gmail経費を取り込む」、または経費管理の「イベント経費をGmailから取り込む」。どちらも `gmail-expense-intake.html` を開く。イベント一覧には「イベント情報を編集」「売上・経費・収支を見る」「持参・終了在庫を見る」も表示する。従来の個別取得画面と確認画面は補助的に残す。
