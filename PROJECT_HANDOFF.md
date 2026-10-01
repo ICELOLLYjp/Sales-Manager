@@ -8,7 +8,7 @@ This is the canonical handoff for future development chats. Inspect latest `main
 
 ## キーボードでの数量入力 2026年10月1日
 
-Sales Manager、T-shirts-Stock、Accessories の通常在庫およびイベント棚卸の数量欄に、Tab / Shift+Tab、Enter、上下左右の移動を追加。対象は数値入力欄で、操作ボタンを飛ばして次の数量欄へ移動する。通常在庫の保存後に画面が描き直されても、移動先SKUの入力欄へフォーカスを戻す。保存のタイミング、在庫権限、0と不明の扱いは既存の処理を使う。各リポジトリの反映と実機確認は別途記録する。
+Sales Manager、T-shirts-Stock、Accessories の通常在庫およびイベント棚卸の数量欄に、Tab / Shift+Tab、Enter、上下左右の移動を追加。対象は数値入力欄で、操作ボタンを飛ばして次の数量欄へ移動する。通常在庫の保存後に画面が描き直されても、移動先SKUの入力欄へフォーカスを戻す。保存のタイミング、在庫権限、0と不明の扱いは既存の処理を使う。Sales Manager PR 108、T-shirts-Stock PR 17、Accessories PR 1 を各mainへマージ済み。実機での連続入力と保存の確認は未実施。
 
 ## Gmail経費取り込みの現在地 2026年9月30日
 
