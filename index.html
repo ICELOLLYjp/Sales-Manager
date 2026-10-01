@@ -78,5 +78,53 @@
       enhanceVisibleCountInputs();new MutationObserver(enhanceVisibleCountInputs).observe(document.body,{childList:true,subtree:true});document.addEventListener("visibilitychange",function(){if(!document.hidden)enhanceVisibleCountInputs()})
     })();
   </script>
+<script>
+(function () {
+  const selectors = ".eventCarryQtyInput, .inventoryClosingQty, .if-physical";
+  const rows = "tr, .color-row, .mrow, .item";
+  function visible(node) {
+    return !node.disabled && node.getClientRects().length > 0;
+  }
+  document.addEventListener("focusin", event => {
+    const input = event.target;
+    if (input.matches?.(selectors) && typeof input.select === "function") input.select();
+  });
+  document.addEventListener("keydown", event => {
+    const input = event.target;
+    if (!input.matches?.(selectors) || event.isComposing || event.ctrlKey || event.altKey || event.metaKey) return;
+    const key = event.key;
+    if (!["Tab", "Enter", "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(key)) return;
+    const selector = selectors.split(",").find(part => input.matches(part.trim()))?.trim();
+    const scope = input.closest(".if-card, .inventory-review, #matrix, #list, #view, #app") || document;
+    const all = [...scope.querySelectorAll(selector)].filter(visible);
+    const index = all.indexOf(input);
+    if (index < 0) return;
+    const direction = key === "ArrowLeft" || key === "ArrowUp" || (key === "Tab" && event.shiftKey) ? -1 : 1;
+    let next = null;
+    if (key.startsWith("Arrow")) {
+      const row = input.closest(rows);
+      const peers = row ? [...row.querySelectorAll(selector)].filter(visible) : [];
+      const column = peers.indexOf(input);
+      if (column >= 0 && (key === "ArrowLeft" || key === "ArrowRight")) {
+        next = peers[column + direction] || null;
+      } else if (column >= 0) {
+        let neighbor = direction < 0 ? row.previousElementSibling : row.nextElementSibling;
+        while (neighbor && !next) {
+          const candidates = [...neighbor.querySelectorAll(selector)].filter(visible);
+          next = candidates[column] || null;
+          neighbor = direction < 0 ? neighbor.previousElementSibling : neighbor.nextElementSibling;
+        }
+      }
+    }
+    next ||= all[index + direction] || null;
+    if (!next) return;
+    event.preventDefault();
+    event.stopPropagation();
+    next.focus();
+    next.select();
+    next.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+  }, true);
+})();
+</script>
 </body>
 </html>
