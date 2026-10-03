@@ -1,0 +1,58 @@
+name: Apply home screen icon metadata
+
+on:
+  push:
+    branches:
+      - feat/home-screen-icons
+    paths:
+      - .github/workflows/apply-home-screen-icons.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/home-screen-icons
+          fetch-depth: 0
+      - name: Patch icon metadata
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def insert_after(path, anchor, lines):
+              p = Path(path)
+              text = p.read_text(encoding='utf-8')
+              marker = lines.strip()
+              if marker in text:
+                  return
+              if anchor not in text:
+                  raise SystemExit(f'Anchor not found in {path}: {anchor}')
+              text = text.replace(anchor, anchor + lines, 1)
+              p.write_text(text, encoding='utf-8')
+
+          insert_after(
+              'index.html',
+              '  <meta name="theme-color" content="#ffffff">\n',
+              '  <link rel="icon" type="image/svg+xml" href="./app-icon.svg">\n'
+              '  <link rel="apple-touch-icon" href="./app-icon.svg">\n'
+          )
+          insert_after(
+              'expense-management.html',
+              '  <meta name="viewport" content="width=device-width, initial-scale=1">\n',
+              '  <meta name="apple-mobile-web-app-title" content="Expense">\n'
+              '  <link rel="icon" type="image/svg+xml" href="./expense-icon.svg">\n'
+              '  <link rel="apple-touch-icon" href="./expense-icon.svg">\n'
+          )
+          PY
+      - name: Commit patched pages
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/apply-home-screen-icons.yml
+          git add index.html expense-management.html
+          git commit -m "Configure home screen icons"
+          git push origin HEAD:feat/home-screen-icons
