@@ -1,0 +1,47 @@
+name: Fix iOS touch icon
+
+on:
+  push:
+    branches: [main]
+    paths: [.github/workflows/fix-ios-touch-icon.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Use PNG touch icons
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          replacements = {
+              'index.html': [
+                  ('<link rel="apple-touch-icon" href="./app-icon.svg">', '<link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png">')
+              ],
+              'expense-management.html': [
+                  ('<link rel="apple-touch-icon" href="./expense-icon.svg">', '<link rel="apple-touch-icon" sizes="180x180" href="./expense-touch-icon.png">')
+              ],
+          }
+          for filename, pairs in replacements.items():
+              p = Path(filename)
+              text = p.read_text(encoding='utf-8')
+              for old, new in pairs:
+                  if old not in text and new not in text:
+                      raise SystemExit(f'Expected icon link not found in {filename}')
+                  text = text.replace(old, new)
+              p.write_text(text, encoding='utf-8')
+          PY
+      - name: Commit fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/fix-ios-touch-icon.yml
+          git add index.html expense-management.html
+          git commit -m "Use PNG icons for iOS home screen"
+          git push origin HEAD:main
