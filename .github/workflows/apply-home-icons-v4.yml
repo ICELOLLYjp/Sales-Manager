@@ -1,0 +1,49 @@
+name: Apply centered home icons v4
+
+on:
+  push:
+    branches:
+      - fix/home-icons-v4-centered
+    paths:
+      - .github/workflows/apply-home-icons-v4.yml
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/home-icons-v4-centered
+          fetch-depth: 0
+      - name: Install SVG renderer
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y librsvg2-bin
+      - name: Render icons and patch HTML
+        run: |
+          rsvg-convert -w 180 -h 180 icons/home-sales-v4.svg > sales-touch-icon-v4.png
+          rsvg-convert -w 180 -h 180 icons/home-expense-v4.svg > expense-touch-icon-v4.png
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path("index.html")
+          s = p.read_text(encoding="utf-8")
+          s = s.replace('./sales-touch-icon-v3.png', './sales-touch-icon-v4.png')
+          p.write_text(s, encoding="utf-8")
+
+          p = Path("expense-management.html")
+          s = p.read_text(encoding="utf-8")
+          s = s.replace('./expense-touch-icon-v3.png', './expense-touch-icon-v4.png')
+          p.write_text(s, encoding="utf-8")
+          PY
+      - name: Commit generated icons
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/apply-home-icons-v4.yml
+          git add index.html expense-management.html sales-touch-icon-v4.png expense-touch-icon-v4.png
+          git commit -m "Apply centered v4 home screen icons"
+          git push origin HEAD:fix/home-icons-v4-centered
