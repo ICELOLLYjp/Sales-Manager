@@ -610,3 +610,100 @@ The SKU POS category dropdown is replaced with large T-shirt and Accessory butto
 ## Accessory SKU card layout 2026-09-26
 
 Each Accessory SKU filter displays product cards in two columns on iPhone. Stud cards use a pale blue background and blue left border; Drop cards use a pale orange background and orange left border. Each card explicitly labels Stud or Drop and Pierce or Earring so the distinction does not depend on color. The card still shows its own sale price, stock, and cart quantity; the existing variantId, price and checkout path are unchanged. Zero stock cards remain visible and disabled. Index module URL and service worker shell cache were versioned together. PR 53 introduced the category buttons and was merged as d917cda43158ca7607fb9c7bad19af92f467be75; Pages deployment succeeded and the unauthenticated login screen started without an app module error. Verify this two column accessory layout and selection on the physical iPhone during an authenticated event Session.
+---
+
+# 17. System role boundaries for Website, Inventory Apps and Sales Manager
+
+Recorded: 2026-10-05
+
+This section is a product boundary. Future work must preserve these roles unless the user explicitly approves a role change.
+
+## 17.1 Sales Manager role
+
+Sales Manager is the operational app for event sales and event business management.
+
+Primary responsibilities:
+
+* POS and checkout for events and direct sales
+* Sales Sessions and event opening, checkpoint, daily close and final close
+* Event sales history, revenue, expenses, profit review and analytics
+* Quick, SKU and amount only sales handling
+* Payment evidence and payment integration such as Stripe
+* Event price books, event currency handling and event discount logic
+* Applying approved sale, void and reconciliation effects to the canonical inventory sources
+
+Sales Manager is not the primary inventory management UI and must not become the canonical stock store for T shirts or accessories.
+
+Authority rules:
+
+* `salesTransactions` is the source of truth for sales recorded by Sales Manager.
+* T shirt canonical finished stock remains `tshirtStock/master.inventory_v2`.
+* Accessory canonical real stock remains `accessoryStock/shared.designs`.
+* Event inventory is a temporary operational view of stock physically brought to an event. It is not company wide canonical stock.
+* Sales Manager may mutate canonical inventory only through defined sale, void, later allocation and approved reconciliation paths. It must not create a parallel permanent stock count.
+
+## 17.2 T shirts Stock role
+
+`ICELOLLYjp/T-shirts-Stock` is the primary T shirt inventory and production operations app.
+
+It owns the operational management of:
+
+* Finished T shirt inventory
+* Body, Design, Color and Size inventory dimensions
+* Blank Body inventory
+* Print sheet inventory
+* Production tasks
+* Customer order production context
+* Current T shirt inventory adjustments and production related inventory state
+
+Sales Manager may read this data and may apply sale related stock movements, but it does not replace T shirts Stock as the normal place to review and maintain T shirt inventory.
+
+## 17.3 Accessories role
+
+`ICELOLLYjp/Accessories` is the primary accessory inventory management app.
+
+It owns the operational management of accessory designs and current quantities stored under `accessoryStock/shared.designs`.
+
+Sales Manager may read this catalog and apply defined sale related stock movements, but it does not replace Accessories as the normal place to review and maintain accessory inventory.
+
+## 17.4 Website and WooCommerce role
+
+The ICELOLLY website is the customer facing brand site, portfolio and ecommerce storefront.
+
+Its responsibilities are:
+
+* Present products as both purchasable items and the public portfolio of ICELOLLY work
+* Product photography, customer facing descriptions, translations and merchandising
+* Browsing by product type, illustration, material and making method
+* Online cart, checkout, shipping information, customer communication and online order records
+* Event follow up landing pages and online purchase paths after physical events
+* Brand story, About, Events and Contact
+* International ecommerce presentation and localization
+
+The website must not become a second canonical physical inventory system.
+
+Online inventory displayed by WooCommerce should ultimately be derived from the canonical inventory apps through a controlled integration. Until that integration is implemented and tested, do not silently treat an independently entered WooCommerce stock number as authoritative.
+
+WooCommerce is the source of truth for customer facing online order state and web checkout state. If completed ecommerce orders are later imported into Sales Manager for consolidated analytics, they must be linked without creating a duplicate sale.
+
+## 17.5 Price authority
+
+Price ownership depends on sales channel.
+
+* Sales Manager owns event and POS price books, event currency prices and event discount rules.
+* WooCommerce owns the price actually presented and charged by the online store.
+* A future synchronization layer may share base prices, but synchronization must be explicit. Do not assume an event price and an online price are always identical.
+* Cost data and sale time cost snapshots must not be confused with retail selling prices.
+
+## 17.6 Integration rules
+
+1. One business fact should have one authority.
+2. Do not create a second permanent stock counter in Sales Manager or WooCommerce.
+3. Preserve existing stable IDs for Body, Design, Color, Size, accessory design and SKU wherever possible.
+4. Cross app synchronization should use explicit adapters or APIs rather than copied data with unclear ownership.
+5. Stock changes must be idempotent and auditable.
+6. Unknown and zero remain different states.
+7. Never infer an exact SKU from an unresolved sale merely to make systems agree.
+8. Customer facing copy, images and translations belong to the website, not the inventory apps.
+9. Before changing a cross app contract, read the current handoff files for every affected app.
+10. The website is a sales channel and presentation layer. The inventory apps remain inventory authorities. Sales Manager remains the event sales and business operations layer.
