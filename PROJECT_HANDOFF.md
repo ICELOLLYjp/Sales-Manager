@@ -1,5 +1,89 @@
 # ICELOLLY Sales Manager — PROJECT HANDOFF
 
+## EC側の管理カラー表示の残課題・次工程 2026年10月8日 JST
+
+利用者の最新画像では在庫セルなしのLight Purpleが正式名「34 LPL ライトパープル」のみで、現在の管理名が欠けていた。既存在庫のある色は併記されている。メーカー共通対応自体は13色で登録済み。次回のAPI/WordPress更新でtshirtStock/masterのカラーマスターを固定IDから限定参照し、管理名と正式名を併記する。名前を推測・改名しない。過去Session、売上、SKU、数量は保持。Japan white / Japan Black等の同条件の色も対象。利用者はこの修正を次回更新へ回し、ECの次工程を進めるよう指定した。
+
+Website Draft PR #3で共通発送プランの登録へ着手。商品選択不要のプラン・料金確認保存が第一段階。商品引用、実測梱包容量、カート送料は後続。EC送料の正本はWordPressで、このアプリへ送料設定を書き込まない。プラグイン配布0.47.2、staging API0.38.0を維持し、新しいZIP配布は管理名補完と合わせる予定。各mainと本番、物理数量、注文、商品公開、購入受付を変更しない。各アプリのDraft変更の実公開反映は未実施。
+
+
+## 0.47.2 メーカー品番と正式カラーの選択欄表示 2026年10月8日
+
+利用者がメーカー品番と正式カラー名も見えないと指摘。共通対応は編集欄の候補に使っていたが、上部の選択欄は管理名と内部IDが中心だった。0.47.2ではボディの選択欄に管理名と確認済み品番を併記し、色の選択欄に管理名と正式カラーコード、記号、正式名を併記する。例：MIJ / JPC-001、Japan gray / 04 ヘザーグレー、Natural / 60 NTR ナチュラル。選択欄の内部ID値は保持し、表示は利用者向けの名称と品番にする。
+
+色を選んだ直後、共有元の正式品番、色、対応確認日を上部に表示する。対応確認日はメーカー在庫の確認日時ではないことを明記。共有対応がない場合は未確認と表示し、管理名から正式カラーを推測しない。在庫未登録で管理名がAPIにない色は正式名だけを使い、正式名の二重表示を避ける。未保存のサイズカードにも共有元の品番と色を表示し、サイズの確認保存とは区別する。0.47.1の不足色補完を含む。API0.38.0の再更新は不要。
+
+実装commit 9bf8075d7d89062aeac4640dfb4c2974e3a10fce、GitHub Actions 37768960701成功。PHPと全既存ブラウザー回帰が成功。ブラウザーでボディ品番、色コード・記号・正式名、上部の対応確認日、表示操作だけでPOSTが起きないことを検証。ローカルNode109項目成功。
+
+配布ZIP icelolly-commerce-bridge-0.47.2.zip：65ファイル、229871 bytes、SHA256 daf5b98115a8e2908bb604b51eb8596e3ee992128aa516aceb8fd909cac63605。全ファイルを検証済みGitHub blobと照合。最新ZIPは0.47.2へ更新。実WordPressでの導入と選択欄確認は未完了。各main、本番EC、在庫数量、売上、注文、商品公開、購入受付を変更しない。Tシャツ在庫管理とSales Managerの公開反映はDraft PRの別工程。
+
+
+## 0.47.1 在庫セルがないカラーの候補表示を修正 2026年10月8日
+
+利用者の実画面でメーカー在庫ページのMIJはJapan grayのみ、OrganicはNatural、Black、Beige Grey、Pink、Greenの5色だった。色候補をcanonical在庫セルのターゲットからだけ作っていたことが原因。WordPressの修正版0.47.1では、読取API0.38.0のmanufacturerColorsにある共有対応を色候補へ加える。登録済み13色のうち在庫セルがないJapan white、Japan Black、Light Purpleも候補に含める。まだ内部対応がないメーカー色を勝手に割り当てない。
+
+メーカー確認用のサイズ候補は、既存canonicalカタログで取得できた固定sizeIdとサイズ名称に限る。公式資料の製造対象サイズで絞り、メーカー参考ターゲットとしてのみ使う。新しい在庫レコード、数量0、SKU、Woo商品を生成しない。未登録ターゲットはstockRegistered=falseで「社内在庫未登録。在庫0ではありません」と表示する。サイズIDを一つも確認できなくても色は選択候補に残し、メーカー確認の保存は停止する。管理名がAPIにない色は確認済み正式カラー名を表示し、管理名を推測しない。
+
+実装commit 81bfd3b5f844b7ef52e6510bcccbd106bd9278a8、GitHub Actions 37768320209成功。PHPで既存在庫と書込回数保持、未登録色への既知サイズ候補、固定サイズ証拠なしでの色表示を検証。ブラウザーで在庫未登録表示、色のみ選択時の保存候補停止、選択でPOSTが発生しないことを確認。全既存PHPとブラウザー回帰成功。ローカルNode109項目成功。
+
+配布ZIP icelolly-commerce-bridge-0.47.1.zip：65ファイル、229431 bytes、SHA256 e54ed4ab4fe142ecadf94767ffc2a03949d3ca31f2efd4eade7847d5ae50f8a3。全ファイルを検証済みGitHub blobと照合。WordPressのみZIP更新が必要。稼働中のstaging API0.38.0の再更新は不要。実機で修正版を入れた後のMIJ3色、Organic6色の表示確認は未完了。各main、本番EC、会社在庫数量、売上、注文、商品公開、購入受付は変更しない。各アプリのコード公開反映は依然Draft PRの別工程。
+
+
+## staging読取API 0.38.0 デプロイ完了 2026年10月8日
+
+利用者からJST 20:05のCloud Shell実行結果を受領。icelolly-stock-preview-stagingへstock-preview:0.38.0を指定して更新成功。revision icelolly-stock-preview-staging-00005-g7wが100%のトラフィックを処理。URLはhttps://icelolly-stock-preview-staging-485805702075.asia-northeast1.run.app。これはデプロイログの確認であり、実API応答の共通対応、WordPress表示と保存の確認はまだ行っていない。実際のイメージdigestはこのログに含まれないため、digestで固定したと記録しない。
+
+直前の手順に「確認したdigest」という置換用文字を実行コードへ含めたため、利用者の初回更新はコンテナ名形式のエラーで失敗。その後、具体的な0.38.0タグを使って更新成功。RELEASE_0.38.0.mdから置換用文字を含む実行例を除去し、ビルド成功後にそのまま使えるタグ指定へ修正した。
+
+次はWordPressプラグインが0.47.0か確認し、必要ならZIP更新後、WooCommerceの「メーカー在庫・入荷予定」でMIJと色を選び「このサイズを確認・編集」を開く。JPC-001と正式カラーが候補選択されることを画面で確認する。プラグイン導入済みかは未確認。表示確認だけでは保存しない。在庫管理とSales ManagerのコードはDraft PRのままで公開反映していない。main、本番EC、数量、売上、注文、商品公開と購入受付の制約を維持する。
+
+
+## 仕入れ対応の優先参照を追加 2026年10月8日
+
+共通対応を変更した後、仕入れメールの旧保存対応と初期値が古い固定IDを返す経路を確認し、修正した。正式コードと記号別表記の双方から共通対応を優先し、旧保存値が別IDを指す場合、旧初期値が変更済み対応と異なる場合、重複や不正な共通メタデータは確認待ちとする。共通管理している品番は仕入れメール画面から別対応を書き込まず、Color設定の一括編集へ案内する。未対応の新しい管理Colorは既存の色追加操作で作成してから、一括確認でメーカー対応を登録する。別品番の従来の例外対応は保持する。
+
+検証済み在庫管理commit 71ce0df43349cc2b80dd4c84db9733e10812d2ae、Actions 37738707361成功。在庫管理のNode9項目と一括編集ブラウザーが成功。実際のindex内の仕入れ解決関数でも共通固定IDと競合停止を検証。以前の全体118項目に仕入れ4項目を追加し計122項目となる。既存のWordPress0.47.0と読取API0.38.0の配布物はこの在庫管理だけの修正では変わらない。実機と公開反映は未実施。
+
+
+## 検証と配布物 2026年10月8日
+
+作業コードのCIは3件成功。Tシャツ在庫管理のcd4a017675773ca6f3d170d3303964636ef7f0f5は実ブラウザーで一括プレビュー、限定メタデータ保存、在庫数量保持、同時変更拒否と入力保持を検証。Actions run 37737659235。Sales Managerの05b9d879dbfab0a09ce29df072a8f5a7a5807fe3は共有参照と現名称・数量保持、モジュール構文を検証。Actions run 37737661768。Websiteの886e9e6386ae0241b99da420302ff17e0122d889は既存PHPとブラウザー回帰、共通参照、コピペの確認反映、入力保持と未保存を検証。Actions run 37737666851。ローカルNodeは118項目成功。
+
+最新配布プラグイン0.47.0は65ファイル、228514 bytes、SHA256 c4eed3f6b7efd1bbabf86bdc32c9005c586b1220d50f66280b1ec6b222b37f78。全65ファイルを検証済みGitHub treeのblobと照合。更新用読取API0.38.0のtar.gzは9ファイル、12717 bytes、SHA256 933dc231f3da6ec53c110054c07073516fc20678c24216980bc41488591d773c。Cloud Run更新の手順はWebsiteのintegration/catalog/RELEASE_0.38.0.md。
+
+WordPress0.47.0の実導入とCloud Run0.38.0のデプロイは未実施。稼働中APIは0.37.1のまま。main、本番、在庫数量、売上、注文、商品公開と購入受付は変更していない。各PRはDraftを維持：Tシャツ在庫管理 #26、Sales Manager #115、Website #3。自動取得、画像読み込み、コピペの複数サイズ一括保存、実機操作は残項目。
+
+
+## 2026年10月8日 共通メーカー対応を各アプリへ接続する工程
+
+利用者が4工程を承認：作成済み共通参照の各アプリ反映、在庫管理の一括確認・編集、EC商品登録の対応補完、メーカー在庫取得と欠品時納期の接続。この順で作業ブランチの実装を進める。各mainと公開環境は変更していない。
+
+在庫管理のColor設定に一括確認・編集を追加。現在の管理名と固定IDを並べ、確認済みメーカー資料の品番と正式カラーを選ぶ。選択した行のプレビュー後、1回のFirestoreトランザクションでmanufacturer_color_linksとpurchase_item_mappingsだけを保存する。最新マスター、対応と仕入れ索引が表示時と変わっていれば停止する。数量だけの変化はこの確認を妨げない。既存の管理名、販売名、標準Body、inventory_v2、SKU、注文を更新しない。同じBodyの品番混在と逆引きの競合は停止。対応版、変更前後、操作ID、JST確認日を履歴に保持し、同じ内容の保存は変更なし。応答不明では入力を保持して読み直す。実Firestoreでの一括編集は未実施。
+
+Sales Managerは現在在庫一覧に正式カラー名、色コード、品番を併記し、検索対象に加える。現在の短い名称と数量を保持する。過去売上、Session、POSの当時の名称は変更しない。未使用Colorに数量やVariantを生成しない。
+
+ECプラグイン0.47.0のコードを作成。API応答から限定したmanufacturerColorとmanufacturerColorsだけを投影し、履歴をブラウザーへ送らない。メーカー共通画面は内部BodyとColorの完全一致から品番と正式色、確認済みサイズを候補選択する。選択だけでは保存しない。共有元との不一致はメーカー品番、観測、受注方針の保存を停止して再確認する。商品編集に同じ対応とメーカー観測を表示し、品番と登録済みサイズ表が一意ならサイズ表候補を選ぶ。文章、写真、価格、属性、寸法は確認操作なしで上書きしない。
+
+メーカー在庫取得はまずコピペによる確認入力を実装。品番と全サイズ見出し、正式カラーコード、在庫行を厳格に解析し、列不足、重複、不明な数値は停止。数量0と製造対象外を分ける。元の画面を今確認したというチェックと解析結果確認後、選択中の色・サイズのメーカー在庫状態だけを入力する。メーカー数量や貼り付け原文を永続保存しない。入荷予定は自動解釈しない。手動確認と有効期限を共有保存し、商品ごとの欠品時納期は既存CMSで別途確認保存する。メーカー入荷日を発送日とみなさず、購入受付は未開始。
+
+自動取得、スクリーンショット解析、コピペの複数サイズ一括保存は未実装。認証済みメーカー在庫画面の接続方式を確認し、取得元、取得日時、有効期限、品番と正式カラーとサイズの契約を定めてから追加する。公開ページの写真や以前のコピーを最新在庫と扱わない。
+
+ローカルNodeテスト118項目成功。PHP境界とブラウザー操作はGitHub CIで確認する。実機、実WordPress0.47.0の導入は未確認。13色の実メタデータ登録は完了済み、Japan Blackはcolor_15gcow。新しい完成品セルはないため在庫0と扱わない。最新導入済みAPIは0.37.1、最新の旧配布ZIPは0.46.0。0.47.0のZIPと読取API更新物を別々に用意する。プラグイン更新だけではAPIの共通対応は有効にならない。
+
+次の確認：CI成功後の配布ZIPと読取API更新、各アプリ作業ブランチの公開反映方針、iPhoneでの一括編集と候補補完、実データで変更なし保存とメーカー照合。自動取得の接続確認はその後。商品ページ、カート、購入ページ、注文処理、国別販売価格と決済はCMS確認後の工程として維持する。
+
+
+## 2026年10月8日 13色の実登録完了と共通参照の実装
+
+利用者からCloud Shellの適用結果を受領：status=applied、confirmedColors=13、createdJapanBlack=true、metadataRevision=1、inventoryQuantityChanged=false。これはメタデータ登録の成功であり、各アプリの新しい表示コードの公開成功ではない。Japan Blackの新規固定IDはcolor_15gcow、MIJのbody_2um63vに対応し、メーカーJPC-001の02ブラックを参照する。完成品セルと商品バリエーションは自動作成しない。
+
+同じ参照モジュールをTシャツ在庫管理、Sales Manager、EC読取APIへ追加する変更を作成。既に読み込んだmasterのmanufacturer_color_linksのみを参照し、名前やSKUから推測しない。固定ID、schemaVersion、revision、レコード版、確認日と項目を検証し、欠落と不一致は未確認とする。出力は正式カラーの公開参照項目に限定し、履歴や任意の私的項目は含めない。
+
+在庫管理のColor設定は現在の管理名と販売名を保持し、品番・正式名・コードを読み取り専用で併記。Sales Managerの現在在庫行、Master options、新規Variant draftは元の名称・ID・数量を保持し、manufacturerColorまたはmanufacturerColorsを補助データとして付加する。POSと履歴の画面表示変更は含めない。EC APIは各行のmanufacturerColorと全体のmanufacturerColorsを返し、在庫セルのないJapan BlackやLight Purpleの対応も全体の参照に含められる。新しい在庫行は生成しない。v2の旧SKU照合と参考価格は維持。Firestore GETマスクに共通メタデータのschemaVersion・revision・itemsだけを追加し、履歴は取得対象に含めない。
+
+ローカル検証はAPIと既存在庫、bulk、REST、runtime、共通参照87項目と、Tシャツ表示・Sales Manager参照5項目が成功。各コピーは同一ソース。実ブラウザーとiPhoneでの表示確認は未実施。各アプリのmainは変更しない。TシャツとSales Managerは専用作業ブランチとDraft PRへ、Websiteは既存Draft PR #3へ保存する。staging APIはまだ0.37.1、WordPressプラグインは0.46.0のまま。APIの新機能は更新後に有効となる。WordPressのメーカー共通画面との自動対応連携は次工程。
+
+
 Last reconciled: 2026-09-30
 Repository: `ICELOLLYjp/Sales-Manager`
 Reference `main` at reconciliation: `27bdacbcaa0d307c9cbbef4da0f825220e3ec5ee`
@@ -707,3 +791,10 @@ Price ownership depends on sales channel.
 8. Customer facing copy, images and translations belong to the website, not the inventory apps.
 9. Before changing a cross app contract, read the current handoff files for every affected app.
 10. The website is a sales channel and presentation layer. The inventory apps remain inventory authorities. Sales Manager remains the event sales and business operations layer.
+
+
+## 共通カラー参照の検証記録 2026年10月8日
+
+実登録の報告：13色、Japan Black新規追加、共通メタデータ版1、数量変更なし。Tシャツ在庫管理はDraft PR #26、機能ソース1e6736956f45fcf249504cced916b9bb063d741a、CI 37735164575が成功。Sales ManagerはDraft PR #115、機能ソースf3a009bb53b27d023f354084db024b7983337699、CI 37735166632が成功。WebsiteはDraft PR #3、機能ソース2855520ac900540485b3d05ae58766e346f2db77、CI 37735164243の全工程が成功。
+
+同一参照モジュールのSHA256はb171aeaddb6375840b6612878a5ff50a785572766b54b71fbc08e66d5001b015。既存APIの認証・数量0と未知・SKU照合・参考価格・CMSブラウザー回帰も成功。TシャツとSales Managerの実ブラウザー表示は未確認。各mainと公開アプリは変更していない。WordPress ZIPは0.46.0、staging読取APIは0.37.1で今回の新しい参照コードはまだ未デプロイ。次は各アプリの公開方針に沿った反映と実機確認、WordPressメーカー画面への共通対応参照を接続する。既存WooCommerce属性を無断で改名しない。

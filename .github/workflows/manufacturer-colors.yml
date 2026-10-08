@@ -1,0 +1,23 @@
+name: Shared manufacturer color checks
+on:
+  pull_request:
+  push:
+    branches:
+      - feat/shared-manufacturer-colors
+permissions:
+  contents: read
+jobs:
+  colors:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          package-manager-cache: false
+      - run: node --test tests/*.test.cjs
+      - run: node --input-type=module --check < js/inventoryAdapters/tshirtAdapter.js
+
+      - run: node --input-type=module --check < js/app.js

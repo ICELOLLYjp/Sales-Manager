@@ -1,3 +1,4 @@
+import "../manufacturerColors.js?v=20261008-1";
 import { getFirebaseState } from "../firebase.js";
 
 const COLLECTION = "tshirtStock";
@@ -89,6 +90,7 @@ function buildInventoryRows(master) {
             sizeOrder: Number(sizes?.[sizeId]?.order || 999),
             quantity,
             stockTargetId: createStockTargetId(bodyId, designId, colorId, sizeId),
+            manufacturerColor: globalThis.IcelollyManufacturerColors.resolve(master, bodyId, colorId),
             inventorySource: "tshirt"
           });
         });
@@ -107,6 +109,7 @@ function buildInventoryRows(master) {
 }
 
 function buildMasterOptions(master) {
+  const manufacturerColorRows = globalThis.IcelollyManufacturerColors.list(master);
   const masters = master?.masters || {};
 
   const bodies = Object.values(masters?.bodies || {})
@@ -128,7 +131,8 @@ function buildMasterOptions(master) {
     .map(item => ({
       id: item.id,
       name: item.managementName || item.legacyKey || item.pinkoiName || item.id,
-      bodyId: item.bodyId || ""
+      bodyId: item.bodyId || "",
+      manufacturerColors: manufacturerColorRows.filter(row => row.colorId === item.id)
     }))
     .sort((a, b) => a.name.localeCompare(b.name, "ja"));
 
@@ -175,6 +179,7 @@ function buildVariantDraftFromMaster(master, { bodyId, designId, colorId, sizeId
     sizeOrder: Number(sizes?.[sizeId]?.order || 999),
     quantity,
     stockTargetId: createStockTargetId(bodyId, designId, colorId, sizeId),
+    manufacturerColor: globalThis.IcelollyManufacturerColors.resolve(master, bodyId, colorId),
     inventorySource: "tshirt",
     inventoryStatus: "tracked",
     saleStatus: "active",
@@ -197,6 +202,7 @@ export const tshirtAdapter = {
         totalStock,
         activeSkuCount: rows.length
       },
+      manufacturerColors: globalThis.IcelollyManufacturerColors.list(master),
       masterOptions:
         buildMasterOptions(master),
       rows
