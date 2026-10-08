@@ -1,5 +1,16 @@
 # ICELOLLY Sales Manager — PROJECT HANDOFF
 
+## 0.47.1 在庫セルがないカラーの候補表示を修正 2026年10月8日
+
+利用者の実画面でメーカー在庫ページのMIJはJapan grayのみ、OrganicはNatural、Black、Beige Grey、Pink、Greenの5色だった。色候補をcanonical在庫セルのターゲットからだけ作っていたことが原因。WordPressの修正版0.47.1では、読取API0.38.0のmanufacturerColorsにある共有対応を色候補へ加える。登録済み13色のうち在庫セルがないJapan white、Japan Black、Light Purpleも候補に含める。まだ内部対応がないメーカー色を勝手に割り当てない。
+
+メーカー確認用のサイズ候補は、既存canonicalカタログで取得できた固定sizeIdとサイズ名称に限る。公式資料の製造対象サイズで絞り、メーカー参考ターゲットとしてのみ使う。新しい在庫レコード、数量0、SKU、Woo商品を生成しない。未登録ターゲットはstockRegistered=falseで「社内在庫未登録。在庫0ではありません」と表示する。サイズIDを一つも確認できなくても色は選択候補に残し、メーカー確認の保存は停止する。管理名がAPIにない色は確認済み正式カラー名を表示し、管理名を推測しない。
+
+実装commit 81bfd3b5f844b7ef52e6510bcccbd106bd9278a8、GitHub Actions 37768320209成功。PHPで既存在庫と書込回数保持、未登録色への既知サイズ候補、固定サイズ証拠なしでの色表示を検証。ブラウザーで在庫未登録表示、色のみ選択時の保存候補停止、選択でPOSTが発生しないことを確認。全既存PHPとブラウザー回帰成功。ローカルNode109項目成功。
+
+配布ZIP icelolly-commerce-bridge-0.47.1.zip：65ファイル、229431 bytes、SHA256 e54ed4ab4fe142ecadf94767ffc2a03949d3ca31f2efd4eade7847d5ae50f8a3。全ファイルを検証済みGitHub blobと照合。WordPressのみZIP更新が必要。稼働中のstaging API0.38.0の再更新は不要。実機で修正版を入れた後のMIJ3色、Organic6色の表示確認は未完了。各main、本番EC、会社在庫数量、売上、注文、商品公開、購入受付は変更しない。各アプリのコード公開反映は依然Draft PRの別工程。
+
+
 ## staging読取API 0.38.0 デプロイ完了 2026年10月8日
 
 利用者からJST 20:05のCloud Shell実行結果を受領。icelolly-stock-preview-stagingへstock-preview:0.38.0を指定して更新成功。revision icelolly-stock-preview-staging-00005-g7wが100%のトラフィックを処理。URLはhttps://icelolly-stock-preview-staging-485805702075.asia-northeast1.run.app。これはデプロイログの確認であり、実API応答の共通対応、WordPress表示と保存の確認はまだ行っていない。実際のイメージdigestはこのログに含まれないため、digestで固定したと記録しない。
