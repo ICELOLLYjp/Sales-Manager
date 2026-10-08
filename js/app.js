@@ -1,7 +1,7 @@
 import { initFirebase } from "./firebase.js";
 import { initAuth, loginWithGoogle, logout } from "./auth.js";
 import { renderDashboard } from "./views/dashboardView.js";
-import { tshirtAdapter } from "./inventoryAdapters/tshirtAdapter.js?v=20260915-empty-size-cells-1";
+import { tshirtAdapter } from "./inventoryAdapters/tshirtAdapter.js?v=20261008-manufacturer-1";
 import { accessoryAdapter } from "./inventoryAdapters/accessoryAdapter.js";
 import { missingAccessoryOpeningRows } from "./services/accessoryOpeningRegistration.mjs";
 import { eventSkuBaseQuantities } from "./services/eventPosStock.mjs";
@@ -1436,6 +1436,7 @@ async function renderInventory(sequence) {
                     group.design,
                     group.body,
                     group.color,
+                    ...group.items.flatMap(item => item.manufacturerColor ? [item.manufacturerColor.productCode, item.manufacturerColor.colorCode, item.manufacturerColor.officialName] : []),
                     ...group.items.map(
                       item =>
                         [
@@ -1508,6 +1509,9 @@ async function renderInventory(sequence) {
                             .join(" / ")
                         )}
                       </div>
+                      <small class="muted" style="display:block;font-size:10px;overflow-wrap:anywhere">
+                        ${escapeHtml([...new Set(group.items.filter(item => item.manufacturerColor).map(item => item.manufacturerColor.productCode + " / " + item.manufacturerColor.colorCode + " " + item.manufacturerColor.officialName))].join("、") || "メーカー対応未確認")}
+                      </small>
                     </div>
 
                     ${inventoryTshirtSizes.map(

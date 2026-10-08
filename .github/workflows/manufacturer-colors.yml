@@ -17,5 +17,7 @@ jobs:
         with:
           node-version: '22'
           package-manager-cache: false
-      - run: node --test tests/manufacturerColors.test.cjs
+      - run: node --test tests/*.test.cjs
       - run: node --input-type=module --check < js/inventoryAdapters/tshirtAdapter.js
+
+      - run: node --input-type=module --check < js/app.js
