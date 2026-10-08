@@ -1,5 +1,16 @@
 # ICELOLLY Sales Manager — PROJECT HANDOFF
 
+## 2026年10月8日 13色の実登録完了と共通参照の実装
+
+利用者からCloud Shellの適用結果を受領：status=applied、confirmedColors=13、createdJapanBlack=true、metadataRevision=1、inventoryQuantityChanged=false。これはメタデータ登録の成功であり、各アプリの新しい表示コードの公開成功ではない。Japan Blackの新規固定IDはcolor_15gcow、MIJのbody_2um63vに対応し、メーカーJPC-001の02ブラックを参照する。完成品セルと商品バリエーションは自動作成しない。
+
+同じ参照モジュールをTシャツ在庫管理、Sales Manager、EC読取APIへ追加する変更を作成。既に読み込んだmasterのmanufacturer_color_linksのみを参照し、名前やSKUから推測しない。固定ID、schemaVersion、revision、レコード版、確認日と項目を検証し、欠落と不一致は未確認とする。出力は正式カラーの公開参照項目に限定し、履歴や任意の私的項目は含めない。
+
+在庫管理のColor設定は現在の管理名と販売名を保持し、品番・正式名・コードを読み取り専用で併記。Sales Managerの現在在庫行、Master options、新規Variant draftは元の名称・ID・数量を保持し、manufacturerColorまたはmanufacturerColorsを補助データとして付加する。POSと履歴の画面表示変更は含めない。EC APIは各行のmanufacturerColorと全体のmanufacturerColorsを返し、在庫セルのないJapan BlackやLight Purpleの対応も全体の参照に含められる。新しい在庫行は生成しない。v2の旧SKU照合と参考価格は維持。Firestore GETマスクに共通メタデータのschemaVersion・revision・itemsだけを追加し、履歴は取得対象に含めない。
+
+ローカル検証はAPIと既存在庫、bulk、REST、runtime、共通参照87項目と、Tシャツ表示・Sales Manager参照5項目が成功。各コピーは同一ソース。実ブラウザーとiPhoneでの表示確認は未実施。各アプリのmainは変更しない。TシャツとSales Managerは専用作業ブランチとDraft PRへ、Websiteは既存Draft PR #3へ保存する。staging APIはまだ0.37.1、WordPressプラグインは0.46.0のまま。APIの新機能は更新後に有効となる。WordPressのメーカー共通画面との自動対応連携は次工程。
+
+
 Last reconciled: 2026-09-30
 Repository: `ICELOLLYjp/Sales-Manager`
 Reference `main` at reconciliation: `27bdacbcaa0d307c9cbbef4da0f825220e3ec5ee`
