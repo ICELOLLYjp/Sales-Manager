@@ -718,3 +718,10 @@ Price ownership depends on sales channel.
 8. Customer facing copy, images and translations belong to the website, not the inventory apps.
 9. Before changing a cross app contract, read the current handoff files for every affected app.
 10. The website is a sales channel and presentation layer. The inventory apps remain inventory authorities. Sales Manager remains the event sales and business operations layer.
+
+
+## 共通カラー参照の検証記録 2026年10月8日
+
+実登録の報告：13色、Japan Black新規追加、共通メタデータ版1、数量変更なし。Tシャツ在庫管理はDraft PR #26、機能ソース1e6736956f45fcf249504cced916b9bb063d741a、CI 37735164575が成功。Sales ManagerはDraft PR #115、機能ソースf3a009bb53b27d023f354084db024b7983337699、CI 37735166632が成功。WebsiteはDraft PR #3、機能ソース2855520ac900540485b3d05ae58766e346f2db77、CI 37735164243の全工程が成功。
+
+同一参照モジュールのSHA256はb171aeaddb6375840b6612878a5ff50a785572766b54b71fbc08e66d5001b015。既存APIの認証・数量0と未知・SKU照合・参考価格・CMSブラウザー回帰も成功。TシャツとSales Managerの実ブラウザー表示は未確認。各mainと公開アプリは変更していない。WordPress ZIPは0.46.0、staging読取APIは0.37.1で今回の新しい参照コードはまだ未デプロイ。次は各アプリの公開方針に沿った反映と実機確認、WordPressメーカー画面への共通対応参照を接続する。既存WooCommerce属性を無断で改名しない。
