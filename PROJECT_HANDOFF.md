@@ -730,4 +730,6 @@ Reuse existing Session, opening inventory, Restock and exact SKU sale records wh
 
 Never interpret an event opening stock count as a canonical physical stock decrement. Refunds, voids, return counts and event close must be reconciled without duplicate changes. Add an audit trail, idempotency and retry protection. First inspect the current Sales Manager event flows and inventory adapters; do not create a parallel second event inventory system.
 
-Still undecided: whether event allocation begins at packing confirmation or event opening, and whether unsold stock is released on event closure or only when physical stock returns and is verified. These are pending user decisions. No inventory, event, checkout or production changes are applied by this document.
+Approved 2026-10-11: Activate the event reservation when the operator confirms and saves the final event packing quantity, not on event opening and not while a packing count is a draft. Reuse existing event allocation/counting input where practical so staff do not enter the same numbers twice. Hold changes after confirmation should apply quantity differences once and preserve an audit trail.
+
+Still undecided: whether unsold reserved stock is released on event closure or only when physical stock returns and is verified. Unidentified SKU handling also needs design review. No inventory, event, checkout or production changes are applied by this document.
