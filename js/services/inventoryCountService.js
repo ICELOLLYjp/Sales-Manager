@@ -412,7 +412,7 @@ export async function saveEventOpeningInventory({
   const {
     doc,
     getDocFromServer,
-    updateDoc,
+    runTransaction,
     serverTimestamp
   } =
     await firestoreModule();
@@ -485,8 +485,7 @@ export async function saveEventOpeningInventory({
     );
   }
 
-  await updateDoc(
-    ref,
+  await commitCountSnapshot(runTransaction, db, ref, snapshot,
     {
       "inventoryCount.opening": {
         capturedAt:
@@ -573,7 +572,7 @@ export async function saveEventClosingInventory({
   const {
     doc,
     getDocFromServer,
-    updateDoc,
+    runTransaction,
     serverTimestamp
   } =
     await firestoreModule();
@@ -680,8 +679,7 @@ export async function saveEventClosingInventory({
         )
     );
 
-  await updateDoc(
-    ref,
+  await commitCountSnapshot(runTransaction, db, ref, snapshot,
     {
       "inventoryCount.closing": {
         savedAt:
@@ -738,7 +736,7 @@ export async function resetEventOpeningInventory({
   const {
     doc,
     getDocFromServer,
-    updateDoc,
+    runTransaction,
     serverTimestamp
   } =
     await firestoreModule();
@@ -796,8 +794,7 @@ export async function resetEventOpeningInventory({
     throw error;
   }
 
-  await updateDoc(
-    ref,
+  await commitCountSnapshot(runTransaction, db, ref, snapshot,
     {
       "inventoryCount.opening":
         null,
@@ -831,4 +828,18 @@ export async function resetEventOpeningInventory({
     action:
       "reset"
   };
+}
+
+// Reject a count save if sales, cancellation, finalization or another count
+// changed the session after validation. No canonical stock is written here.
+async function commitCountSnapshot(runTransaction, db, ref, observed, fields) {
+  return runTransaction(db, async tx => {
+    const current = await tx.get(ref);
+    if (!current.exists() || JSON.stringify(current.data()) !== JSON.stringify(observed.data())) {
+      const error = new Error('売上または棚卸が変更されました。再読込して確認してください。');
+      error.code = 'inventory-conflict';
+      throw error;
+    }
+    tx.update(ref, fields);
+  });
 }

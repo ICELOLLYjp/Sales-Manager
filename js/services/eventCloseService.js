@@ -39,7 +39,7 @@ const REASON_DEFINITIONS = [
 
 async function firestoreModule() {
   return await import(
-    "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js"
+    "../inventory-firestore.js"
   );
 }
 

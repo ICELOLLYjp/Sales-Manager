@@ -1,10 +1,11 @@
+import { saveInventoryEdit } from '../inventory-concurrency.mjs';
 import { getFirebaseState } from "../firebase.js";
 
 const COLLECTION = "tshirtStock";
 const MASTER_DOCUMENT = "master";
 
 async function firestoreModule() {
-  return await import("https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js");
+  return await import("../inventory-firestore.js");
 }
 
 function text(value) {
@@ -48,10 +49,10 @@ function normalizeRows(rows) {
   (Array.isArray(rows) ? rows : []).forEach(row => {
     const variantId = text(row?.variantId);
     const target = parseVariantId(variantId);
-    if (!variantId || !target) return;
+    if (!variantId || !target || !Number.isSafeInteger(row.quantity) || row.quantity < 0) throw new Error('実数は0以上の整数で入力してください。');
     map.set(variantId, {
       variantId,
-      quantity: nonNegativeInt(row?.quantity),
+      quantity: row.quantity,
       ...target
     });
   });
@@ -60,6 +61,8 @@ function normalizeRows(rows) {
 
 export async function saveTshirtPhysicalStock({
   rows,
+  baseline,
+  operationId,
   sessionId = "",
   savedByEmail = "",
   source = "inventory_flow_physical_count"
@@ -74,74 +77,64 @@ export async function saveTshirtPhysicalStock({
     throw new Error("Firebase is not connected.");
   }
 
-  const { doc, runTransaction, serverTimestamp } = await firestoreModule();
-  const ref = doc(db, COLLECTION, MASTER_DOCUMENT);
-  let result = null;
+  if (!baseline || !operationId) throw new Error('入力開始から最新在庫を読み込んでください。');
+  const api = await firestoreModule();
+  const ref = api.doc(db, COLLECTION, MASTER_DOCUMENT);
+  const master = baseline;
+  const inventory = cloneInventory(master?.inventory_v2);
+  const inventoryColorMeta = cloneInventory(master?.inventory_color_meta);
+  const savedAtIso = baseline.physicalEditStartedAtIso;
+  let changedCount = 0;
+  let totalBefore = 0;
+  let totalAfter = 0;
 
-  await runTransaction(db, async transaction => {
-    const snapshot = await transaction.get(ref);
-    if (!snapshot.exists()) {
-      throw new Error("tshirtStock/master が見つかりません。");
-    }
+  normalized.forEach(row => {
+    inventory[row.bodyId] ||= {};
+    inventory[row.bodyId][row.designId] ||= {};
+    inventory[row.bodyId][row.designId][row.colorId] ||= {};
 
-    const master = snapshot.data();
-    const inventory = cloneInventory(master?.inventory_v2);
-    const inventoryColorMeta = cloneInventory(master?.inventory_color_meta);
-    const savedAtIso = new Date().toISOString();
-    let changedCount = 0;
-    let totalBefore = 0;
-    let totalAfter = 0;
+    const sizeTree = inventory[row.bodyId][row.designId][row.colorId];
+    const previousCell = sizeTree[row.sizeId] && typeof sizeTree[row.sizeId] === "object"
+      ? sizeTree[row.sizeId]
+      : {};
+    const before = nonNegativeInt(previousCell?.qty);
+    const after = row.quantity;
 
-    normalized.forEach(row => {
-      inventory[row.bodyId] ||= {};
-      inventory[row.bodyId][row.designId] ||= {};
-      inventory[row.bodyId][row.designId][row.colorId] ||= {};
+    totalBefore += before;
+    totalAfter += after;
+    if (before !== after) changedCount += 1;
 
-      const sizeTree = inventory[row.bodyId][row.designId][row.colorId];
-      const previousCell = sizeTree[row.sizeId] && typeof sizeTree[row.sizeId] === "object"
-        ? sizeTree[row.sizeId]
-        : {};
-      const before = nonNegativeInt(previousCell?.qty);
-      const after = row.quantity;
+    sizeTree[row.sizeId] = {
+      ...previousCell,
+      qty: after,
+      updatedAt: savedAtIso,
+      updateSource: "sales_manager"
+    };
 
-      totalBefore += before;
-      totalAfter += after;
-      if (before !== after) changedCount += 1;
-
-      sizeTree[row.sizeId] = {
-        ...previousCell,
-        qty: after,
-        updatedAt: savedAtIso,
-        updateSource: "sales_manager"
-      };
-
-      inventoryColorMeta[row.bodyId] ||= {};
-      inventoryColorMeta[row.bodyId][row.designId] ||= {};
-      inventoryColorMeta[row.bodyId][row.designId][row.colorId] = {
-        updatedAt: savedAtIso,
-        source: "sales_manager"
-      };
-    });
-
-    transaction.set(ref, {
-      inventory_v2: inventory,
-      inventory_color_meta: inventoryColorMeta,
-      physicalCountUpdatedAt: serverTimestamp(),
-      physicalCountUpdatedAtIso: savedAtIso,
-      physicalCountUpdatedByEmail: text(savedByEmail),
-      physicalCountSessionId: text(sessionId),
-      physicalCountSource: text(source),
-      updatedAt: serverTimestamp()
-    }, { merge: true });
-
-    result = {
-      savedCount: normalized.length,
-      changedCount,
-      totalBefore,
-      totalAfter,
-      savedAtIso
+    inventoryColorMeta[row.bodyId] ||= {};
+    inventoryColorMeta[row.bodyId][row.designId] ||= {};
+    inventoryColorMeta[row.bodyId][row.designId][row.colorId] = {
+      updatedAt: savedAtIso,
+      source: "sales_manager"
     };
   });
 
-  return result;
+  await saveInventoryEdit(api, db, ref, baseline, {
+    inventory_v2: inventory,
+    inventory_color_meta: inventoryColorMeta,
+    physicalCountUpdatedAtIso: savedAtIso,
+    physicalCountUpdatedByEmail: text(savedByEmail),
+    physicalCountSessionId: text(sessionId),
+    physicalCountSource: text(source)
+  }, operationId, { strict: true, serverFields: ['physicalCountUpdatedAt'] });
+  return { savedCount: normalized.length, changedCount, totalBefore, totalAfter, savedAtIso };
+}
+
+export async function loadPhysicalStockBaseline() {
+  const { db, enabled } = getFirebaseState();
+  if (!enabled || !db) throw new Error('Firebase is not connected.');
+  const { doc, getDocFromServer } = await firestoreModule();
+  const snap = await getDocFromServer(doc(db, COLLECTION, MASTER_DOCUMENT));
+  if (!snap.exists()) throw new Error('在庫マスターがありません。');
+  return snap.data();
 }

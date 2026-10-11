@@ -1,7 +1,7 @@
 import { getFirebaseState } from "./firebase.js";
 import { tshirtAdapter } from "./inventoryAdapters/tshirtAdapter.js?v=20260915-empty-size-cells-1";
 import { loadTshirtProductVariants } from "./services/catalogService.js";
-import { saveTshirtPhysicalStock } from "./services/tshirtPhysicalStockService.js?v=20260928-physical-stock-1";
+import { saveTshirtPhysicalStock, loadPhysicalStockBaseline } from "./services/tshirtPhysicalStockService.js?v=20260928-physical-stock-1";
 
 const PANEL_ID = "inventoryFlowOverlay";
 const ACTION_ID = "ifSaveTshirtPhysicalStock";
@@ -9,6 +9,7 @@ const SIZES = ["S", "M", "L", "XL", "XXL"];
 let catalogCache = null;
 let catalogLoadedAt = 0;
 let running = false;
+const editSessions = new WeakMap();
 
 function text(value) {
   return String(value ?? "").trim();
@@ -141,7 +142,7 @@ function fillZeroCell(cell, variant) {
     <div class="if-sub">現在実在庫</div>
     <div class="if-tshirt-fallback-stepper">
       <button type="button" class="if-tshirt-fallback-step if-tshirt-zero-step" data-step="-1" aria-label="${esc(`${label} を1減らす`)}">−</button>
-      <input class="if-count if-physical if-tshirt-fallback-input if-tshirt-zero-input" type="number" inputmode="numeric" min="0" step="1" data-variant-id="${esc(variantId)}" value="0" aria-label="${esc(`${label} 実数`)}">
+      <input class="if-count if-physical if-tshirt-fallback-input if-tshirt-zero-input" type="number" inputmode="numeric" min="0" step="1" data-variant-id="${esc(variantId)}" value="" placeholder="?" aria-label="${esc(`${label} 実数`)}">
       <button type="button" class="if-tshirt-fallback-step if-tshirt-zero-step" data-step="1" aria-label="${esc(`${label} を1増やす`)}">＋</button>
     </div>`;
 }
@@ -212,6 +213,8 @@ function collectPhysicalRows(card) {
 
 async function savePhysicalStock(card, button, status) {
   if (running) return;
+  const edit = editSessions.get(card);
+  if(!edit) { window.alert('入力開始から最新在庫を確認してください。'); return; }
   const rows = collectPhysicalRows(card);
   if (!rows.length) {
     window.alert("表示中のTシャツ実数を1点以上入力してください。");
@@ -235,6 +238,8 @@ async function savePhysicalStock(card, button, status) {
   try {
     const result = await saveTshirtPhysicalStock({
       rows,
+      baseline: edit.baseline,
+      operationId: edit.operationId,
       sessionId: selectedSessionId(),
       savedByEmail: currentEmail(),
       source: "inventory_flow_session_physical_count"
@@ -246,6 +251,7 @@ async function savePhysicalStock(card, button, status) {
       }
     });
 
+    editSessions.delete(card);
     status.textContent = `正式在庫へ反映済み：${result.savedCount} SKU（変更 ${result.changedCount} SKU）`;
     window.dispatchEvent(new CustomEvent("inventory:tshirt-stock-updated", {
       detail: { ...result, sessionId: selectedSessionId() }
@@ -254,7 +260,7 @@ async function savePhysicalStock(card, button, status) {
     window.alert(error?.message || String(error));
   } finally {
     running = false;
-    button.disabled = false;
+    button.disabled = !editSessions.has(card);
     button.textContent = original;
   }
 }
@@ -265,13 +271,29 @@ function ensureCommitAction(card) {
   host.className = "if-tshirt-stock-commit";
   host.innerHTML = `
     <div class="if-tshirt-stock-commit-note">この在庫ボードに表示されているカラーだけを対象に、入力した実数を正式な現在庫へ保存します。表示中の0も有効な実数です。</div>
-    <button type="button" id="${ACTION_ID}">Tシャツ実数を保存・現在庫へ反映</button>
+    <button type="button" class="if-begin-physical">入力開始（最新在庫を読込・入力欄をクリア）</button>
+    <button type="button" id="${ACTION_ID}" disabled>Tシャツ実数を保存・現在庫へ反映</button>
     <div class="if-tshirt-stock-commit-status" aria-live="polite"></div>`;
   card.appendChild(host);
 
   const button = host.querySelector(`#${ACTION_ID}`);
   const status = host.querySelector(".if-tshirt-stock-commit-status");
   button.addEventListener("click", () => void savePhysicalStock(card, button, status));
+  host.querySelector('.if-begin-physical').addEventListener('click', async event => {
+    if(running) return;
+    event.target.disabled = true;
+    button.disabled = true;
+    editSessions.delete(card);
+    try {
+      const baseline = await loadPhysicalStockBaseline();
+      baseline.physicalEditStartedAtIso = new Date().toISOString();
+      card.querySelectorAll('.if-physical').forEach(input => { input.value = ''; });
+      editSessions.set(card, { baseline, operationId: crypto.randomUUID() });
+      status.textContent = '最新在庫を確認しました。数えた実数を入力してください。不明は空欄にします。';
+      button.disabled = false;
+    } catch(error) { status.textContent = error.message || String(error); }
+    finally { event.target.disabled = false; }
+  });
 }
 
 function bindZeroStepperDelegation() {

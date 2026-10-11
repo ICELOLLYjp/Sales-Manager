@@ -1,3 +1,9 @@
+# 工程A：在庫更新競合対策 — 2026-10-12 JST
+
+Draft PR用の実装。未マージ・未配備。正本への差分Transaction、revision、再試行receipt、旧クライアントを拒否するRulesを追加。3アプリの同時切替と別途承認が必要です。工程B以降は未着手。変更経路、43件の隔離テスト、未検証事項と導入条件は [工程A報告](docs/EC_STAGE_A_2026-10-12.md) を参照してください。過去の履歴にある自動移行・全体保存の説明より本報告を優先します。
+
+---
+
 # ICELOLLY Sales Manager — PROJECT HANDOFF
 
 Last reconciled: 2026-09-30
