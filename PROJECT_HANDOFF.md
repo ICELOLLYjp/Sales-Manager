@@ -721,3 +721,13 @@ The Google Calendar flight records are the primary planned travel date source fo
 T shirts Stock remains the production and procurement source, Accessories remains the accessory stock authority, and WooCommerce owns ecommerce orders and online customer communication. A future EC operations app will aggregate status and actions by reusing these services; it must not replicate POS, production tasks, customer orders or supplier purchase logic.
 
 This cross app agreement is design only and does not imply any change to existing event POS, Firestore stock, website sale eligibility or application deployment.
+
+# 19. Event stock reservation for EC availability
+
+Agreed design 2026-10-11: Completed products allocated for event sales must be excluded from WooCommerce finished stock availability, without decrementing canonical company stock merely when an event opens or goods are packed. The held quantity is an event linked reservation, not finished stock authority. Sales Manager remains the event Session and event inventory operation authority; T shirts Stock and Accessories retain canonical physical stock.
+
+Reuse existing Session, opening inventory, Restock and exact SKU sale records where applicable. A reservation must be linked to Session and stable SKU and must be safe for multiple concurrent events. An exact SKU sale already changes canonical stock under the existing event POS rules. Reconcile the associated hold in the same logical sale flow so the web saleable quantity does not fall twice. An offline event sale must not cause stock overselling online; keep reservation conservative until the transaction and its SKU effect are synchronized. Unresolved Quick or amount only sales must stay unresolved, not guessed into a SKU.
+
+Never interpret an event opening stock count as a canonical physical stock decrement. Refunds, voids, return counts and event close must be reconciled without duplicate changes. Add an audit trail, idempotency and retry protection. First inspect the current Sales Manager event flows and inventory adapters; do not create a parallel second event inventory system.
+
+Still undecided: whether event allocation begins at packing confirmation or event opening, and whether unsold stock is released on event closure or only when physical stock returns and is verified. These are pending user decisions. No inventory, event, checkout or production changes are applied by this document.
