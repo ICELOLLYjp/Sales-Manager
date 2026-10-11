@@ -707,3 +707,17 @@ Price ownership depends on sales channel.
 8. Customer facing copy, images and translations belong to the website, not the inventory apps.
 9. Before changing a cross app contract, read the current handoff files for every affected app.
 10. The website is a sales channel and presentation layer. The inventory apps remain inventory authorities. Sales Manager remains the event sales and business operations layer.
+
+# 18. EC cooperation and future unified administration
+
+Recorded: 2026-10-11. Shared design reference: `ICELOLLYjp/Website/docs/EC_APP_RESPONSIBILITIES.md`. The authoritative inventory and ecommerce boundaries remain those in this handoff and `Website/DATA_AUTHORITY.md`.
+
+Sales Manager continues to own event POS, event Sessions, event sale and expense records, event inventory flow, and event profit analysis. Do not move online checkout or WooCommerce order management into Sales Manager. Do not import a paid WooCommerce order as a second unrelated `salesTransactions` sale. If consolidated reporting is needed, store an explicit link to the website order and retain its origin.
+
+For exact SKU event transactions, preserve the existing safe inventory mutation, void, stock reconciliation and offline policies. WooCommerce paid orders will need a coordinated idempotent stock reservation and mutation path against the same canonical T shirt and accessory stock. Do not build a duplicate physical inventory ledger or apply the same physical stock mutation twice.
+
+The Google Calendar flight records are the primary planned travel date source for EC shipping date calculations. Sales Manager event dates may help identify international event context or a missing return flight, but do not require duplicate outbound and inbound flight entry here. For an absent return flight, the website scheduling process may provisionally use the day after the final overseas event, flagged as unverified. Sales Manager does not own the shipping schedule or a second nonproduction calendar.
+
+T shirts Stock remains the production and procurement source, Accessories remains the accessory stock authority, and WooCommerce owns ecommerce orders and online customer communication. A future EC operations app will aggregate status and actions by reusing these services; it must not replicate POS, production tasks, customer orders or supplier purchase logic.
+
+This cross app agreement is design only and does not imply any change to existing event POS, Firestore stock, website sale eligibility or application deployment.
