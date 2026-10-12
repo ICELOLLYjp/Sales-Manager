@@ -35,7 +35,9 @@ const canonical=x=>Array.isArray(x)?x.map(canonical):object(x)?Object.fromEntrie
 const hash=x=>createHash('sha256').update(JSON.stringify(canonical(x))).digest('hex');
 function revision(data) {
   const value=Object.hasOwn(data,'inventoryRevision')?data.inventoryRevision:0;
-  if(!integer(value) || value<0 || value>=Number.MAX_SAFE_INTEGER) fail(409,'invalid-stored-revision');
+  // Terminal MAX_SAFE_INTEGER may be read to replay its last receipt. New
+  // operations cannot expect that revision, so overflow writes remain denied.
+  if(!integer(value) || value<0) fail(409,'invalid-stored-revision');
   return value;
 }
 function target(data,op) {

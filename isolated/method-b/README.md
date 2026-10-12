@@ -17,3 +17,13 @@ node tests/emulator/node_modules/firebase-tools/lib/bin/firebase.js emulators:st
 APIはAuth Emulatorのtokenを使う隔離試験サーバーとして127.0.0.1にbindする。実認証token、実UID、実データ、ADCを持ち込まない。Auth Emulator tokenは本番の署名付きtokenの安全性を証明しない。既存アプリにこのRulesを配備するとPOS等が拒否されるため配備禁止。
 
 第3段階時点：実装と構文確認のみ。安全合格は第4段階の結果を参照。旧A1の32試験を変更しない。
+
+第4段階：25件成功。専用Emulator起動後、別端末で次を実行（他テストと同時実行しない）。
+
+```powershell
+$env:FIRESTORE_EMULATOR_HOST='127.0.0.1:8087'
+$env:FIREBASE_AUTH_EMULATOR_HOST='127.0.0.1:9098'
+node isolated/method-b/run-tests.mjs
+```
+
+artifacts/latest.json・latest.tapを生成。詳細/限界は../../docs/METHOD_B_VALIDATION.md。第5段階の互換性評価は未完了。
