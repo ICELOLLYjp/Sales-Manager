@@ -1,5 +1,7 @@
 # 工程A 実Firestore Emulator検証
 
+2026-10-12追加：最小再現の `diagnose-concurrency.mjs`（11条件）と `diagnose-security.mjs`（3プローブ）、[診断報告](../../docs/EC_STAGE_A_DIAGNOSIS_2026-10-12.md)を追加。既存32件は未修正の失敗を維持。診断は同じdemo Emulatorに一時的な対照Rulesをロードするため、他テストと同時実行しない。危険な許可の再現やプロセスexit 0を安全要件の合格と混同しない。
+
 本番設定・実在庫を使用しないテスト。**現状は競合試験3件が失敗する。終了コード1を成功へ変更しない。** `SECURITY GAP` は不適切な許可の再現テストであり、passでも安全要件の合格ではない。
 
 ## 実行

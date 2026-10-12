@@ -1,0 +1,53 @@
+{
+  "purpose": "Design probes, NOT application acceptance",
+  "startedAt": "2026-10-12T10:03:20.158Z",
+  "finishedAt": "2026-10-12T10:03:20.937Z",
+  "projectId": "demo-icelolly-stage-a",
+  "host": "127.0.0.1:8085",
+  "node": "v24.21.0",
+  "sdk": "11.0.2",
+  "sourceSHA256": "61329500065f5f029f501039dde9eeaf35a17631d0f8448a89d0d534b51b7fe4",
+  "observations": [
+    {
+      "name": "P01 top-level diff allows nested inventory erasure",
+      "rules": "rules_version = '2'; service cloud.firestore { match /databases/{database}/documents { match /tshirtStock/master {\n    allow read: if request.auth != null;\n    allow update: if request.auth != null && request.resource.data.inventoryRevision == resource.data.inventoryRevision + 1\n      && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['inventory_v2','inventoryRevision','inventoryWriteProtocol']);\n  } } }",
+      "classification": "danger reproduced, NOT a safety pass",
+      "final": {
+        "masters": {
+          "keep": true
+        },
+        "inventory_v2": {},
+        "inventoryRevision": 1,
+        "inventoryWriteProtocol": 1
+      }
+    },
+    {
+      "name": "P02 three synthetic verified UIDs pass; outsider/unverified/anonymous denied",
+      "rules": "rules_version = '2';\r\n\r\nservice cloud.firestore {\r\n  match /databases/{database}/documents {\r\n    function signedIn() {\r\n      return request.auth != null;\r\n    }\r\n\r\n    function allowedUser() {\r\n      return signedIn() && request.auth.uid in ['fixture-business','fixture-personal','fixture-backup'] && request.auth.token.email_verified == true;\r\n      // Phase 1:\r\n      // 実運用ではここを許可メールまたはusers Collection参照へ変更します。\r\n    }\r\n\r\n    function inventoryStep() {\r\n      let before = resource.data.get('inventoryRevision', 0);\r\n      return before is int && before >= 0\r\n        && request.resource.data.inventoryWriteProtocol == 1\r\n        && request.resource.data.inventoryRevision is int\r\n        && request.resource.data.inventoryRevision == before + 1;\r\n    }\r\n    function receiptMatchesStockWrite() {\r\n      let after = request.resource.data.path == 'tshirtStock/master'\r\n        ? getAfter(/databases/$(database)/documents/tshirtStock/master).data\r\n        : getAfter(/databases/$(database)/documents/accessoryStock/shared).data;\r\n      let before = request.resource.data.path == 'tshirtStock/master'\r\n        ? get(/databases/$(database)/documents/tshirtStock/master).data\r\n        : get(/databases/$(database)/documents/accessoryStock/shared).data;\r\n      return after.inventoryWriteProtocol == 1\r\n        && after.inventoryRevision == before.get('inventoryRevision', 0) + 1\r\n        && after.inventoryRevision == request.resource.data.revision;\r\n    }\r\n\r\n    // Deploy ONLY during the separately approved coordinated cutover.\r\n    // No overlapping wildcard may grant writes to these documents.\r\n    match /tshirtStock/master {\r\n      allow read: if allowedUser();\r\n      allow update: if allowedUser() && inventoryStep();\r\n    }\r\n    match /accessoryStock/shared {\r\n      allow read: if allowedUser();\r\n      allow update: if allowedUser() && inventoryStep();\r\n    }\r\n    match /inventoryWriteReceipts/{operationId} {\r\n      allow read: if allowedUser();\r\n      allow create: if allowedUser()\r\n        && request.resource.data.keys().hasOnly(['path', 'intent', 'revision', 'createdAt'])\r\n        && request.resource.data.path in ['tshirtStock/master', 'accessoryStock/shared']\r\n        && request.resource.data.intent is string\r\n        && request.resource.data.intent.size() == 64\r\n        && request.resource.data.createdAt == request.time\r\n        && receiptMatchesStockWrite();\r\n    }\r\n    match /{collection}/{document} {\r\n      allow read: if allowedUser();\r\n      allow write: if allowedUser()\r\n        && collection != 'inventoryWriteReceipts'\r\n        && !(collection == 'tshirtStock' && document == 'master')\r\n        && !(collection == 'accessoryStock' && document == 'shared');\r\n      match /{subcollection}/{rest=**} {\r\n        allow read, write: if allowedUser();\r\n      }\r\n    }\r\n  }\r\n}\r\n",
+      "classification": "isolated authorization feasibility only; production identities unknown",
+      "allowedSyntheticUids": 3,
+      "deniedSyntheticContexts": 3
+    },
+    {
+      "name": "P03 known operation ID plus forged intent suppresses intended edit",
+      "rules": "rules_version = '2';\r\n\r\nservice cloud.firestore {\r\n  match /databases/{database}/documents {\r\n    function signedIn() {\r\n      return request.auth != null;\r\n    }\r\n\r\n    function allowedUser() {\r\n      return signedIn();\r\n      // Phase 1:\r\n      // 実運用ではここを許可メールまたはusers Collection参照へ変更します。\r\n    }\r\n\r\n    function inventoryStep() {\r\n      let before = resource.data.get('inventoryRevision', 0);\r\n      return before is int && before >= 0\r\n        && request.resource.data.inventoryWriteProtocol == 1\r\n        && request.resource.data.inventoryRevision is int\r\n        && request.resource.data.inventoryRevision == before + 1;\r\n    }\r\n    function receiptMatchesStockWrite() {\r\n      let after = request.resource.data.path == 'tshirtStock/master'\r\n        ? getAfter(/databases/$(database)/documents/tshirtStock/master).data\r\n        : getAfter(/databases/$(database)/documents/accessoryStock/shared).data;\r\n      let before = request.resource.data.path == 'tshirtStock/master'\r\n        ? get(/databases/$(database)/documents/tshirtStock/master).data\r\n        : get(/databases/$(database)/documents/accessoryStock/shared).data;\r\n      return after.inventoryWriteProtocol == 1\r\n        && after.inventoryRevision == before.get('inventoryRevision', 0) + 1\r\n        && after.inventoryRevision == request.resource.data.revision;\r\n    }\r\n\r\n    // Deploy ONLY during the separately approved coordinated cutover.\r\n    // No overlapping wildcard may grant writes to these documents.\r\n    match /tshirtStock/master {\r\n      allow read: if allowedUser();\r\n      allow update: if allowedUser() && inventoryStep();\r\n    }\r\n    match /accessoryStock/shared {\r\n      allow read: if allowedUser();\r\n      allow update: if allowedUser() && inventoryStep();\r\n    }\r\n    match /inventoryWriteReceipts/{operationId} {\r\n      allow read: if allowedUser();\r\n      allow create: if allowedUser()\r\n        && request.resource.data.keys().hasOnly(['path', 'intent', 'revision', 'createdAt'])\r\n        && request.resource.data.path in ['tshirtStock/master', 'accessoryStock/shared']\r\n        && request.resource.data.intent is string\r\n        && request.resource.data.intent.size() == 64\r\n        && request.resource.data.createdAt == request.time\r\n        && receiptMatchesStockWrite();\r\n    }\r\n    match /{collection}/{document} {\r\n      allow read: if allowedUser();\r\n      allow write: if allowedUser()\r\n        && collection != 'inventoryWriteReceipts'\r\n        && !(collection == 'tshirtStock' && document == 'master')\r\n        && !(collection == 'accessoryStock' && document == 'shared');\r\n      match /{subcollection}/{rest=**} {\r\n        allow read, write: if allowedUser();\r\n      }\r\n    }\r\n  }\r\n}\r\n",
+      "classification": "danger reproduced, NOT a safety pass",
+      "precondition": "attacker knows intended operation ID and payload; no UUID guessing claim",
+      "final": {
+        "masters": {
+          "keep": true
+        },
+        "inventory_v2": {
+          "a": {
+            "qty": 5
+          },
+          "b": {
+            "qty": 7
+          }
+        },
+        "inventoryRevision": 1,
+        "inventoryWriteProtocol": 1
+      }
+    }
+  ]
+}
