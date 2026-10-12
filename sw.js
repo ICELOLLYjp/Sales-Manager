@@ -1,5 +1,5 @@
 const CACHE_NAME =
-  "icelolly-sales-shell-20261001-keyboard-1";
+  "icelolly-sales-shell-20261012-session-phase-1";
 
 const CORE_ASSETS = [
   "./",
@@ -24,6 +24,8 @@ const CORE_ASSETS = [
   "./js/eventCheckpointReuseUi.js",
   "./js/eventCloseStageUi.js",
   "./js/sessionStatusUi.js",
+  "./js/sessionPeriodOrderingStableUi.js",
+  "./js/utils/sessionEventPeriod.js",
   "./js/firebase.js",
   "./js/auth.js",
   "./js/views/dashboardView.js",

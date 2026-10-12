@@ -1,4 +1,5 @@
 import { listSalesSessions } from "./services/sessionService.js";
+import { sessionEventPhase, compareSessionEventDates } from "./utils/sessionEventPeriod.js";
 
 function text(value) {
   return String(value ?? "").trim();
@@ -10,30 +11,10 @@ const VISIBLE_SESSION_STATUSES = new Set([
   "closed"
 ]);
 
-function localDateKey() {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, "0");
-  const d = String(now.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
-
-function eventPhase(session) {
-  const status = text(session?.status);
-  if (status === "closed") return "ended";
-
-  const today = localDateKey();
-  const start = text(session?.startDate);
-  const end = text(session?.endDate) || start;
-
-  if (start && today < start) return "upcoming";
-  if (end && today > end) return "ended";
-  return "current";
-}
-
 function phaseLabel(phase) {
   if (phase === "current") return "開催中";
   if (phase === "upcoming") return "開催予定";
+  if (phase === "unscheduled") return "日程要確認";
   return "開催終了";
 }
 
@@ -79,22 +60,7 @@ function sessionRowsById() {
 }
 
 function compareRows(a, b, phase) {
-  const aStart = text(a.session?.startDate);
-  const bStart = text(b.session?.startDate);
-  const aEnd = text(a.session?.endDate) || aStart;
-  const bEnd = text(b.session?.endDate) || bStart;
-
-  if (phase === "upcoming") {
-    return aStart.localeCompare(bStart) || text(a.session?.eventName).localeCompare(text(b.session?.eventName), "ja");
-  }
-
-  if (phase === "ended") {
-    return bEnd.localeCompare(aEnd) || bStart.localeCompare(aStart) || text(a.session?.eventName).localeCompare(text(b.session?.eventName), "ja");
-  }
-
-  const aLifecycle = text(a.session?.status) === "open" ? 0 : 1;
-  const bLifecycle = text(b.session?.status) === "open" ? 0 : 1;
-  return aLifecycle - bLifecycle || bStart.localeCompare(aStart) || text(a.session?.eventName).localeCompare(text(b.session?.eventName), "ja");
+  return compareSessionEventDates(a.session, b.session, phase);
 }
 
 function ensureBoard(anchor) {
@@ -175,7 +141,7 @@ function rebuildBoard(sessions) {
       return;
     }
 
-    entries.push({ row, sessionId, session, phase: eventPhase(session) });
+    entries.push({ row, sessionId, session, phase: sessionEventPhase(session) });
   });
 
   if (!entries.length) {
@@ -193,7 +159,7 @@ function rebuildBoard(sessions) {
     card.dataset.sessionPeriodSource = "1";
   });
 
-  const order = ["current", "upcoming", "ended"];
+  const order = ["current", "upcoming", "unscheduled", "ended"];
   order.forEach(phase => {
     const group = entries
       .filter(entry => entry.phase === phase)
