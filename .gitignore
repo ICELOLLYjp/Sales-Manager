@@ -1,3 +1,8 @@
 functions/node_modules/
 functions-gmail/node_modules/
 firebase-debug.log
+tests/emulator/node_modules/
+.emulator-runtime/
+firestore-debug.log
+ui-debug.log
+tests/emulator/artifacts/

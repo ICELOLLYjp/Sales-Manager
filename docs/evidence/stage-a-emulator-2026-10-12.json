@@ -1,0 +1,242 @@
+{
+  "startedAt": "2026-10-12T03:53:00.059Z",
+  "finishedAt": "2026-10-12T03:53:04.754Z",
+  "projectId": "demo-icelolly-stage-a",
+  "host": "127.0.0.1:8085",
+  "node": "v24.21.0",
+  "exitCode": 1,
+  "versions": {
+    "@firebase/rules-unit-testing": "4.0.1",
+    "firebase": "11.0.2",
+    "firebase-tools": "15.33.0"
+  },
+  "emulator": {
+    "version": "1.22.0",
+    "expectedSHA256": "9b6498b7f62714d67f48f59b3818883cd682dbcd46b9f59511de81c97bb5166c"
+  },
+  "sha256": {
+    "firestore.rules": "059cbab2c722a7c093651305605bb577aeebc91efc44e202f658d0cce2534d78",
+    "js/inventory-concurrency.mjs": "994e6b2a93f2408e19a4dc2f99a58cab7fa5f160560f32f7fd66d2f0c47fb4c3",
+    "js/inventory-firestore.js": "870d7b2be71b01c9b43e6d0567aebe05dbd237f05e40f39d158333c7a0094081",
+    "tests/emulator/stage-a.test.mjs": "cee38cdab3016c23525fbc40a3c7303271450f5554b0a089338ec88b1616bbe3",
+    "tests/emulator/register.mjs": "52b043de988d9c11dded3266af8c587e67fc5efca709d8d99bde8bc8b36814ce",
+    "tests/emulator/sdk.mjs": "737c17e1092a70adf3ec772d56124b77571c76ab664eb258c0a48f1c1daa80c0",
+    "tests/emulator/run.mjs": "149391864b96bca5f8074ecc1df482ae78edf58ad96e8502b025ae2e1f51f189",
+    "tests/emulator/package-lock.json": "c9a9fdd60272ed7de975dd5bedfd76d87ff4fa6a27058180bddb9c25996ea7cc",
+    "js/services/transactionService.js": "bff3a4dfaf3f9e94b3a6eef04449be75f38d3b52940b011816d17ecd572a076c",
+    "js/services/inventoryCountService.js": "78d28decb421415b39df8bfa6c122b97d5459dcaecbe47c10f24895c5d14eb61",
+    "js/services/eventCloseService.js": "8853e3aef7b589bfbf6ddab4a724c537f16e2dad8cf64cb84bf11e99b1ccbd39",
+    "js/services/closeWithPendingInventoryService.js": "a13f6411b316f2fcb7b86147694cb5b062dd9f1d282059365c281321f2513e91",
+    "js/services/closeWithUnidentifiedService.js": "dbd189a68a2d55d30515c4931d04c196ac786ad8449bb65ec0af339c695810f6",
+    "js/services/eventLateSkuResolutionService.js": "729ba0ba90e4ac96c936933edcddf46f0af5a4ff608f668c2af07c4f6c850f62",
+    "js/services/fastAmountAllocationService.js": "ffdc0a56090cf682c318f832cda07fb9b7f831ef18fdf27b7317c7bae9b041b3",
+    "js/services/tshirtPhysicalStockService.js": "2b99132035860ae2d216d842d7597088d5ad199ee8b8c2a7b5da561dd1006b89",
+    "js/services/eventFlowAccountingService.js": "e58bb65aafae3a6ab2c0a31f22bc33222c4c4a39748ab844ee27fdccb908216d"
+  },
+  "observations": [
+    "# C01 outcomes: [ 'permission-denied', 'committed' ] attempts: 2 revision: 1",
+    "# C04 control outcomes: [ 'committed', 'committed' ] attempts: 3",
+    "# S02 outcomes: [ 'committed', 'permission-denied', 'permission-denied' ] quantity: 4",
+    "# S10 TCP cut error: cancelled"
+  ],
+  "counts": {
+    "total": 32,
+    "pass": 29,
+    "fail": 3,
+    "securityGapProbes": 3
+  },
+  "cases": [
+    {
+      "index": 1,
+      "name": "R01 unauthenticated canonical/read/receipt/business access is denied",
+      "result": "pass",
+      "securityGap": false
+    },
+    {
+      "index": 2,
+      "name": "R02 SECURITY GAP: unrelated authenticated and anonymous-auth identities are accepted",
+      "result": "pass",
+      "securityGap": true
+    },
+    {
+      "index": 3,
+      "name": "R03 legacy full replacement and field update cannot bypass overlapping matches",
+      "result": "pass",
+      "securityGap": false
+    },
+    {
+      "index": 4,
+      "name": "R04 real SDK transaction with inventory receipt succeeds",
+      "result": "pass",
+      "securityGap": false
+    },
+    {
+      "index": 5,
+      "name": "R05 revision mismatch, skip, reuse, wrong type/protocol are denied",
+      "result": "pass",
+      "securityGap": false
+    },
+    {
+      "index": 6,
+      "name": "R06 canonical create and delete are denied",
+      "result": "pass",
+      "securityGap": false
+    },
+    {
+      "index": 7,
+      "name": "R07 receipt standalone, malformed, duplicate, update and deletion denied",
+      "result": "pass",
+      "securityGap": false
+    },
+    {
+      "index": 8,
+      "name": "R08 rejected stock step rolls back receipt and business writes atomically",
+      "result": "pass",
+      "securityGap": false
+    },
+    {
+      "index": 9,
+      "name": "R09 SECURITY GAP: protocol plus next revision permits blind whole overwrite without receipt",
+      "result": "pass",
+      "securityGap": true
+    },
+    {
+      "index": 10,
+      "name": "R10 broad nested match allows descendant docs, never canonical parent",
+      "result": "pass",
+      "securityGap": false
+    },
+    {
+      "index": 11,
+      "name": "R11 missing revision migrates once; malformed stored revision is denied",
+      "result": "pass",
+      "securityGap": false
+    },
+    {
+      "index": 12,
+      "name": "R12 rules-disabled fixture demonstrates privileged path bypass, not production IAM coverage",
+      "result": "pass",
+      "securityGap": false
+    },
+    {
+      "index": 13,
+      "name": "C01 forced overlapping different SKU edits retry and preserve both",
+      "result": "fail",
+      "securityGap": false
+    },
+    {
+      "index": 14,
+      "name": "C02 concurrent same SKU absolute edits allow one and reject one",
+      "result": "fail",
+      "securityGap": false
+    },
+    {
+      "index": 15,
+      "name": "C03 accessory edits merge by ID/field and preserve unknown",
+      "result": "pass",
+      "securityGap": false
+    },
+    {
+      "index": 16,
+      "name": "C04 control: real SDK retries stale non-inventory transaction under existing broad rule",
+      "result": "pass",
+      "securityGap": false
+    },
+    {
+      "index": 17,
+      "name": "S01 actual POS sale, duplicate and cancellation preserve stock/history/locks",
+      "result": "pass",
+      "securityGap": false
+    },
+    {
+      "index": 18,
+      "name": "S02 actual concurrent POS deltas and duplicate sale decrement once per ID",
+      "result": "fail",
+      "securityGap": false
+    },
+    {
+      "index": 19,
+      "name": "S03 actual physical count versus sale rejects stale baseline",
+      "result": "pass",
+      "securityGap": false
+    },
+    {
+      "index": 20,
+      "name": "S04 injected lost reply after REAL commits: receipt and POS ID retries apply once",
+      "result": "pass",
+      "securityGap": false
+    },
+    {
+      "index": 21,
+      "name": "S05 actual normal event close with loss applies only adjustment, never exact sale twice",
+      "result": "pass",
+      "securityGap": false
+    },
+    {
+      "index": 22,
+      "name": "S06 actual pending close applies known loss once and retains missing SKU count",
+      "result": "pass",
+      "securityGap": false
+    },
+    {
+      "index": 23,
+      "name": "S07 actual unidentified close and later SKU resolution apply once",
+      "result": "pass",
+      "securityGap": false
+    },
+    {
+      "index": 24,
+      "name": "S08 actual amount-only sale allocation updates SKU once",
+      "result": "pass",
+      "securityGap": false
+    },
+    {
+      "index": 25,
+      "name": "S09 actual count opening detects sale between preflight and transaction",
+      "result": "pass",
+      "securityGap": false
+    },
+    {
+      "index": 26,
+      "name": "S09 actual count closing detects sale between preflight and transaction",
+      "result": "pass",
+      "securityGap": false
+    },
+    {
+      "index": 27,
+      "name": "S09 actual count reset detects sale between preflight and transaction",
+      "result": "pass",
+      "securityGap": false
+    },
+    {
+      "index": 28,
+      "name": "S10 TCP cut before commit fails without changes, reconnection retries same POS ID once",
+      "result": "pass",
+      "securityGap": false
+    },
+    {
+      "index": 29,
+      "name": "S11 actual physical count success and receipt replay preserve later sale",
+      "result": "pass",
+      "securityGap": false
+    },
+    {
+      "index": 30,
+      "name": "S12 actual mixed T-shirt/accessory POS sale and void are atomic",
+      "result": "pass",
+      "securityGap": false
+    },
+    {
+      "index": 31,
+      "name": "S13 rejected missing canonical stock cannot leave POS sale or lock behind",
+      "result": "pass",
+      "securityGap": false
+    },
+    {
+      "index": 32,
+      "name": "R13 SECURITY GAP: multiple arbitrary receipts can accompany one legitimate revision",
+      "result": "pass",
+      "securityGap": true
+    }
+  ]
+}

@@ -12,8 +12,54 @@ service cloud.firestore {
       // 実運用ではここを許可メールまたはusers Collection参照へ変更します。
     }
 
-    match /{document=**} {
-      allow read, write: if allowedUser();
+    function inventoryStep() {
+      let before = resource.data.get('inventoryRevision', 0);
+      return before is int && before >= 0
+        && request.resource.data.inventoryWriteProtocol == 1
+        && request.resource.data.inventoryRevision is int
+        && request.resource.data.inventoryRevision == before + 1;
+    }
+    function receiptMatchesStockWrite() {
+      let after = request.resource.data.path == 'tshirtStock/master'
+        ? getAfter(/databases/$(database)/documents/tshirtStock/master).data
+        : getAfter(/databases/$(database)/documents/accessoryStock/shared).data;
+      let before = request.resource.data.path == 'tshirtStock/master'
+        ? get(/databases/$(database)/documents/tshirtStock/master).data
+        : get(/databases/$(database)/documents/accessoryStock/shared).data;
+      return after.inventoryWriteProtocol == 1
+        && after.inventoryRevision == before.get('inventoryRevision', 0) + 1
+        && after.inventoryRevision == request.resource.data.revision;
+    }
+
+    // Deploy ONLY during the separately approved coordinated cutover.
+    // No overlapping wildcard may grant writes to these documents.
+    match /tshirtStock/master {
+      allow read: if allowedUser();
+      allow update: if allowedUser() && inventoryStep();
+    }
+    match /accessoryStock/shared {
+      allow read: if allowedUser();
+      allow update: if allowedUser() && inventoryStep();
+    }
+    match /inventoryWriteReceipts/{operationId} {
+      allow read: if allowedUser();
+      allow create: if allowedUser()
+        && request.resource.data.keys().hasOnly(['path', 'intent', 'revision', 'createdAt'])
+        && request.resource.data.path in ['tshirtStock/master', 'accessoryStock/shared']
+        && request.resource.data.intent is string
+        && request.resource.data.intent.size() == 64
+        && request.resource.data.createdAt == request.time
+        && receiptMatchesStockWrite();
+    }
+    match /{collection}/{document} {
+      allow read: if allowedUser();
+      allow write: if allowedUser()
+        && collection != 'inventoryWriteReceipts'
+        && !(collection == 'tshirtStock' && document == 'master')
+        && !(collection == 'accessoryStock' && document == 'shared');
+      match /{subcollection}/{rest=**} {
+        allow read, write: if allowedUser();
+      }
     }
   }
 }

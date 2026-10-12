@@ -18,7 +18,7 @@ const REDUCTION_KEYS = [
 ];
 
 async function firestoreModule() {
-  return await import("https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js");
+  return await import("../inventory-firestore.js");
 }
 
 async function requireDb() {

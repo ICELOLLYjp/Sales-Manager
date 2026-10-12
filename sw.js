@@ -1,7 +1,11 @@
 const CACHE_NAME =
-  "icelolly-sales-shell-20261001-keyboard-1";
+  "icelolly-sales-shell-20261012-inventory-a1";
 
 const CORE_ASSETS = [
+  "./js/inventory-concurrency.mjs",
+  "./js/inventory-firestore.js",
+  "./js/services/tshirtPhysicalStockService.js",
+  "./js/tshirtPhysicalStockCommitUi.js",
   "./",
   "./index.html",
   "./gmail-connect.html",

@@ -1,3 +1,17 @@
+# 工程A追加検証 — 2026-10-12 JST
+
+**導入・工程Bは停止。** PR #121の `8ed78d88e812d012b424b877de16d83f26ab42ca` に対し実Firestore Emulator 1.22.0 / Firebase 11.0.2で32件を実行。29 pass / 3 fail。ただしpassの3件は認可・上書き・receiptの危険な許可を再現した試験であり、安全合格ではない。異SKU/同SKU/並列POSでpermission-deniedとなり、自動再試行の必要条件を満たさない。通常POS・取消・終了・保留終了・後日SKU・金額配賦・実数競合・実TCP断/再送の代表結合試験は成功。
+
+今回の変更はEmulator試験基盤・証拠・文書のみ。Rules/業務サービスを片側だけ修正せず、3アプリ共通の対応方針が必要という停止条件を適用。他リポジトリ・本番・Rules配備・マージ・工程Bは未操作。次回は[追加検証報告](docs/EC_STAGE_A_EMULATOR_2026-10-12.md)と[結果JSON](docs/evidence/stage-a-emulator-2026-10-12.json)のC01/C02/S02から再開。既存モック43件は実認可の成功証拠ではない。
+
+---
+
+# 工程A：在庫更新競合対策 — 2026-10-12 JST
+
+Draft PR用の実装。未マージ・未配備。正本への差分Transaction、revision、再試行receipt、旧クライアントを拒否するRulesを追加。3アプリの同時切替と別途承認が必要です。工程B以降は未着手。変更経路、43件の隔離テスト、未検証事項と導入条件は [工程A報告](docs/EC_STAGE_A_2026-10-12.md) を参照してください。過去の履歴にある自動移行・全体保存の説明より本報告を優先します。
+
+---
+
 # ICELOLLY Sales Manager — PROJECT HANDOFF
 
 Last reconciled: 2026-09-30
