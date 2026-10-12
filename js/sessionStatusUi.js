@@ -1,25 +1,8 @@
 import { getFirebaseState } from "./firebase.js";
+import { sessionEventPhase } from "./utils/sessionEventPeriod.js";
 
 function text(value) {
   return String(value ?? "").trim();
-}
-
-function localDateKey() {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, "0");
-  const d = String(now.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
-
-function eventPhase(session) {
-  const today = localDateKey();
-  const start = text(session?.startDate);
-  const end = text(session?.endDate) || start;
-
-  if (start && today < start) return "upcoming";
-  if (end && today > end) return "ended";
-  return "current";
 }
 
 function injectStyles() {
@@ -106,7 +89,7 @@ function statusMeta(session) {
     session?.inventoryCount?.provisionalWithoutCount?.status === "pending_count";
 
   if (status === "open") {
-    const phase = eventPhase(session);
+    const phase = sessionEventPhase(session);
 
     if (phase === "upcoming") {
       return {
@@ -114,6 +97,15 @@ function statusMeta(session) {
         note: text(session?.startDate) ? `${text(session.startDate)} 開始` : "開催前",
         className: "scheduled",
         rank: 20
+      };
+    }
+
+    if (phase === "unscheduled") {
+      return {
+        label: "日程要確認",
+        note: "開始日・終了日を確認",
+        className: "review",
+        rank: 18
       };
     }
 
@@ -303,9 +295,10 @@ function updateOpenHeader(rawById) {
   const active = Array.from(rawById.values())
     .filter(session => ["open", "pending_allocation"].includes(text(session.status)));
   const waiting = active.filter(session => text(session.status) === "pending_allocation").length;
-  const live = active.filter(session => text(session.status) === "open" && eventPhase(session) === "current").length;
-  const upcoming = active.filter(session => text(session.status) === "open" && eventPhase(session) === "upcoming").length;
-  const endedWaiting = active.filter(session => text(session.status) === "open" && eventPhase(session) === "ended").length;
+  const live = active.filter(session => text(session.status) === "open" && sessionEventPhase(session) === "current").length;
+  const upcoming = active.filter(session => text(session.status) === "open" && sessionEventPhase(session) === "upcoming").length;
+  const endedWaiting = active.filter(session => text(session.status) === "open" && sessionEventPhase(session) === "ended").length;
+  const undated = active.filter(session => text(session.status) === "open" && sessionEventPhase(session) === "unscheduled").length;
 
   const header = title.parentElement;
   if (!header?.parentElement) return;
@@ -320,7 +313,8 @@ function updateOpenHeader(rawById) {
   const parts = [
     `販売中 ${live}件`,
     `開催予定 ${upcoming}件`,
-    `処理待ち ${waiting + endedWaiting}件`
+    `処理待ち ${waiting + endedWaiting}件`,
+    `日程要確認 ${undated}件`
   ];
   const nextSummary = parts.join(" / ");
   if (summary.textContent !== nextSummary) {
