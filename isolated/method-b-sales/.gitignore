@@ -1,0 +1,4 @@
+node_modules/
+artifacts/
+*-debug.log
+.firebase/
