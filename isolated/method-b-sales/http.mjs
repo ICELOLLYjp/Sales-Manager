@@ -13,7 +13,7 @@ export function server(rt,hooks={}){assertIsolated();return http.createServer(as
     if(!UIDS.includes(actor.uid)||actor.email_verified!==true)fail('forbidden',403);
     if(!/^application\/json(?:;.*)?$/i.test(req.headers['content-type']||''))fail('invalid-content-type',400);
     const chunks=[];let size=0;for await(const chunk of req){size+=chunk.length;if(size>32768)fail('body-too-large',413);chunks.push(chunk);}
-    const input=parseJSON(Buffer.concat(chunks).toString('utf8'));
+    let raw;try{raw=new TextDecoder('utf-8',{fatal:true}).decode(Buffer.concat(chunks));}catch{fail('invalid-utf8',400);}const input=parseJSON(raw);
     const result=req.url.endsWith('/commit')?await commitSale(rt.db,actor,input,hooks):await saleResult(rt.db,actor,input);
     send(200,result);
   }catch(e){const status=e instanceof ApiError?e.status:[4,10,14].includes(e.code)?503:500;send(status,{error:e instanceof ApiError?e.code:status===503?'temporarily-unavailable':'internal-error'});}

@@ -16,3 +16,9 @@ The test hooks are constructor-only function arguments, never HTTP payload/envir
 Cost helpers are a frozen read-only copy of Sales dc8f14a transactionService lines 723–1053.
 No product source is imported. Full POS migration, discounts, FX, queues, void/close APIs,
 EC reservation and deployment remain excluded.
+
+Validation: 19 scoped cases passed on 2026-10-14; see
+../../docs/METHOD_B_SALES_VALIDATION_20261014.md for evidence and limitations.
+manual-compat.mjs is byte-identical to ../method-b/inventory.mjs; its relative
+runtime import binds to the sales demo only. P10 is a new algorithm integration
+case, not a rerun of the old 25 tests or a claim about the old HTTP deployment.
