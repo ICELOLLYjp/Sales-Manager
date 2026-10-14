@@ -1,0 +1,219 @@
+TAP version 13
+# Subtest: P01 authentication on commit/result and three equal synthetic UIDs
+not ok 1 - P01 authentication on commit/result and three equal synthetic UIDs
+  ---
+  duration_ms: 19.8965
+  type: 'test'
+  location: 'C:\\Users\\hirop\\OneDrive\\ドキュメント\\ChatGPT\\ICELOLLY｜アプリ・EC開発\\Sales-Manager\\isolated\\method-b-sales\\api.test.mjs:41:1'
+  failureType: 'hookFailed'
+  error: 'fetch failed'
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  ...
+# Subtest: P02 Web SDK writes denied across canonical and related documents
+not ok 2 - P02 Web SDK writes denied across canonical and related documents
+  ---
+  duration_ms: 0.7522
+  type: 'test'
+  location: 'C:\\Users\\hirop\\OneDrive\\ドキュメント\\ChatGPT\\ICELOLLY｜アプリ・EC開発\\Sales-Manager\\isolated\\method-b-sales\\api.test.mjs:51:1'
+  failureType: 'hookFailed'
+  error: 'fetch failed'
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  ...
+# Subtest: P03 fixed schema rejects malicious payload and duplicate decoded JSON keys
+not ok 3 - P03 fixed schema rejects malicious payload and duplicate decoded JSON keys
+  ---
+  duration_ms: 0.1325
+  type: 'test'
+  location: 'C:\\Users\\hirop\\OneDrive\\ドキュメント\\ChatGPT\\ICELOLLY｜アプリ・EC開発\\Sales-Manager\\isolated\\method-b-sales\\api.test.mjs:57:1'
+  failureType: 'hookFailed'
+  error: 'fetch failed'
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  ...
+# Subtest: P04 IDs, quantities, line count and byte boundaries
+not ok 4 - P04 IDs, quantities, line count and byte boundaries
+  ---
+  duration_ms: 0.0825
+  type: 'test'
+  location: 'C:\\Users\\hirop\\OneDrive\\ドキュメント\\ChatGPT\\ICELOLLY｜アプリ・EC開発\\Sales-Manager\\isolated\\method-b-sales\\api.test.mjs:63:1'
+  failureType: 'hookFailed'
+  error: 'fetch failed'
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  ...
+# Subtest: P05 multiple rows/sources preserve IDs, fields, fingerprint and aggregates
+not ok 5 - P05 multiple rows/sources preserve IDs, fields, fingerprint and aggregates
+  ---
+  duration_ms: 0.0927
+  type: 'test'
+  location: 'C:\\Users\\hirop\\OneDrive\\ドキュメント\\ChatGPT\\ICELOLLY｜アプリ・EC開発\\Sales-Manager\\isolated\\method-b-sales\\api.test.mjs:71:1'
+  failureType: 'hookFailed'
+  error: 'fetch failed'
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  ...
+# Subtest: P06 identical replay and later stock changes preserve original result
+not ok 6 - P06 identical replay and later stock changes preserve original result
+  ---
+  duration_ms: 0.0728
+  type: 'test'
+  location: 'C:\\Users\\hirop\\OneDrive\\ドキュメント\\ChatGPT\\ICELOLLY｜アプリ・EC開発\\Sales-Manager\\isolated\\method-b-sales\\api.test.mjs:75:1'
+  failureType: 'hookFailed'
+  error: 'fetch failed'
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  ...
+# Subtest: P07 changed intent including legacy fingerprint omissions is rejected
+not ok 7 - P07 changed intent including legacy fingerprint omissions is rejected
+  ---
+  duration_ms: 0.0754
+  type: 'test'
+  location: 'C:\\Users\\hirop\\OneDrive\\ドキュメント\\ChatGPT\\ICELOLLY｜アプリ・EC開発\\Sales-Manager\\isolated\\method-b-sales\\api.test.mjs:78:1'
+  failureType: 'hookFailed'
+  error: 'fetch failed'
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  ...
+# Subtest: P08 S02 a/b/a concurrent requests create exactly two sales and decrements
+not ok 8 - P08 S02 a/b/a concurrent requests create exactly two sales and decrements
+  ---
+  duration_ms: 0.0912
+  type: 'test'
+  location: 'C:\\Users\\hirop\\OneDrive\\ドキュメント\\ChatGPT\\ICELOLLY｜アプリ・EC開発\\Sales-Manager\\isolated\\method-b-sales\\api.test.mjs:81:1'
+  failureType: 'hookFailed'
+  error: 'fetch failed'
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  ...
+# Subtest: P09 forced retry, finite exhaustion and different SKU concurrency
+not ok 9 - P09 forced retry, finite exhaustion and different SKU concurrency
+  ---
+  duration_ms: 0.1279
+  type: 'test'
+  location: 'C:\\Users\\hirop\\OneDrive\\ドキュメント\\ChatGPT\\ICELOLLY｜アプリ・EC開発\\Sales-Manager\\isolated\\method-b-sales\\api.test.mjs:84:1'
+  failureType: 'hookFailed'
+  error: 'fetch failed'
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  ...
+# Subtest: P10 original manual operation with stale baseline after sales
+not ok 10 - P10 original manual operation with stale baseline after sales
+  ---
+  duration_ms: 0.1261
+  type: 'test'
+  location: 'C:\\Users\\hirop\\OneDrive\\ドキュメント\\ChatGPT\\ICELOLLY｜アプリ・EC開発\\Sales-Manager\\isolated\\method-b-sales\\api.test.mjs:89:1'
+  failureType: 'hookFailed'
+  error: 'fetch failed'
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  ...
+# Subtest: P11 real committed reply lost through proxy then same-ID retry
+not ok 11 - P11 real committed reply lost through proxy then same-ID retry
+  ---
+  duration_ms: 0.0563
+  type: 'test'
+  location: 'C:\\Users\\hirop\\OneDrive\\ドキュメント\\ChatGPT\\ICELOLLY｜アプリ・EC開発\\Sales-Manager\\isolated\\method-b-sales\\api.test.mjs:97:1'
+  failureType: 'hookFailed'
+  error: 'fetch failed'
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  ...
+# Subtest: P12 API stopped before delivery and restarted with durable result
+not ok 12 - P12 API stopped before delivery and restarted with durable result
+  ---
+  duration_ms: 0.0643
+  type: 'test'
+  location: 'C:\\Users\\hirop\\OneDrive\\ドキュメント\\ChatGPT\\ICELOLLY｜アプリ・EC開発\\Sales-Manager\\isolated\\method-b-sales\\api.test.mjs:101:1'
+  failureType: 'hookFailed'
+  error: 'fetch failed'
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  ...
+# Subtest: P13 replay after session close/context change, new sale rejected
+not ok 13 - P13 replay after session close/context change, new sale rejected
+  ---
+  duration_ms: 0.0508
+  type: 'test'
+  location: 'C:\\Users\\hirop\\OneDrive\\ドキュメント\\ChatGPT\\ICELOLLY｜アプリ・EC開発\\Sales-Manager\\isolated\\method-b-sales\\api.test.mjs:104:1'
+  failureType: 'hookFailed'
+  error: 'fetch failed'
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  ...
+# Subtest: P14 real commit failure leaves no partial business writes
+not ok 14 - P14 real commit failure leaves no partial business writes
+  ---
+  duration_ms: 0.0503
+  type: 'test'
+  location: 'C:\\Users\\hirop\\OneDrive\\ドキュメント\\ChatGPT\\ICELOLLY｜アプリ・EC開発\\Sales-Manager\\isolated\\method-b-sales\\api.test.mjs:107:1'
+  failureType: 'hookFailed'
+  error: 'fetch failed'
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  ...
+# Subtest: P15 legacy locks/sales/receipt cannot suppress server operation
+not ok 15 - P15 legacy locks/sales/receipt cannot suppress server operation
+  ---
+  duration_ms: 0.0459
+  type: 'test'
+  location: 'C:\\Users\\hirop\\OneDrive\\ドキュメント\\ChatGPT\\ICELOLLY｜アプリ・EC開発\\Sales-Manager\\isolated\\method-b-sales\\api.test.mjs:110:1'
+  failureType: 'hookFailed'
+  error: 'fetch failed'
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  ...
+# Subtest: P16 orphan and tampered stored proof rejected without repairs
+not ok 16 - P16 orphan and tampered stored proof rejected without repairs
+  ---
+  duration_ms: 0.0602
+  type: 'test'
+  location: 'C:\\Users\\hirop\\OneDrive\\ドキュメント\\ChatGPT\\ICELOLLY｜アプリ・EC開発\\Sales-Manager\\isolated\\method-b-sales\\api.test.mjs:115:1'
+  failureType: 'hookFailed'
+  error: 'fetch failed'
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  ...
+# Subtest: P17 price, policy ABA, unsupported money, negative and unknown stock
+not ok 17 - P17 price, policy ABA, unsupported money, negative and unknown stock
+  ---
+  duration_ms: 0.0525
+  type: 'test'
+  location: 'C:\\Users\\hirop\\OneDrive\\ドキュメント\\ChatGPT\\ICELOLLY｜アプリ・EC開発\\Sales-Manager\\isolated\\method-b-sales\\api.test.mjs:120:1'
+  failureType: 'hookFailed'
+  error: 'fetch failed'
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  ...
+# Subtest: P23 result read-only including missing/inflight/voided/inconsistent
+not ok 18 - P23 result read-only including missing/inflight/voided/inconsistent
+  ---
+  duration_ms: 0.0931
+  type: 'test'
+  location: 'C:\\Users\\hirop\\OneDrive\\ドキュメント\\ChatGPT\\ICELOLLY｜アプリ・EC開発\\Sales-Manager\\isolated\\method-b-sales\\api.test.mjs:126:1'
+  failureType: 'hookFailed'
+  error: 'fetch failed'
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  ...
+# Subtest: P24 environment project credential guards and parser depth
+not ok 19 - P24 environment project credential guards and parser depth
+  ---
+  duration_ms: 0.0451
+  type: 'test'
+  location: 'C:\\Users\\hirop\\OneDrive\\ドキュメント\\ChatGPT\\ICELOLLY｜アプリ・EC開発\\Sales-Manager\\isolated\\method-b-sales\\api.test.mjs:130:1'
+  failureType: 'hookFailed'
+  error: 'fetch failed'
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  ...
+1..19
+# tests 19
+# suites 0
+# pass 0
+# fail 19
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2290.5308
