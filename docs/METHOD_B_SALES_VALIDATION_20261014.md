@@ -2,6 +2,8 @@
 
 2026-10-14 JST。ユーザーが[最小仕様](METHOD_B_SALES_MINIMUM_SPEC_20261014.md)の実装とEmulator試験を承認。開始head `dc8f14a`。第1保存点 `1d4cb44` は検証前の実装途中としてpushした。本書はその後の限定検証を記録する。
 
+最終実装・試験・証拠は `96fb26b` に保存・push済み。最終ソースhashがJSONと一致することを確認。raw TAP内にSDKが出力するPERMISSION_DENIEDログの末尾空白があり、全ファイルのdiff --checkはその警告を出す。証拠は加工せず保持し、TAP以外のコード/文書差分チェックは合格。専用ポート8088/9099/9153/4403/4503はEmulator停止後にlistenなしを確認。
+
 ## 実装範囲と既存POSとの対応
 
 新規 `isolated/method-b-sales/` のみで、POST `/v1/sales/commit` と `/v1/sales/result` を実装。JPY、割引0、exact SKU、manual支払、20行/32 KiB等の上限を維持。製品からのimport、デプロイentrypoint、実UID、旧キュー移行はない。
