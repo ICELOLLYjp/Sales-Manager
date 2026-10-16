@@ -1,8 +1,8 @@
 import { initFirebase } from "./firebase.js";
 import { initAuth, loginWithGoogle, logout } from "./auth.js";
 import { renderDashboard } from "./views/dashboardView.js";
-import { tshirtAdapter } from "./inventoryAdapters/tshirtAdapter.js?v=20260915-empty-size-cells-1";
-import { accessoryAdapter } from "./inventoryAdapters/accessoryAdapter.js";
+import { tshirtAdapter } from "./inventoryAdapters/tshirtAdapter.js?v=20261016-event-pos-zero-stock-1";
+import { accessoryAdapter } from "./inventoryAdapters/accessoryAdapter.js?v=20261016-event-pos-zero-stock-1";
 import { missingAccessoryOpeningRows } from "./services/accessoryOpeningRegistration.mjs";
 import { eventSkuBaseQuantities } from "./services/eventPosStock.mjs";
 import { filterTshirtRowsForEventGroups } from "./services/eventTshirtDesigns.mjs?v=20260926-group-compat-1";
@@ -18529,9 +18529,9 @@ async function renderPos(
         ] =
           await Promise.all([
             tshirtAdapter
-              .getInventorySnapshot(),
+              .getInventorySnapshot({ includeZero: true }),
             accessoryAdapter
-              .getCatalogSnapshot(),
+              .getCatalogSnapshot({ includeZero: true }),
             listAllProductVariants(),
             loadPinkoiTshirtCatalog(),
             activeSession
@@ -18558,6 +18558,7 @@ async function renderPos(
               {}
           };
 
+        const hasEventOpening = Boolean(activeSession && posEventInventoryCount?.opening);
         const registeredMap =
           new Map(
             registeredVariants.map(
@@ -18573,14 +18574,15 @@ async function renderPos(
           tshirtInventory.rows
             .filter(
               row =>
-                registeredMap.has(
+                (registeredMap.has(
                   row.variantId
                 ) ||
                 pinkoiTshirtCatalog
                   .byVariantId
                   .has(
                     row.variantId
-                  )
+                  )) &&
+                (hasEventOpening || Number(row.quantity) > 0)
             )
             .map(
               row => {
@@ -18619,7 +18621,8 @@ async function renderPos(
               row =>
                 registeredMap.has(
                   row.variantId
-                )
+                ) &&
+                (hasEventOpening || Number(row.quantity) > 0)
             )
             .map(
               row => ({
