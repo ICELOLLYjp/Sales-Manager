@@ -91,3 +91,9 @@ export function mergeEventTshirtPosRows(
 
   return [...byId.values()];
 }
+
+export function filterTshirtRowsForPosContext(rows, hasSavedOpening) {
+  return (rows || []).filter(row =>
+    Boolean(hasSavedOpening) || Number(row?.quantity || 0) > 0
+  );
+}
