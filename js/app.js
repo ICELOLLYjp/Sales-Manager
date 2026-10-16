@@ -21634,7 +21634,9 @@ async function renderPos(
             posOrderDiscount =
               0;
 
-            renderPosBody();
+            // Session inventory and offline preparation belong to the selected event.
+            // A body-only redraw retains the previous event SKU quantities.
+            renderPos(++renderSequence);
           }
         );
 
