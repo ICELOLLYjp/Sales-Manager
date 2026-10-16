@@ -11,6 +11,7 @@ on:
       - 'js/services/eventTshirtDesigns.mjs'
       - 'tests/posEventZeroStock.test.mjs'
       - 'tests/eventPosTshirtRows.test.mjs'
+      - 'tests/posSessionStockReload.test.mjs'
       - 'tests/eventPosStock.test.mjs'
       - 'tests/eventTshirtDesigns.test.mjs'
       - '.github/workflows/pos-event-stock-tests.yml'
@@ -28,4 +29,4 @@ jobs:
       - run: node --experimental-default-type=module --check js/app.js
       - run: node --experimental-default-type=module --check js/inventoryAdapters/tshirtAdapter.js
       - run: node --experimental-default-type=module --check js/services/inventoryCountService.js
-      - run: node --experimental-default-type=module --test tests/posEventZeroStock.test.mjs tests/eventPosStock.test.mjs tests/eventTshirtDesigns.test.mjs tests/eventPosTshirtRows.test.mjs
+      - run: node --experimental-default-type=module --test tests/posEventZeroStock.test.mjs tests/eventPosStock.test.mjs tests/eventTshirtDesigns.test.mjs tests/eventPosTshirtRows.test.mjs tests/posSessionStockReload.test.mjs

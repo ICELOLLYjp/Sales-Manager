@@ -1,5 +1,5 @@
 const CACHE_NAME =
-  "icelolly-sales-shell-20261016-pos-stock-display-2";
+  "icelolly-sales-shell-20261016-pos-session-stock-3";
 
 const CORE_ASSETS = [
   "./",
