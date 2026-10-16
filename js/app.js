@@ -18529,7 +18529,7 @@ async function renderPos(
         ] =
           await Promise.all([
             tshirtAdapter
-              .getInventorySnapshot(),
+              .getInventorySnapshot({ includeZero: Boolean(activeSession) }),
             accessoryAdapter
               .getCatalogSnapshot(),
             listAllProductVariants(),
@@ -18571,6 +18571,7 @@ async function renderPos(
 
         const tshirtRows =
           tshirtInventory.rows
+            .filter(row => Number(row.quantity || 0) > 0 || Boolean(posEventInventoryCount?.opening))
             .filter(
               row =>
                 registeredMap.has(
