@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mergeEventTshirtPosRows } from "../js/services/eventPosTshirtRows.mjs";
+import { mergeEventTshirtPosRows, filterTshirtRowsForPosContext } from "../js/services/eventPosTshirtRows.mjs";
 import { eventSkuBaseQuantities } from "../js/services/eventPosStock.mjs";
 import { filterTshirtRowsForEventGroups } from "../js/services/eventTshirtDesigns.mjs";
 
@@ -90,4 +90,13 @@ test("unrelated categories or malformed event identities never create T-shirt sa
     { ...opening[0], variantId: "tshirt__invalid" }
   ], [], registered);
   assert.deepEqual(merged, []);
+});
+
+test("before event opening, registered zero stock is not shown merely because a session is active", () => {
+  const rows = [
+    { variantId: id("s"), quantity: 0 },
+    { variantId: id("xl"), quantity: 2 }
+  ];
+  assert.deepEqual(filterTshirtRowsForPosContext(rows, false).map(row => row.variantId), [id("xl")]);
+  assert.deepEqual(filterTshirtRowsForPosContext(rows, true).map(row => row.variantId), [id("s"), id("xl")]);
 });
