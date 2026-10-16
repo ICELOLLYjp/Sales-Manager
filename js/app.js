@@ -5,6 +5,7 @@ import { tshirtAdapter } from "./inventoryAdapters/tshirtAdapter.js?v=20260915-e
 import { accessoryAdapter } from "./inventoryAdapters/accessoryAdapter.js";
 import { missingAccessoryOpeningRows } from "./services/accessoryOpeningRegistration.mjs";
 import { eventSkuBaseQuantities } from "./services/eventPosStock.mjs";
+import { mergeEventTshirtPosRows } from "./services/eventPosTshirtRows.mjs";
 import { filterTshirtRowsForEventGroups } from "./services/eventTshirtDesigns.mjs?v=20260926-group-compat-1";
 import { loadTshirtProductVariants, syncTshirtCurrentStockRows } from "./services/catalogService.js";
 import { listAllProductVariants, registerTshirtVariant, registerGeneralProduct, syncAccessoryCatalogRows } from "./services/productAdminService.js?v=20260911-cost-cache-import-fix-2";
@@ -18166,6 +18167,15 @@ function addSkuItem(
 ) {
   invalidatePendingCheckout();
 
+  if (row?.eventSkuNotRegistered || row?.eventSkuInvalidStockKey) {
+    return {
+      success: false,
+      message: row.eventSkuNotRegistered
+        ? `${skuDisplayLabel(row)} のSKU情報が未登録です。イベント持参在庫と商品登録を確認してください。`
+        : `${skuDisplayLabel(row)} の在庫キーが一致しません。販売前にSKU情報を確認してください。`
+    };
+  }
+
   const availableStock =
     Math.max(
       0,
@@ -18635,7 +18645,12 @@ async function renderPos(
           activeSession &&
           posEventInventoryCount?.opening
             ? filterTshirtRowsForEventGroups(
-                tshirtRows,
+                mergeEventTshirtPosRows(
+                  tshirtRows,
+                  posEventInventoryCount.opening.items,
+                  posEventInventoryCount.flowEntries,
+                  registeredVariants
+                ),
                 posEventInventoryCount.opening.items,
                 posEventInventoryCount.flowEntries,
                 posEventInventoryCount.soldByVariant
@@ -20658,7 +20673,9 @@ async function renderPos(
                                         Number(
                                           row.quantity ||
                                           0
-                                        ) <= 0;
+                                        ) <= 0 ||
+                                        Boolean(row.eventSkuNotRegistered) ||
+                                        Boolean(row.eventSkuInvalidStockKey);
 
                                       const price =
                                         skuSalePrice(
@@ -20709,9 +20726,13 @@ async function renderPos(
                                             "
                                           >
                                             ${
-                                              soldOut
-                                                ? "在庫0"
-                                                : `在${row.quantity}`
+                                              row.eventSkuNotRegistered
+                                                ? "SKU未登録"
+                                                : row.eventSkuInvalidStockKey
+                                                  ? "SKU要確認"
+                                                  : soldOut
+                                                    ? "在庫0"
+                                                    : `在${row.quantity}`
                                             }
                                           </div>
 
