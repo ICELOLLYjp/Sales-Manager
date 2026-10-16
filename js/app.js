@@ -18571,7 +18571,6 @@ async function renderPos(
 
         const tshirtRows =
           tshirtInventory.rows
-            .filter(row => Number(row.quantity || 0) > 0 || Boolean(posEventInventoryCount?.opening))
             .filter(
               row =>
                 registeredMap.has(
