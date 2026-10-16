@@ -5,7 +5,7 @@ import { tshirtAdapter } from "./inventoryAdapters/tshirtAdapter.js?v=20260915-e
 import { accessoryAdapter } from "./inventoryAdapters/accessoryAdapter.js";
 import { missingAccessoryOpeningRows } from "./services/accessoryOpeningRegistration.mjs";
 import { eventSkuBaseQuantities } from "./services/eventPosStock.mjs";
-import { mergeEventTshirtPosRows } from "./services/eventPosTshirtRows.mjs";
+import { mergeEventTshirtPosRows, filterTshirtRowsForPosContext } from "./services/eventPosTshirtRows.mjs";
 import { filterTshirtRowsForEventGroups } from "./services/eventTshirtDesigns.mjs?v=20260926-group-compat-1";
 import { loadTshirtProductVariants, syncTshirtCurrentStockRows } from "./services/catalogService.js";
 import { listAllProductVariants, registerTshirtVariant, registerGeneralProduct, syncAccessoryCatalogRows } from "./services/productAdminService.js?v=20260911-cost-cache-import-fix-2";
@@ -18580,7 +18580,10 @@ async function renderPos(
           );
 
         const tshirtRows =
-          tshirtInventory.rows
+          filterTshirtRowsForPosContext(
+            tshirtInventory.rows,
+            Boolean(posEventInventoryCount?.opening)
+          )
             .filter(
               row =>
                 registeredMap.has(
