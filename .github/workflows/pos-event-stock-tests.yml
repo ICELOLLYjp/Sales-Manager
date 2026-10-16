@@ -1,0 +1,31 @@
+name: Event POS stock display
+
+on:
+  pull_request:
+    paths:
+      - 'js/app.js'
+      - 'js/inventoryAdapters/tshirtAdapter.js'
+      - 'js/services/eventPosStock.mjs'
+      - 'js/services/eventPosTshirtRows.mjs'
+      - 'js/services/inventoryCountService.js'
+      - 'js/services/eventTshirtDesigns.mjs'
+      - 'tests/posEventZeroStock.test.mjs'
+      - 'tests/eventPosTshirtRows.test.mjs'
+      - 'tests/eventPosStock.test.mjs'
+      - 'tests/eventTshirtDesigns.test.mjs'
+      - '.github/workflows/pos-event-stock-tests.yml'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --experimental-default-type=module --check js/app.js
+      - run: node --experimental-default-type=module --check js/inventoryAdapters/tshirtAdapter.js
+      - run: node --experimental-default-type=module --check js/services/inventoryCountService.js
+      - run: node --experimental-default-type=module --test tests/posEventZeroStock.test.mjs tests/eventPosStock.test.mjs tests/eventTshirtDesigns.test.mjs tests/eventPosTshirtRows.test.mjs

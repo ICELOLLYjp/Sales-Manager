@@ -57,7 +57,8 @@ function displayName(map, id, fields) {
   return id || "";
 }
 
-function buildInventoryRows(master) {
+export function buildInventoryRows(master, options = {}) {
+  const includeZero = Boolean(options.includeZero);
   const masters = master?.masters || {};
   const bodies = masters?.bodies || {};
   const designs = masters?.designs || {};
@@ -72,7 +73,7 @@ function buildInventoryRows(master) {
       Object.entries(colorTree || {}).forEach(([colorId, sizeTree]) => {
         Object.entries(sizeTree || {}).forEach(([sizeId, cell]) => {
           const quantity = Math.max(0, Number(cell?.qty || 0));
-          if (quantity <= 0) return;
+          if (quantity <= 0 && !includeZero) return;
 
           rows.push({
             variantId: createVariantId(bodyId, designId, colorId, sizeId),
@@ -184,9 +185,9 @@ function buildVariantDraftFromMaster(master, { bodyId, designId, colorId, sizeId
 }
 
 export const tshirtAdapter = {
-  async getInventorySnapshot() {
+  async getInventorySnapshot(options = {}) {
     const master = await loadMasterDocument();
-    const rows = buildInventoryRows(master);
+    const rows = buildInventoryRows(master, options);
     const totalStock = rows.reduce((sum, row) => sum + Number(row.quantity || 0), 0);
 
     return {
@@ -195,7 +196,7 @@ export const tshirtAdapter = {
         schemaVersion: Number(master?.schemaVersion || 0),
         inventoryAuthority: master?.inventoryAuthority || "",
         totalStock,
-        activeSkuCount: rows.length
+        activeSkuCount: rows.filter(row => row.quantity > 0).length
       },
       masterOptions:
         buildMasterOptions(master),

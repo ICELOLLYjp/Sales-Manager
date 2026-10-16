@@ -196,7 +196,18 @@ function normalizeCount(
       .map(entry => ({
         variantId: text(entry?.variantId),
         type: text(entry?.type),
-        quantity: Number(entry?.quantity)
+        quantity: Number(entry?.quantity),
+        item: entry?.item && typeof entry.item === "object"
+          ? {
+              variantId: text(entry.item.variantId),
+              category: text(entry.item.category),
+              inventorySource: text(entry.item.inventorySource),
+              inventoryKey: text(entry.item.inventoryKey),
+              sku: text(entry.item.sku),
+              label: text(entry.item.label),
+              detail: text(entry.item.detail)
+            }
+          : null
       }))
       .filter(entry => entry.variantId && Number.isFinite(entry.quantity)),
     quickAllocations:
