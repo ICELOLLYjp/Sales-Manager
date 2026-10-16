@@ -124,7 +124,7 @@ function buildInventoryKey(
   ].join("");
 }
 
-function buildRows(
+export function buildRows(
   designs,
   options = {}
 ) {
@@ -310,7 +310,7 @@ function topPositiveRows(rows) {
 }
 
 export const accessoryAdapter = {
-  async getCatalogSnapshot() {
+  async getCatalogSnapshot({ includeZero = false } = {}) {
     const shared =
       await loadSharedDocument();
 
@@ -387,7 +387,7 @@ export const accessoryAdapter = {
       },
 
       rows:
-        cloud.rows
+        includeZero ? buildRows(cloudDesigns) : cloud.rows
     };
   },
 
