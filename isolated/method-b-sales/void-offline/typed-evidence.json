@@ -1,0 +1,32 @@
+{
+  "newTests": {
+    "fail": 0,
+    "pass": 21
+  },
+  "inheritedTests": {
+    "fail": 0,
+    "pass": 48
+  },
+  "commitAck": "UNPROVEN",
+  "cancelled": 0,
+  "node": "v24.21.0",
+  "inheritedGithubExactMatches": 10,
+  "total": 69,
+  "gate": "void-timestamp-proof-gate-closed",
+  "atomicity": "UNPROVEN",
+  "realSdkTimestamp": "UNPROVEN",
+  "baseHead": "907985dc8723efdfda74c9eb27b85db80624ae43",
+  "tapSha256": "7e0d59403cdbcdfa5acabb85b8b582615b3112148540cc66a7bed5a614d18007",
+  "sourceSha256": {
+    "typed-proof.test.mjs": "198484c9bd0ce81a698240febec9c47000392a60bfb814eac64f97f3628d11e2",
+    "void-proof-candidate.mjs": "a3e5c48247dbce25e6d00693e14605a6a38af21fa4d6d1e4e1a343c28f860954",
+    "timestamp-codec.mjs": "7fd28cb596855ae83827fa2837ffd20d6b748bbf87cb1d75861efc2053b66bf1",
+    "TYPED_CANDIDATE.md": "db52fe95da4fcfe3bc09f3c65987cf1df56cf8e5e788e0537043a63ad7259c44"
+  },
+  "exitCode": 0,
+  "V01toV10": "UNPROVEN",
+  "skipped": 0,
+  "todo": 0,
+  "protectedLocalFiles": 29,
+  "authorization": "UNPROVEN"
+}
