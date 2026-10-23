@@ -1,5 +1,37 @@
 # Isolated sales API — not connected to products
 
+2026-10-24 real close integration (base `8a1ab5a`):
+`real-close-adapter.mjs` executes the pinned, LF-normalized
+`js/services/eventCloseService.js` **finalizeEventSession body**, replacing only
+Firebase state and SDK imports in memory. It also executes the pinned original
+`guardedTransaction` revision wrapper. Product files remain unchanged. The
+trusted demo adapter maps Web snapshot/transaction calls to real Admin SDK
+Firestore transactions; it does not reproduce close calculations or relax Rules.
+This is a test-only privileged boundary, not a delivered/authenticated close API
+or proof of the original Web SDK's optimistic concurrency behavior.
+
+Run with the prerequisites below:
+```
+node emulator-isolated.mjs "node --test --test-reporter=tap --test-timeout=60000 real-close.test.mjs"
+```
+C01-C03 are separate from the old V07/V07b fixtures: void then real close with
+a retained exact sale and loss adjustment (no double subtraction, revision and
+movement once); a real preflight held before its final transaction while void
+commits (`event-data-changed`, no close writes, fresh count/retry succeeds); and
+first void denied after real close while saved void/commit/result replay remains
+immutable. The fixture supplies opening/closing counts and exact T-shirt SKU
+metadata. Direct client writes to all six protected document types remain denied.
+See `real-close-results.json` for measured counts and source/log hashes; raw logs
+and synthetic snapshots stay in ignored `artifacts/`. Historical results below
+remain historical; the statements about no real close execution describe the
+earlier V07/V07b run, not C01-C03.
+
+Remaining gates: Compat before/after writers, close API authentication and fixed
+input contract, legacy writer migration, actual Rules/IAM, Quick/accessory/late
+allocation paths and production rollout. Next minimum step is to isolate the
+Compat preparation boundary and verify its actual writes with the same deny-write
+Rules before designing a public close route. No deployment or merge.
+
 2026-10-24: the isolated harness now binds `POST /v1/sales/void` and voided
 commit/result replay to the existing protected reader. It is enabled only when
 the trusted harness supplies `rt.voidSales` after loading deny-write Rules and
