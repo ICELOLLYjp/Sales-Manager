@@ -76,7 +76,7 @@
     "Java/CLI/JDK binaries and retained tools lock remain local artifacts prerequisites",
     "Original .gitignore/emulator-run.mjs/loopback-only.cjs remain unchanged locally, backed up; excluded from published fix"
   ],
-  "sha256": {
+  "testedSourceSHA256": {
     "emulator-isolated.mjs": "d254115a8240226ec69b6e69b12d8732cb1014ce02497a9346fceb5d1373c2f5",
     "LoopbackProbe.java": "9a6e55e7ab54bb9254952dc09d58df69b6264cf970210abd3da97d0440258dad",
     "loopback-guard.cjs": "3806b5c8043a06c6159ac3df397432d0fc1b0dfec9082100a87fbf2f9326bfaa",
@@ -100,5 +100,20 @@
     "void-offline/void-boundary.mjs": "47ced8c9b628213369aef873378ec8727d022945ff058b0bad7d2ac9e4d93911",
     "void-offline/sale-primitives.mjs": "99f85d8e84477b72caaf8bbdd97fb0e092034eb835a9e24b309a1fc222350c4a",
     "void-offline/validation.mjs": "42acf574ecea1ff0a6d93f32af899bd42924fd7744415fd3047f3873a4b0b37b"
-  }
+  },
+  "publishedSHA256": {
+    "README.md": "0bb14fc7e471a39b77c057d6b850b67c3c5ea50905e7e96ecfab1aa3079123e3",
+    "http.mjs": "f098e757d2e692f8262de66a26cbbf57f43c649a78555e3392ab4d7c914de5f7",
+    "sales.mjs": "458107b7fd093655ee916dc5a9595ad3b3484845525c5b0bd957cf36704bf8f7",
+    "void-offline/protected-void.mjs": "cb5c64aac7031af9219407dd4840bbbafd625c7e8c1c33ef8f0b49c6b15a4595",
+    "void-offline/transaction-reader.mjs": "7a0b46f445e489edccda1d7504069068a3c97381fc3a64ac56e329719f27c78d",
+    "void-offline/transaction-reader.test.mjs": "4994e3e1415d1586a1734c65c5a6ca308d3eed79bb2e06f5a85f066f6a7deea2",
+    "LoopbackProbe.java": "9a6e55e7ab54bb9254952dc09d58df69b6264cf970210abd3da97d0440258dad",
+    "emulator-isolated.mjs": "79989978d96e9e0c2c7db83552de61f4f6e7e2108ad9e5b912240b21367fb986",
+    "loopback-guard.cjs": "3806b5c8043a06c6159ac3df397432d0fc1b0dfec9082100a87fbf2f9326bfaa",
+    "loopback-probe.cjs": "c793ecc1d73ca2848584559efa59d267db275c49ec23c75e7329d28967314c18",
+    "void-api.test.mjs": "7b9b355f5fe2291c69316e39828002cdeac4d4ea30c3d7ffe681a866cc0d020a",
+    "void-runtime.mjs": "cfa82885ab6342c749df086cabb3fafab07cf0af06c011773bd05c3ee59b8a54"
+  },
+  "sourceNormalization": "Published edited files normalized CRLF to LF after tests; no semantic changes."
 }
