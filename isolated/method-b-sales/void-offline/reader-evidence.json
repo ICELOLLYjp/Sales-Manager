@@ -1,0 +1,378 @@
+{
+  "baseHead": "6f9466b4965dee80c7c9dddcbef34c0f5cb217c7",
+  "testResult": {
+    "counts": [
+      "# tests 127",
+      "# pass 127",
+      "# fail 0",
+      "# cancelled 0",
+      "# skipped 0",
+      "# todo 0"
+    ],
+    "exitCode": 0,
+    "node": "v24.21.0"
+  },
+  "existingTests": 107,
+  "newTests": 20,
+  "sourceComparison": [
+    {
+      "path": "docs/METHOD_B_POST_SALES_PLAN_20261015.md",
+      "match": true,
+      "sha": "510c36fe6cf53bcfe8c6a4bc76c6af602605550c"
+    },
+    {
+      "path": "docs/METHOD_B_WRITE_PATHS.md",
+      "match": true,
+      "sha": "07465630dc47197056472193b456af3d4151894b"
+    },
+    {
+      "path": "firestore.rules",
+      "match": true,
+      "sha": "2a6084baf67ea85f315f8e1b3e2919345fd57ca4"
+    },
+    {
+      "path": "isolated/method-b-sales/firestore.rules",
+      "match": true,
+      "sha": "35a90186a606829a0762ffab4dbdcbf399b2c7cc"
+    },
+    {
+      "path": "isolated/method-b-sales/http.mjs",
+      "match": true,
+      "sha": "1d50b3d5b45cacb3b390f093a7a43769d0700d54"
+    },
+    {
+      "path": "isolated/method-b-sales/manual-compat.mjs",
+      "match": true,
+      "sha": "313c9c10fab4ff2ef098bb0b998bde940b19b223"
+    },
+    {
+      "path": "isolated/method-b-sales/runtime.mjs",
+      "match": true,
+      "sha": "fcd2009c8f4ecd865117604414beb9d1f882deb4"
+    },
+    {
+      "path": "isolated/method-b-sales/sales.mjs",
+      "match": true,
+      "sha": "47b8e9b74b09aa09d8a32c4c09c571840867bba2"
+    },
+    {
+      "path": "isolated/method-b-sales/validation.mjs",
+      "match": true,
+      "sha": "5206b121e7714136afd486f7f76d44b5695caaaf"
+    },
+    {
+      "path": "isolated/method-b-sales/void-offline/PROTECTED_VOID.md",
+      "match": true,
+      "sha": "475725a2ee51258f7abba00daeae4e18d79e9314"
+    },
+    {
+      "path": "isolated/method-b-sales/void-offline/README.md",
+      "match": true,
+      "sha": "bf003d7038531203fae912176bfa750ba3821ba5"
+    },
+    {
+      "path": "isolated/method-b-sales/void-offline/TRANSACTION_DRAFT.md",
+      "match": true,
+      "sha": "7b8175ba925a6cdfb92f5274f49a532be88088de"
+    },
+    {
+      "path": "isolated/method-b-sales/void-offline/TYPED_CANDIDATE.md",
+      "match": true,
+      "sha": "0c9f2a416314ee28e7103f756377278c01f91382"
+    },
+    {
+      "path": "isolated/method-b-sales/void-offline/VOID_CONTRACT.md",
+      "match": true,
+      "sha": "0d4ad116d16f86236ea2b925d309df095b5e7d10"
+    },
+    {
+      "path": "isolated/method-b-sales/void-offline/boundary-fixture.mjs",
+      "match": true,
+      "sha": "6685ba8f3af82a6f3d3ecda1a92ef9f90c3e9d9e"
+    },
+    {
+      "path": "isolated/method-b-sales/void-offline/boundary.test.mjs",
+      "match": true,
+      "sha": "df4b15df3c01572898e90cd682b5620f2679c696"
+    },
+    {
+      "path": "isolated/method-b-sales/void-offline/fixture.mjs",
+      "match": true,
+      "sha": "25a4563984717f29a85b4965f498c412134d1e62"
+    },
+    {
+      "path": "isolated/method-b-sales/void-offline/protected-void.mjs",
+      "match": true,
+      "sha": "d22a26cb6247cccb83511b6576e95ab4e51256fa"
+    },
+    {
+      "path": "isolated/method-b-sales/void-offline/protected-void.test.mjs",
+      "match": true,
+      "sha": "08975ae57616cc2c306f0ef6856d6c592f775c26"
+    },
+    {
+      "path": "isolated/method-b-sales/void-offline/sale-primitives.mjs",
+      "match": true,
+      "sha": "945aaa702e757a2b6e8e3b6219fff852b7b34c63"
+    },
+    {
+      "path": "isolated/method-b-sales/void-offline/timestamp-codec.mjs",
+      "match": true,
+      "sha": "ce39d3ffe7ae6303f564aa724c102924dcf9eada"
+    },
+    {
+      "path": "isolated/method-b-sales/void-offline/typed-proof.test.mjs",
+      "match": true,
+      "sha": "cbfff2a1708fbe8c6707f9363ae6f9e1f1680b26"
+    },
+    {
+      "path": "isolated/method-b-sales/void-offline/validation.mjs",
+      "match": true,
+      "sha": "5206b121e7714136afd486f7f76d44b5695caaaf"
+    },
+    {
+      "path": "isolated/method-b-sales/void-offline/void-boundary.mjs",
+      "match": true,
+      "sha": "e3b54c93ec1be7ffbfb94a1206ed1bc042d3ff98"
+    },
+    {
+      "path": "isolated/method-b-sales/void-offline/void-contract.mjs",
+      "match": true,
+      "sha": "0589280366100463451f83cd467d9c122c0bce1d"
+    },
+    {
+      "path": "isolated/method-b-sales/void-offline/void-contract.test.mjs",
+      "match": true,
+      "sha": "dd3f9e070d5a82df620435f82289e25f1a5e49af"
+    },
+    {
+      "path": "isolated/method-b-sales/void-offline/void-proof-candidate.mjs",
+      "match": true,
+      "sha": "d3a6e5659f9b592dff73b39ed5fdda565c5aaf89"
+    },
+    {
+      "path": "isolated/method-b-sales/void-offline/void-pure.mjs",
+      "match": true,
+      "sha": "82511387cf16992b17d78993432128fcd1cbf09c"
+    },
+    {
+      "path": "isolated/method-b-sales/void-offline/void-pure.test.mjs",
+      "match": true,
+      "sha": "bf389f6221370516b8399f5d4edd8c555676fe2c"
+    },
+    {
+      "path": "isolated/method-b-sales/void-offline/void-transaction.draft.mjs",
+      "match": true,
+      "sha": "e10fb70699a2404e430f25acd703887364a94644"
+    },
+    {
+      "path": "isolated/method-b-sales/void-offline/void-transaction.draft.test.mjs",
+      "match": true,
+      "sha": "9493b90b231e484c387d49bf6487dd2ed9052bfa"
+    },
+    {
+      "path": "js/inventory-firestore.js",
+      "match": true,
+      "sha": "c9af707a765627c5eb875c796543fd21a84afc96"
+    },
+    {
+      "path": "js/services/salesHistoryService.js",
+      "match": true,
+      "sha": "c0daaf986a9cde0ffffbfbcc9d5eb53d28820ee3"
+    }
+  ],
+  "offlineImportAudit": [
+    {
+      "file": "validation.mjs",
+      "sha256": "23DF06E9AD24788CA300A5CAB138130B058E4AAB55B9099C7D6CA3BFEB77B8AF",
+      "imports": [
+        "node:crypto"
+      ]
+    },
+    {
+      "file": "sale-primitives.mjs",
+      "sha256": "A2AC5D72A510573E9B1CB87C567B6952A4EA5D3B8E61A0B7623116D044EA6AC8",
+      "imports": [
+        "./validation.mjs"
+      ]
+    },
+    {
+      "file": "void-pure.mjs",
+      "sha256": "07369F31BF97982189B06943A61FF33259540D63F352848C6D0720D986700228",
+      "imports": [
+        "./validation.mjs",
+        "./sale-primitives.mjs"
+      ]
+    },
+    {
+      "file": "fixture.mjs",
+      "sha256": "17AAC8DEEB5E3120196C65394AC9E1349875EEFA3F44C25715C539E83C0AA4B8",
+      "imports": []
+    },
+    {
+      "file": "void-pure.test.mjs",
+      "sha256": "82798796533908D2C9858FDE148650C077A6AC8602C2F64BDF0B1CDA2B64B872",
+      "imports": [
+        "node:test",
+        "node:assert/strict",
+        "./fixture.mjs",
+        "./validation.mjs",
+        "./void-pure.mjs"
+      ]
+    },
+    {
+      "file": "preflight.mjs",
+      "sha256": "A84439C96AB1A4F0696B6F91FB1A1B6044B9DA2B0FE78F14BAC8F153154E3F32",
+      "imports": []
+    },
+    {
+      "file": "void-boundary.mjs",
+      "sha256": "BE7DF44BF31D9124291483990024D78D099BB817D8B434F24F9A6E5204325E69",
+      "imports": [
+        "./validation.mjs",
+        "./sale-primitives.mjs",
+        "./void-pure.mjs"
+      ]
+    },
+    {
+      "file": "boundary-fixture.mjs",
+      "sha256": "93B65F1E98D787FFFD726D4DCECA34C409BE499029F72CEB2ADE879FB33272E8",
+      "imports": [
+        "./fixture.mjs",
+        "./validation.mjs"
+      ]
+    },
+    {
+      "file": "boundary.test.mjs",
+      "sha256": "443F4DEA983486F7A0EF2AB1BFE992E7CB80C221D1860CBAEB9B2E3B0485970A",
+      "imports": [
+        "node:test",
+        "node:assert/strict",
+        "./validation.mjs",
+        "./sale-primitives.mjs",
+        "./void-pure.mjs",
+        "./void-boundary.mjs",
+        "./boundary-fixture.mjs"
+      ]
+    },
+    {
+      "file": "void-transaction.draft.mjs",
+      "sha256": "72B7B0D90FC03B6A900E1654DF6F4D1E667C893417AF687F8E34DB2E522FA973",
+      "imports": [
+        "./validation.mjs",
+        "./void-pure.mjs",
+        "./void-boundary.mjs",
+        "./sale-primitives.mjs"
+      ]
+    },
+    {
+      "file": "void-transaction.draft.test.mjs",
+      "sha256": "A43B331DB9E379F9775CA01F9F0427A24783FE4FC8E8E9692C2B9B358A3E4EAE",
+      "imports": [
+        "node:test",
+        "node:assert/strict",
+        "./boundary-fixture.mjs",
+        "./validation.mjs",
+        "./void-transaction.draft.mjs"
+      ]
+    },
+    {
+      "file": "timestamp-codec.mjs",
+      "sha256": "7FD28CB596855AE83827FA2837FFD20D6B748BBF87CB1D75861EFC2053B66BF1",
+      "imports": [
+        "node:util",
+        "./validation.mjs"
+      ]
+    },
+    {
+      "file": "void-proof-candidate.mjs",
+      "sha256": "A3E5C48247DBCE25E6D00693E14605A6A38AF21FA4D6D1E4E1A343C28F860954",
+      "imports": [
+        "./validation.mjs",
+        "./void-pure.mjs",
+        "./void-boundary.mjs"
+      ]
+    },
+    {
+      "file": "typed-proof.test.mjs",
+      "sha256": "198484C9BD0CE81A698240FEBEC9C47000392A60BFB814EAC64F97F3628D11E2",
+      "imports": [
+        "node:test",
+        "node:assert/strict",
+        "./boundary-fixture.mjs",
+        "./timestamp-codec.mjs",
+        "./void-proof-candidate.mjs"
+      ]
+    },
+    {
+      "file": "void-contract.mjs",
+      "sha256": "FF1B7F1835BDB25E9A728DEAEADB982CF6890F3F0E4A8E2F69593FAF8B9D465A",
+      "imports": [
+        "./validation.mjs",
+        "./void-pure.mjs",
+        "./void-proof-candidate.mjs",
+        "./void-transaction.draft.mjs"
+      ]
+    },
+    {
+      "file": "void-contract.test.mjs",
+      "sha256": "0E8D08FDD43E93A1F4698C6A127BA7A614E48CE27383F6A044FCD8A9DE6E7311",
+      "imports": [
+        "node:test",
+        "node:assert/strict",
+        "./boundary-fixture.mjs",
+        "./timestamp-codec.mjs",
+        "./void-proof-candidate.mjs",
+        "./void-contract.mjs"
+      ]
+    },
+    {
+      "file": "protected-void.mjs",
+      "sha256": "7C087017F6197B92FF39D4BAC9F0AE33BA970120E307F28701E55C2D671C0AC9",
+      "imports": [
+        "./validation.mjs",
+        "./sale-primitives.mjs",
+        "./void-pure.mjs",
+        "./void-boundary.mjs"
+      ]
+    },
+    {
+      "file": "protected-void.test.mjs",
+      "sha256": "63D35DCFEDC70982C4074FAC727D9AAD150CD85EC4A332B97CBE3BC18D270EAB",
+      "imports": [
+        "node:test",
+        "node:assert/strict",
+        "./boundary-fixture.mjs",
+        "./timestamp-codec.mjs",
+        "./protected-void.mjs"
+      ]
+    },
+    {
+      "file": "transaction-reader.mjs",
+      "sha256": "CA32D78B0C4548339ADCAC7EBC32CF10F229B63EA5A3CC97860908421A1B715F",
+      "imports": [
+        "./validation.mjs",
+        "./sale-primitives.mjs",
+        "./void-pure.mjs",
+        "./protected-void.mjs"
+      ]
+    },
+    {
+      "file": "transaction-reader.test.mjs",
+      "sha256": "37C9E1E6ADA0D859C1B911B9B420827C524D5EB5E6254B11619568298148CC32",
+      "imports": [
+        "node:test",
+        "node:assert/strict",
+        "./boundary-fixture.mjs",
+        "./timestamp-codec.mjs",
+        "./transaction-reader.mjs"
+      ]
+    }
+  ],
+  "realSdkLoaded": false,
+  "credentialAccess": false,
+  "databaseAccess": false,
+  "emulatorStarted": false,
+  "V01toV10": "UNPROVEN",
+  "actualTimestampAuthAtomicityCommitAck": "UNKNOWN"
+}
