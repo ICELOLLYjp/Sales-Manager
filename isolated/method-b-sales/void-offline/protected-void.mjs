@@ -18,7 +18,7 @@ export function protectedVoid({codec,allowedUids,isServerSentinel,authorizeRead}
   function originalChecked(o){
     codec.stamp(o.sale.createdAt);codec.stamp(o.sale.updatedAt);codec.stamp(o.lock.createdAt);
     for(const m of Object.values(o.movements))codec.stamp(m.createdAt);
-    check(uids.has(o.lock.serverSaleV1.actorUid));const dto=codec.dto(o);verifyOriginal(dto,hash(dto));
+    check(uids.has(o.lock.serverSaleV1?.actorUid));const dto=codec.dto(o);verifyOriginal(dto,hash(dto));
   }
   function sessionChecked(ref,id){keys(ref,['id','exists']);check(ref.exists===true&&ref.id===id);}
   // Save only quantities/revisions and summary inputs needed to recompute the

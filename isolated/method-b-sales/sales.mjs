@@ -65,6 +65,7 @@ export async function commitSale(db,actor,input,hooks={}){
   return db.runTransaction(async tx=>{
     attempts++;hooks.onAttempt?.(attempts);
     const r=await records(tx,db,op.transactionId);
+    if((r.s?.status==='voided'||r.l?.serverVoidV1)&&hooks.voidReplay)return hooks.voidReplay('commit',tx,op);
     if(r.s||r.l||r.movements.size){const p=proof(r,op.transactionId);if(p.requestHash!==requestHash)fail('intent-conflict');const session=await tx.get(db.collection('salesSessions').doc(op.sessionId));if(!session.exists)fail('reconciliation-required');return reply(p,true);}
     const sessionRef=db.collection('salesSessions').doc(op.sessionId),sessionSnap=await tx.get(sessionRef);if(!sessionSnap.exists)fail('session-not-found',404);const session=sessionSnap.data();
     if(session.status!=='open')fail('session-closed');
@@ -102,7 +103,8 @@ export async function commitSale(db,actor,input,hooks={}){
     hooks.beforeCommit?.({tx,db});return reply(p,false);
   },{maxAttempts:3});
 }
-export async function saleResult(db,actor,input){guard(db,actor);const op=normalize(input,true);return db.runTransaction(async tx=>{
+export async function saleResult(db,actor,input,hooks={}){guard(db,actor);const op=normalize(input,true);return db.runTransaction(async tx=>{
   const r=await records(tx,db,op.transactionId);if(!r.s&&!r.l&&!r.movements.size)return {transactionId:op.transactionId,outcome:'not-found'};
+  if((r.s?.status==='voided'||r.l?.serverVoidV1)&&hooks.voidReplay)return hooks.voidReplay('result',tx,op);
   try{const p=proof(r,op.transactionId);if(!(await tx.get(db.collection('salesSessions').doc(p.canonicalRequest.sessionId))).exists)fail('reconciliation-required');return reply(p,true);}catch(e){if(e.code!=='reconciliation-required')throw e;return {transactionId:op.transactionId,outcome:'reconciliation-required',currentSaleStatus:r.s?.status??null};}
 },{readOnly:true});}

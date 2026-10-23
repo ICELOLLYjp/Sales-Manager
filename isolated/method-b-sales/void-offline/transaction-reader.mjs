@@ -64,7 +64,10 @@ export function transactionReader({db,auth,codec,allowedUids,documentId,serverTi
   async function execute(kind,token,input){
     await boundary();const op=kind==='void'?normalizeVoid(codec.copy(input)):normalize(codec.copy(input),kind==='result');
     await actor(token); // Reject before opening a database transaction.
-    return await db.runTransaction(async tx=>{
+    return await db.runTransaction(tx=>inTransaction(kind,tx,token,op),kind==='void'?{maxAttempts:3}:{readOnly:true});
+  }
+  async function inTransaction(kind,tx,token,input){
+      const op=kind==='void'?normalizeVoid(codec.copy(input)):normalize(codec.copy(input),kind==='result');
       await boundary();const a=await actor(token); // Recheck revocation on retries.
       const snapshot=await read(tx,op,kind==='void');reads.add(snapshot);
       if(snapshot.absent){
@@ -77,9 +80,9 @@ export function transactionReader({db,auth,codec,allowedUids,documentId,serverTi
       const writes=out.writes.map(w=>{check(['create','update'].includes(w.op));return {op:w.op,ref:db.doc(w.path),data:encode(w.data,sentinel)};});
       for(const w of writes)tx[w.op](w.ref,w.data);
       return out.result;
-    },kind==='void'?{maxAttempts:3}:{readOnly:true,maxAttempts:3});
   }
   // commit/result methods are voided-record branches only, not new-sale routes.
   return Object.freeze({void:(token,input)=>execute('void',token,input),
-    commitReplay:(token,input)=>execute('commit',token,input),resultReplay:(token,input)=>execute('result',token,input)});
+    commitReplay:(token,input)=>execute('commit',token,input),resultReplay:(token,input)=>execute('result',token,input),
+    replayInTransaction:(kind,tx,token,input)=>{if(!['commit','result'].includes(kind))fail('invalid-replay-kind');return inTransaction(kind,tx,token,input);}});
 }

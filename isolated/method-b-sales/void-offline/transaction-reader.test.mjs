@@ -21,7 +21,7 @@ function setup(options={}){
   function resolve(x){if(x===sentinel)return new Stamp(200);if(x instanceof Stamp)return x;if(Array.isArray(x))return x.map(resolve);
     if(x&&typeof x==='object')return Object.fromEntries(Object.entries(x).map(([k,v])=>[k,resolve(v)]));return x;}
   const db={doc:path=>({path}),collection:name=>{assert.equal(name,'inventoryMovements');return query();},runTransaction:async(fn,opts)=>{
-    assert.equal(opts.maxAttempts,3);let result;
+    assert.deepEqual(opts,opts.readOnly?{readOnly:true}:{maxAttempts:3});let result;
     for(let n=0;n<(options.retry?2:1);n++){
       const staged=[];attempts.push(staged);let writing=false;
       const read=()=>{assert.equal(writing,false,'READ AFTER WRITE');log.push('read');};

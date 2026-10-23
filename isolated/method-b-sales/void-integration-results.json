@@ -1,0 +1,104 @@
+{
+  "dateJST": "2026-10-24",
+  "baseHead": "c07372fd4462b21afc00fd4317d153df4b8f360f",
+  "scope": "isolated demo API only; no production connection/deploy/merge",
+  "emulator": {
+    "jarSHA256": "9b6498b7f62714d67f48f59b3818883cd682dbcd46b9f59511de81c97bb5166c",
+    "preflight": "Java external IP/metadata/IPv6 denied; Node TCP/TLS/DNS/UDP denied; IPv4/IPv6 loopback passed",
+    "javaSecurityManager": true,
+    "firestore": "1.22.0",
+    "metadataDiscovery": "none",
+    "project": "demo-icelolly-method-b-sales",
+    "ready": true,
+    "portsReleased": [
+      8088,
+      9099,
+      9153,
+      4403,
+      4503
+    ],
+    "exitCode": 0,
+    "credentialEnvironment": "allowlist; fresh dummy HOME"
+  },
+  "dependencies": {
+    "toolsInstalledLockEntries": 727,
+    "appInstalledLockEntries": 224,
+    "toolsLockSHA256": "c9a9fdd60272ed7de975dd5bedfd76d87ff4fa6a27058180bddb9c25996ea7cc",
+    "jdkCompilerSHA256": "f9d6e191ab098c0d416e7d588a24420a8621cd2f4720dab2459b8b7b2d2d8b4e"
+  },
+  "integration": {
+    "skip": 0,
+    "fail": 0,
+    "cases": [
+      "V02 multi-source and repeated SKU reversal preserves original evidence and unrelated data",
+      "V01 authorized UIDs, authentication and fixed input schema",
+      "V03 serial/parallel replay and lost committed reply survive API restart",
+      "V04 concurrent sale replay/void then commit/result never resurrect sale",
+      "V05 bounded retries/exhaustion and concurrent sales preserve effects",
+      "V06 forged/missing/orphan evidence refuses mutation",
+      "V07 closed first cancellation rejected; saved cancellation replays after close",
+      "V08 real commit failure rolls back all staged writes then retry succeeds",
+      "V09 inconsistent summary, revision overflow and missing coordinate reject; current catalog ignored",
+      "V10 absent cancellation creates no reservation; original ID can later commit and cancel",
+      "V05b held void overlaps another sale; stale manual edit cannot erase either effect",
+      "V07b session-close transaction overlaps held void in a legal serial order",
+      "V10b cancellation overlapping in-flight sale leaves one original ID and no reservation"
+    ],
+    "pass": 13
+  },
+  "regression": {
+    "skip": 0,
+    "fail": 0,
+    "selected": "P01 P02 P03 P05 P06 P07 P08 P11 P13 P15 P16 P23 P24",
+    "pass": 13,
+    "notSelected": "P04 P09 P10 P12 P14 P17"
+  },
+  "offline": {
+    "skip": 0,
+    "fail": 0,
+    "suites": "protected-void.test.mjs transaction-reader.test.mjs",
+    "pass": 42
+  },
+  "earlierAttempts": [
+    "Original launcher reproduced exit 1/ClassNotFoundException; sandbox hub timeout separately reproduced",
+    "Initial integration 9 PASS/1 FAIL: missing serverSaleV1 returned 500, fixed to reconciliation-required",
+    "Expanded integration 12 PASS/1 FAIL: test incorrectly required void-first; corrected to assert either legal serial order and exact no-write state when close wins"
+  ],
+  "preservedOriginalSHA256": {
+    ".gitignore": "2f9213399cd285befa88b33a390ea32609f313e03b3a7c65dea3f2a849b46fef",
+    "emulator-run.mjs": "38673dc7d94390140edf07e81401480ecc79ef0504e6e1f8beff14608288c390",
+    "loopback-only.cjs": "4282749b46e74193254a46c1e4279d10d38ca9b8fcd46136e32f6d734d71b449"
+  },
+  "limits": [
+    "Auth emulator tokens only; no production Auth/IAM or hostile Admin guarantee",
+    "V07 close transaction is a fixture, not a delivered close API",
+    "Real POS/queues/old clients/partial cancellation/refunds/deploy excluded",
+    "Java/CLI/JDK binaries and retained tools lock remain local artifacts prerequisites",
+    "Original .gitignore/emulator-run.mjs/loopback-only.cjs remain unchanged locally, backed up; excluded from published fix"
+  ],
+  "sha256": {
+    "emulator-isolated.mjs": "d254115a8240226ec69b6e69b12d8732cb1014ce02497a9346fceb5d1373c2f5",
+    "LoopbackProbe.java": "9a6e55e7ab54bb9254952dc09d58df69b6264cf970210abd3da97d0440258dad",
+    "loopback-guard.cjs": "3806b5c8043a06c6159ac3df397432d0fc1b0dfec9082100a87fbf2f9326bfaa",
+    "loopback-probe.cjs": "c793ecc1d73ca2848584559efa59d267db275c49ec23c75e7329d28967314c18",
+    "http.mjs": "18b7441ca87f9a4ae5b881d856fa687b6640979136463c01774bc226c8cc3a26",
+    "sales.mjs": "0c7b0889bca242ea33b4d36708c72bbe0ce40dc874f44338fd3f5479ceb2db24",
+    "runtime.mjs": "d75ad3f32270acca1683c1b55db8c619f39153b774a13017491ac364a00a6f4d",
+    "validation.mjs": "42acf574ecea1ff0a6d93f32af899bd42924fd7744415fd3047f3873a4b0b37b",
+    "void-runtime.mjs": "cfa82885ab6342c749df086cabb3fafab07cf0af06c011773bd05c3ee59b8a54",
+    "void-api.test.mjs": "bbce2e9ee5d25b7fb623a6570e16dc65421ed52b3bb79d376f032e40ee1f257b",
+    "api.test.mjs": "6f0cef2adef26cbc8007e981245e8ef0b58e00548824b1749a845aca6794f63b",
+    "manual-compat.mjs": "a42ffd273695971dc1a632933372f0109649a0dc5dcd2d77d1432cf8e4aca01c",
+    "firestore.rules": "4fa9497953992ea9949979f9f7bb3176acbbe513b2a8f0719db91c2f82c3c20c",
+    "firebase.json": "61f777ddd7ecb685bc0c675225f0507e72e69622277e9e3ebbdecf5e36403a46",
+    "package-lock.json": "9fd37faea43be18c8808a95afc5c92aa1fb0b6374d2aea00a99bccb47a7cd699",
+    "void-offline/transaction-reader.mjs": "d8d13411a5ccb840e31bc35e295aa89241926ac9b017f26d97f6e366c8c51333",
+    "void-offline/transaction-reader.test.mjs": "744e0e618d769887a1c6e2c1490239953fa57a945f5c997d19f5f07ba5e7c4c1",
+    "void-offline/protected-void.mjs": "28bc94d9075b0015f0fed2c7da18cb01a8bce8831ed6bca6e5ebec2f2f1dc484",
+    "void-offline/timestamp-codec.mjs": "c06d6725be9bddf26fae74d276f663b9bec904199b2c93011489a6fdab554ad9",
+    "void-offline/void-pure.mjs": "50a715229041580b6d31e72f22bd4b2e45c82011b13c3eff7f35f835a48eab7f",
+    "void-offline/void-boundary.mjs": "47ced8c9b628213369aef873378ec8727d022945ff058b0bad7d2ac9e4d93911",
+    "void-offline/sale-primitives.mjs": "99f85d8e84477b72caaf8bbdd97fb0e092034eb835a9e24b309a1fc222350c4a",
+    "void-offline/validation.mjs": "42acf574ecea1ff0a6d93f32af899bd42924fd7744415fd3047f3873a4b0b37b"
+  }
+}
