@@ -14,7 +14,7 @@ import {hash,normalize,parseJSON} from './validation.mjs';
 import {editInventory} from './manual-compat.mjs';
 let rt,env,api,url,caseBefore;const tokens={},actor={uid:UIDS[0],email_verified:true,email:'fixture-business@example.test'};
 const stock='tshirtStock/master',acc='accessoryStock/shared',sessionPath='salesSessions/s';
-const hooks={};const observations=[];
+const hooks={};const observations=[];const authEvidence={scope:'unmodified Auth Emulator tokens; production signatures/IAM not tested'};
 const voidOp=op=>({version:1,transactionId:op.transactionId,expectedSaleRequestHash:hash(op),reason:'manual_void'});
 const cancel=(op,options={})=>good(voidOp(op),{route:'void',...options});
 const variants=()=>new Map([
@@ -43,7 +43,7 @@ before(async()=>{assertIsolated();rt=runtime();env=await initializeTestEnvironme
 });
 beforeEach(async()=>{for(const k of Object.keys(hooks))delete hooks[k];await env.clearFirestore();await rt.db.doc(stock).set({inventoryRevision:0,inventory_v2:{b:{d:{c:{s:{qty:5,note:'retain'},m:{qty:8}}}}},createdAt:Timestamp.fromMillis(123),keep:{x:1}});await rt.db.doc(acc).set({inventoryRevision:0,designs:[{id:'a',piercing:5,earring:null},{id:'other',piercing:8}],keep:true});await rt.db.doc(sessionPath).set(session());for(const [id,v]of variants())await rt.db.doc('productVariants/'+id).set(v);caseBefore=JSON.parse(await snapshot());});
 afterEach(async t=>{observations.push({case:t.name,before:caseBefore,after:JSON.parse(await snapshot())});});
-after(async()=>{await fs.mkdir(new URL('./artifacts/',import.meta.url),{recursive:true});await fs.writeFile(new URL('./artifacts/void-observations.json',import.meta.url),JSON.stringify(observations,null,2));if(api)await close(api);await env?.cleanup();await rt?.close();});
+after(async()=>{await fs.mkdir(new URL('./artifacts/',import.meta.url),{recursive:true});await fs.writeFile(new URL('./artifacts/void-observations.json',import.meta.url),JSON.stringify(observations,null,2));await fs.writeFile(new URL('./artifacts/auth-evidence.json',import.meta.url),JSON.stringify(authEvidence,null,2));if(api)await close(api);await env?.cleanup();await rt?.close();});
 
 test('V02 multi-source and repeated SKU reversal preserves original evidence and unrelated data',async()=>{
  const op=payload('multi',[row('t','1'),row('t','2',2),row('a','3')]);await good(op);
@@ -66,9 +66,30 @@ test('V01 authorized UIDs, authentication and fixed input schema',async()=>{
  const op=payload('reject');await good(op);
  for(const token of [null,'bad',tokens.outsider])await rejected(voidOp(op),token===tokens.outsider?403:401,{route:'void',token});
  await rt.auth.updateUser(UIDS[2],{emailVerified:false});await rejected(voidOp(op),403,{route:'void',token:await login(UIDS[2])});await rt.auth.updateUser(UIDS[2],{emailVerified:true});
- await rt.auth.updateUser(UIDS[1],{disabled:true});await rejected(voidOp(op),401,{route:'void',token:tokens[UIDS[1]]});await rt.auth.updateUser(UIDS[1],{disabled:false});
- const parts=tokens[UIDS[0]].split('.');const claims={...JSON.parse(Buffer.from(parts[1],'base64url')),auth_time:1};await rt.auth.revokeRefreshTokens(UIDS[0]);
- await rejected(voidOp(op),401,{route:'void',token:[parts[0],Buffer.from(JSON.stringify(claims)).toString('base64url'),parts[2]].join('.')});tokens[UIDS[0]]=await login(UIDS[0]);
+ const disabledToken=tokens[UIDS[1]];
+ assert.equal((await rt.auth.verifyIdToken(disabledToken,true)).uid,UIDS[1]);
+ await rt.auth.updateUser(UIDS[1],{disabled:true});
+ await assert.rejects(rt.auth.verifyIdToken(disabledToken,true),{code:'auth/user-disabled'});
+ await rejected(voidOp(op),401,{route:'void',token:disabledToken});
+ await rt.auth.updateUser(UIDS[1],{disabled:false});
+ assert.equal((await rt.auth.verifyIdToken(disabledToken,true)).uid,UIDS[1]);
+ authEvidence.disabled={unchangedToken:true,before:'accepted',after:'auth/user-disabled',httpStatus:401,restored:'accepted'};
+ // Never rewrite claims: wait beyond auth_time's one-second resolution.
+ // Emulator tokens have alg=none; this is not a production signature test.
+ const oldToken=tokens[UIDS[0]],decoded=await rt.auth.verifyIdToken(oldToken,true);
+ assert.equal(decoded.uid,UIDS[0]);
+ const waitMs=Math.max(0,(decoded.auth_time+1)*1000-Date.now()+50);
+ assert.ok(waitMs<3000,'unexpected emulator clock skew');
+ if(waitMs)await new Promise(resolve=>setTimeout(resolve,waitMs));
+ await rt.auth.revokeRefreshTokens(UIDS[0]);
+ const validAfter=(await rt.auth.getUser(UIDS[0])).tokensValidAfterTime;
+ assert.ok(Date.parse(validAfter)>decoded.auth_time*1000,'revocation must be strictly later than original authentication');
+ await assert.rejects(rt.auth.verifyIdToken(oldToken,true),{code:'auth/id-token-revoked'});
+ await rejected(voidOp(op),401,{route:'void',token:oldToken});
+ assert.equal(tokens[UIDS[0]],oldToken);
+ tokens[UIDS[0]]=await login(UIDS[0]);
+ assert.equal((await rt.auth.verifyIdToken(tokens[UIDS[0]],true)).uid,UIDS[0]);
+ authEvidence.revoked={unchangedToken:true,algorithm:JSON.parse(Buffer.from(oldToken.split('.')[0],'base64url')).alg,authTime:decoded.auth_time,validAfter,before:'accepted',after:'auth/id-token-revoked',httpStatus:401,freshLogin:'accepted'};
  for(const extra of [{patch:{}},{actorUid:UIDS[1]},{serverVoidV1:{}},{quantity:1},{path:stock}])await rejected({...voidOp(op),...extra},400,{route:'void'});
  const raw=JSON.stringify(voidOp(op)).replace('"version":1','"version":1,"version":1');await rejected(null,400,{route:'void',raw});
 });

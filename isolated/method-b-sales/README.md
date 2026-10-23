@@ -35,6 +35,49 @@ queues, partial cancellations, payments/refunds and deployment remain out of sco
 The three pre-existing local files were byte-preserved with a second copy in
 `artifacts/resume-original-20261024/`; their unsafe/incomplete runner is not published.
 
+Reproduction review (2026-10-24): clean checkout of GitHub `951edf3`, with
+`core.autocrlf=false`, app lock (224 installed packages) and retained tools lock
+(727 installed packages, SHA-256
+`c9a9fdd60272ed7de975dd5bedfd76d87ff4fa6a27058180bddb9c25996ea7cc`).
+Run `npm ci --ignore-scripts --no-audit --no-fund` in this directory and in
+`artifacts/tools` during dependency acquisition only. Copy the retained Java 21
+and checksum-verified JAR into the paths above; recompile `LoopbackProbe.java`
+with JDK 21. The tools lock and binaries are local prerequisites, not contained
+in GitHub: GitHub alone is not a complete environment archive. Check all five
+ports are unused before each run; never stop another process to free them.
+The OS sandbox may deny loopback; a run outside that sandbox must retain both
+application guards and pass both preflights. Never remove either guard.
+
+V01 now passes the exact original token to `verifyIdToken(token,true)` before
+and after revocation, requires `auth/id-token-revoked`, and verifies HTTP 401
+with an unchanged Firestore snapshot. It waits past the token's `auth_time`
+second before revocation and checks the returned valid-after time. Disabling a
+user similarly requires `auth/user-disabled`; fresh login/restoration is checked.
+Malformed-token rejection is separate from these checks. Auth Emulator issues
+unsigned `alg=none` tokens and the Admin SDK uses its emulator verifier (and
+checks revocation even when checkRevoked is omitted). These are unmodified
+emulator-token lifecycle results, NOT evidence for production RS256 signatures
+or IAM. No JWT claims are edited and no auth mocks replace emulator evidence.
+`artifacts/auth-evidence.json` records outcomes/times without saving tokens.
+
+Actual close-path static comparison at `951edf3` (not an integration pass):
+`js/services/eventCloseService.js` filters voided sales (line 307), reads session
+and sales in preflight (592), requires opening/closing counts, and compares
+status/count timestamps/lastTransactionAt/lastVoidAt (532, 1478) in its final
+transaction. It writes an event-close lock, adjustment movements and close
+summary (1851-2059); exact sales are not added to the adjustment movement list.
+The isolated void writer updates lastVoidAt, but V07/V07b do not exercise these
+preflight reads, counts, lock/movements or adjustment calculations.
+`eventCloseFlowCompatService.js` additionally updates opening/recovery state
+before and after the base call (68 onward); `eventCloseServiceCompat.js` also
+prepares outside-opening allocations. Those client writes conflict with this
+harness's deny-write boundary. No real close service was invoked or migrated.
+Minimum next close work: inject only the Firebase state/SDK boundary into the
+real service and wrappers in a dedicated demo harness; test void-then-close
+without a second stock decrement, and void racing preflight/finalization with
+changed-data rejection/retry. Keep those results separate from V07b and do not
+relax deployed or isolated Rules to make the old writer work.
+
 Approved scope: docs/METHOD_B_SALES_MINIMUM_SPEC_20261014.md. Fixed demo project,
 Firestore 127.0.0.1:8088, Auth 127.0.0.1:9099, HTTP loopback ephemeral port.
 No deployment entrypoint. Do not import from product JS, Functions, or Service Worker.
