@@ -14,7 +14,7 @@ async function source(path) {
   return text;
 }
 const snap=s=>({id:s.id,ref:s.ref,exists:()=>s.exists,data:()=>s.data()});
-export async function realCloseAdapter(db,{beforeTransaction}={}) {
+export async function realCloseAdapter(db,{beforeTransaction,transactionScope}={}) {
   assertIsolated();
   if(db.projectId!==PROJECT)throw Error('wrong-demo-project');
   const guarded=await source('../../js/inventory-concurrency.mjs');
@@ -24,13 +24,17 @@ export async function realCloseAdapter(db,{beforeTransaction}={}) {
     collection:(d,path)=>d.collection(path),
     where:(...args)=>args,
     query:(ref,...clauses)=>clauses.reduce((q,args)=>q.where(...args),ref),
-    getDocFromServer:async ref=>snap(await ref.get()),
-    getDocsFromServer:ref=>ref.get(),
+    getDocFromServer:async ref=>snap(await (transactionScope ? transactionScope.get(ref) : ref.get())),
+    getDocsFromServer:ref=>transactionScope ? transactionScope.get(ref) : ref.get(),
     FieldPath,serverTimestamp:()=>FieldValue.serverTimestamp(),
     runTransaction:async(d,fn)=>{
       assertIsolated();if(d!==db)throw Error('wrong-demo-db');
       // Deterministic scheduling after the REAL preflight, before its REAL final transaction.
       await beforeTransaction?.();
+      if(transactionScope)return fn(guardedTransaction({
+        get:async ref=>snap(await transactionScope.get(ref)),
+        update:(...args)=>transactionScope.update(...args),set:(...args)=>transactionScope.set(...args),delete:(...args)=>transactionScope.delete(...args)
+      }));
       return d.runTransaction(tx=>fn(guardedTransaction({
         get:async ref=>snap(await tx.get(ref)),
         update:(...args)=>tx.update(...args),set:(...args)=>tx.set(...args),delete:(...args)=>tx.delete(...args)

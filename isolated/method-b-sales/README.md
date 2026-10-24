@@ -132,3 +132,34 @@ Validation: 19 scoped cases passed on 2026-10-14; see
 manual-compat.mjs is byte-identical to ../method-b/inventory.mjs; its relative
 runtime import binds to the sales demo only. P10 is a new algorithm integration
 case, not a rerun of the old 25 tests or a claim about the old HTTP deployment.
+### Genuine FlowCompat close, 2026-10-24
+
+`real-flow-adapter.mjs` pins the complete FlowCompat and flow-accounting sources,
+ServiceCompat (only its no-outside-opening branch), and the existing real base
+close/revision adapter. Only Firebase/import boundaries change. Event inputs are
+synthetic fixtures; calculations, wrapper ordering and base close body are genuine.
+The bridge admits only demo session `s`, fixture operator and listed flow fields;
+outside-opening allocations and retained recovery markers are refused. No HTTP
+close endpoint, production authentication/IAM proof or product source edit.
+
+C04 runs the original sequential writes successfully. C05 reproduces an UNSAFE
+original path: final metadata write fails after close commits; catch restores
+opening and removes recovery marker, but leaves openingTotal=6 rather than 4,
+without flow reconciliation. Closed-session replay does not repair it. A passing
+C05 means defect reproduction, not acceptance of that behavior. Existing affected
+records require evidence review; blind replay must not be used as repair.
+
+C06-C08 reuse the same bodies in one Admin transaction: reads use that transaction,
+opening overlay feeds real preflight, all writes remain buffered until successful
+completion. Failure discards everything; missing-document update forces actual
+Emulator commit rejection. Both failure checkpoints preserve open session, stock,
+lock and movements exactly; fresh retry closes once. C09 checks the demo limits.
+This is a bounded isolated proposal, not a general Web SDK emulator or deployed API.
+
+Run `node emulator-isolated.mjs "node --test --test-concurrency=1 --test-reporter=tap --test-timeout=60000 real-flow.test.mjs real-close.test.mjs void-api.test.mjs api.test.mjs"`.
+Results, hashes and compact DB checkpoints: `real-flow-results.json`. Full raw log
+and snapshots stay in ignored `artifacts/`. Prior evidence files are unchanged;
+offline42 is historical and not rerun. Next: define the dedicated close API's
+authorization/input/replay contract, then cover ServiceCompat outside-opening.
+Legacy writers, real Auth/IAM and migration remain release blockers. No Rules
+relaxation, product deployment or PR merge.
