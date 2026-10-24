@@ -2,7 +2,7 @@
 import fs from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import {FieldValue} from 'firebase-admin/firestore';
-import {assertIsolated,PROJECT} from './runtime.mjs';
+import {assertIsolated,PROJECT,UIDS} from './runtime.mjs';
 import {realCloseAdapter} from './real-close-adapter.mjs';
 const pins={
   eventCloseFlowCompatService:'d6ef7e4b0637c95d1d02c1de70f5bae8e5f16908272f01a163c050a0800209f9',
@@ -30,15 +30,16 @@ async function wrapper(name,base,sdk,db,summarizeEventFlow){
 const snapshot=s=>({id:s.id,ref:s.ref,exists:()=>s.exists,data:()=>s.data()});
 const allowedKeys=new Set(['inventoryCount.opening.items','inventoryCount.eventFlowCloseRecovery','inventoryCount.eventFlowReconciliation','eventCloseSummary.openingTotal','eventCloseSummary.restockTotal','eventCloseSummary.openingCorrectionTotal','eventCloseSummary.flowAdjustedOpeningTotal','updatedAt']);
 
-export async function realFlowAdapter(db,{atomic=true,beforeWrite,beforeTransaction,beforeCommit}={}){
+export async function realFlowAdapter(db,{atomic=true,beforeWrite,beforeTransaction,beforeCommit,transactionScope,beforeFlush}={}){
   assertIsolated();if(db.projectId!==PROJECT)throw Error('wrong-demo-project');
+  if(transactionScope&&!atomic)throw Error('atomic-scope-required');
   const accounting=await source('eventFlowAccountingService');
   if(/\bimport\s*(?:\(|\{|\*)/m.test(accounting))throw Error('unexpected-accounting-import');
   const {summarizeEventFlow}=await import('data:text/javascript;base64,'+Buffer.from(accounting).toString('base64'));
   return {async finalizeEventSession(args){
     assertIsolated();
     // Deliberately bounded fixture authority. Never derive this allowlist from HTTP input.
-    if(args?.sessionId!=='s'||args.closedByEmail!=='fixture-business@example.test'||Object.keys(args).some(k=>!['sessionId','closedByEmail'].includes(k)))throw Error('unsupported-demo-close-authority');
+    if(args?.sessionId!=='s'||!UIDS.some(uid=>args.closedByEmail===`${uid}@example.test`)||Object.keys(args).some(k=>!['sessionId','closedByEmail'].includes(k)))throw Error('unsupported-demo-close-authority');
     const execute=async tx=>{
       const writes=[];let sessionData,writeNumber=0;
       const scope=tx?{
@@ -80,10 +81,11 @@ export async function realFlowAdapter(db,{atomic=true,beforeWrite,beforeTransact
       const compat=await wrapper('eventCloseServiceCompat',realBase,sdk,db);
       const flow=await wrapper('eventCloseFlowCompatService',compat,sdk,db,summarizeEventFlow);
       const result=await flow.finalizeEventSession(args);
+      if(tx)await beforeFlush?.({writes,result});
       if(tx)for(const [method,a] of writes)tx[method](...a);
       if(tx)await beforeCommit?.(tx);
       return result;
     };
-    return atomic?db.runTransaction(execute,{maxAttempts:3}):execute(null);
+    return transactionScope?execute(transactionScope):atomic?db.runTransaction(execute,{maxAttempts:3}):execute(null);
   }};
 }

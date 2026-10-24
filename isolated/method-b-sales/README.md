@@ -163,3 +163,34 @@ offline42 is historical and not rerun. Next: define the dedicated close API's
 authorization/input/replay contract, then cover ServiceCompat outside-opening.
 Legacy writers, real Auth/IAM and migration remain release blockers. No Rules
 relaxation, product deployment or PR merge.
+
+### Atomic HTTP close contract (isolated demo)
+
+Bind `rt.closeEvent=closeAPI(rt)` from `close-api.mjs` before `server(rt)`.
+`POST /v1/events/close` reuses HTTP Bearer `verifyIdToken(token,true)` and strict
+JSON parsing. Exactly `{version:1,sessionId:"s",operationId,expectedStateHash}`;
+no actor, quantity, patch, SDK or flags. The three fixture UIDs require verified
+`<uid>@example.test`. Tests use original Auth Emulator tokens, including actual
+revocation; its unsigned `alg=none` is emulator-only, NOT real Auth/IAM proof.
+
+`closeStateHash(await closeState(tx,db))` binds the complete saved session, sorted
+session sales and tshirt master (including revision) in a read transaction.
+This is a trusted fixture preflight helper, not a new HTTP/UI endpoint. Keep the
+original operation ID and hash for retries; changed intent/actor returns 409.
+Only the known `t` tshirt coordinate, exact sales, nonnegative counts and restock
+flow are supported. Closed legacy state, recovery marker, Quick/outsideOpening,
+accessories, unknown/later SKUs and opening corrections require separate review.
+
+The real pinned FlowCompat/base bodies and `serverCloseV1` evidence on the existing
+`transactionLocks/eventclose_s` commit in ONE Admin transaction. Evidence contains
+request, actor, final summary, movement content and the exact HTTP result. Replay
+requires the same request/actor and consistent closed session/lock/summary/movements;
+it returns that same result without writes. Legacy locks are never adopted.
+`atomic:false` remains only in historical defect tests and is not HTTP input.
+
+Run the guarded runner with `close-api.test.mjs` for H01-H14, and separately with
+`real-flow.test.mjs real-close.test.mjs void-api.test.mjs api.test.mjs` for regression;
+use the same Node test flags shown above. See `close-api-results.json` for measured
+counts and hashes. Raw logs/checkpoints remain in ignored `artifacts/`. C05 still
+means reproduction of an unsafe original defect. No production route, deployment,
+UI integration, legacy-writer migration or Rules change is included.

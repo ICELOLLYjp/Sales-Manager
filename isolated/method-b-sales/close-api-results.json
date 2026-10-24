@@ -1,0 +1,523 @@
+{
+  "dateJST": "2026-10-24",
+  "baseHead": "b2e263840f3e3b43da88770279c8cadd707a2e76",
+  "scope": "Isolated HTTP POST /v1/events/close; real pinned FlowCompat/base under one Admin transaction, demo session s and exact tshirt t only.",
+  "contract": {
+    "fields": [
+      "version",
+      "sessionId",
+      "operationId",
+      "expectedStateHash"
+    ],
+    "version": 1,
+    "sessionId": "s",
+    "preflight": "Complete session + session sales + tshirt master including inventoryRevision; trusted read-transaction helper only.",
+    "identity": "Same operation ID, expected state hash and verified actor; serverCloseV1 saved with close in one atomic commit.",
+    "replay": "Exact saved result; mismatched intent/actor, legacy lock or inconsistent evidence rejected without writes."
+  },
+  "counts": {
+    "pass": 55,
+    "fail": 0,
+    "skip": 0,
+    "cancelled": 0,
+    "newHTTP": 14,
+    "rerunFlow": 6,
+    "rerunRealClose": 3,
+    "rerunVoid": 13,
+    "rerunSales": 19
+  },
+  "runs": [
+    {
+      "path": "artifacts/close-api-final.log",
+      "counts": {
+        "tests": 14,
+        "pass": 14,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "sha256": "43e21ca874c441e41374f79227001370a315a3c8837e286da56814ebfed3b3bd",
+      "cases": [
+        "H01 three real allowed Auth tokens close atomically with durable actor and identical replay",
+        "H02 missing outsider unverified disabled revoked and invalid signed tokens leave DB unchanged",
+        "H03 fixed parser rejects unknown authority flags patches duplicate keys types sizes and UTF8",
+        "H04 parallel same operation closes once and returns byte-equivalent saved results",
+        "H05 commit response lost through HTTP proxy then API restart replays durable result",
+        "H06 changed operation intent actor and legacy closed lock are rejected without writes",
+        "H07 stale session sales and inventory revision preflight rejects unchanged close writes",
+        "H08 buffered final-write failure rolls back identity and all business effects then retry succeeds",
+        "H09 real Firestore commit rejection rolls back close and operation evidence",
+        "H10 unsupported closed recovery outsideOpening Quick accessory later SKU and unidentified sales reject",
+        "H11 closed first void rejected while previous void replay stays immutable",
+        "H12 tampered close summary movement and evidence refuse replay without repair",
+        "H13 competing distinct operation IDs produce one winner and no second close effects",
+        "H14 transaction retry rechecks changed preflight and finite abort exhaustion leaves DB unchanged"
+      ]
+    },
+    {
+      "path": "artifacts/integration.log",
+      "counts": {
+        "tests": 41,
+        "pass": 41,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0
+      },
+      "sha256": "6214d2fa14324be1f55274aef4fcfd8764be7f790a08210e8aed0721d5b5bba4",
+      "cases": [
+        "P01 authentication on commit/result and three equal synthetic UIDs",
+        "P02 Web SDK writes denied across canonical and related documents",
+        "P03 fixed schema rejects malicious payload and duplicate decoded JSON keys",
+        "P04 IDs, quantities, line count and byte boundaries",
+        "P05 multiple rows/sources preserve IDs, fields, fingerprint and aggregates",
+        "P06 identical replay and later stock changes preserve original result",
+        "P07 changed intent including legacy fingerprint omissions is rejected",
+        "P08 S02 a/b/a concurrent requests create exactly two sales and decrements",
+        "P09 forced retry, finite exhaustion and different SKU concurrency",
+        "P10 original manual operation with stale baseline after sales",
+        "P11 real committed reply lost through proxy then same-ID retry",
+        "P12 API stopped before delivery and restarted with durable result",
+        "P13 replay after session close/context change, new sale rejected",
+        "P14 real commit failure leaves no partial business writes",
+        "P15 legacy locks/sales/receipt cannot suppress server operation",
+        "P16 orphan and tampered stored proof rejected without repairs",
+        "P17 price, policy ABA, unsupported money, negative and unknown stock",
+        "P23 result read-only including missing/inflight/voided/inconsistent",
+        "P24 environment project credential guards and parser depth",
+        "C01 real finalize: void excluded, retained exact sale not decremented twice, loss and revision applied once",
+        "C02 real preflight versus void: event-data-changed, no close writes, recount and fresh finalize succeed",
+        "C03 real close complete: first void denied, saved void and commit/result replay immutable",
+        "C04 genuine FlowCompat sequential success restores opening and applies loss only once",
+        "C05 known defect reproduced: post-close write failure clears marker but loses reconciliation",
+        "C06 atomic genuine FlowCompat success and replay preserve all close evidence",
+        "C07 atomic post-close failure rolls back session stock lock movements then fresh retry succeeds",
+        "C08 atomic real database commit failure rolls back all staged close writes",
+        "C09 demo boundary rejects other authority outside-opening and retained recovery marker without writes",
+        "V02 multi-source and repeated SKU reversal preserves original evidence and unrelated data",
+        "V01 authorized UIDs, authentication and fixed input schema",
+        "V03 serial/parallel replay and lost committed reply survive API restart",
+        "V04 concurrent sale replay/void then commit/result never resurrect sale",
+        "V05 bounded retries/exhaustion and concurrent sales preserve effects",
+        "V06 forged/missing/orphan evidence refuses mutation",
+        "V07 closed first cancellation rejected; saved cancellation replays after close",
+        "V08 real commit failure rolls back all staged writes then retry succeeds",
+        "V09 inconsistent summary, revision overflow and missing coordinate reject; current catalog ignored",
+        "V10 absent cancellation creates no reservation; original ID can later commit and cancel",
+        "V05b held void overlaps another sale; stale manual edit cannot erase either effect",
+        "V07b session-close transaction overlaps held void in a legal serial order",
+        "V10b cancellation overlapping in-flight sale leaves one original ID and no reservation"
+      ]
+    }
+  ],
+  "priorEvidence": "Previous 41 are historical; these 41 were rerun in this task. Offline42 NOT rerun or counted. C05 PASS reproduces UNSAFE sequential defect, not safety approval.",
+  "auth": "Actual unmodified Auth Emulator login tokens; verifyIdToken(token,true), three synthetic UID/email allowlist, verified email, disabled and genuinely revoked original token rejection. Invalid RS256 signature rejected. Emulator alg=none is NOT production cryptographic authentication/IAM proof.",
+  "isolation": "Same official checksum JAR, Java21 SecurityManager, Node loopback guard, locked CLI/dependencies, dummy HOME and no ADC; both egress-denial preflights passed. OS sandbox blocked localhost, so guarded runner used approved escalated execution; application egress restrictions unchanged.",
+  "initialFailure": {
+    "kind": "Test before-hook name collision",
+    "pass": 0,
+    "fail": 12,
+    "skip": 0,
+    "fixed": true,
+    "logSHA256": "f5cebf4301ff13068198854a427c625107d2fa915635ba53d83ca4e56add2e53",
+    "countedInFinal": false
+  },
+  "rejectionCheckpoints": [
+    {
+      "status": 401,
+      "error": "unauthenticated",
+      "unchanged": true
+    },
+    {
+      "status": 401,
+      "error": "unauthenticated",
+      "unchanged": true
+    },
+    {
+      "status": 403,
+      "error": "forbidden",
+      "unchanged": true
+    },
+    {
+      "status": 403,
+      "error": "forbidden",
+      "unchanged": true
+    },
+    {
+      "status": 401,
+      "error": "unauthenticated",
+      "unchanged": true
+    },
+    {
+      "status": 401,
+      "error": "unauthenticated",
+      "unchanged": true
+    },
+    {
+      "status": 401,
+      "error": "unauthenticated",
+      "unchanged": true
+    },
+    {
+      "status": 400,
+      "error": "invalid-schema",
+      "unchanged": true
+    },
+    {
+      "status": 400,
+      "error": "invalid-schema",
+      "unchanged": true
+    },
+    {
+      "status": 400,
+      "error": "invalid-schema",
+      "unchanged": true
+    },
+    {
+      "status": 400,
+      "error": "invalid-schema",
+      "unchanged": true
+    },
+    {
+      "status": 400,
+      "error": "invalid-schema",
+      "unchanged": true
+    },
+    {
+      "status": 400,
+      "error": "invalid-schema",
+      "unchanged": true
+    },
+    {
+      "status": 400,
+      "error": "invalid-schema",
+      "unchanged": true
+    },
+    {
+      "status": 400,
+      "error": "invalid-schema",
+      "unchanged": true
+    },
+    {
+      "status": 400,
+      "error": "invalid-close-input",
+      "unchanged": true
+    },
+    {
+      "status": 400,
+      "error": "invalid-close-input",
+      "unchanged": true
+    },
+    {
+      "status": 400,
+      "error": "invalid-close-input",
+      "unchanged": true
+    },
+    {
+      "status": 400,
+      "error": "invalid-id",
+      "unchanged": true
+    },
+    {
+      "status": 400,
+      "error": "invalid-id",
+      "unchanged": true
+    },
+    {
+      "status": 400,
+      "error": "invalid-close-input",
+      "unchanged": true
+    },
+    {
+      "status": 400,
+      "error": "invalid-close-input",
+      "unchanged": true
+    },
+    {
+      "status": 400,
+      "error": "invalid-schema",
+      "unchanged": true
+    },
+    {
+      "status": 400,
+      "error": "invalid-schema",
+      "unchanged": true
+    },
+    {
+      "status": 400,
+      "error": "invalid-schema",
+      "unchanged": true
+    },
+    {
+      "status": 400,
+      "error": "invalid-json",
+      "unchanged": true
+    },
+    {
+      "status": 400,
+      "error": "duplicate-json-key",
+      "unchanged": true
+    },
+    {
+      "status": 400,
+      "error": "invalid-utf8",
+      "unchanged": true
+    },
+    {
+      "status": 413,
+      "error": "body-too-large",
+      "unchanged": true
+    },
+    {
+      "status": 409,
+      "error": "close-intent-conflict",
+      "unchanged": true
+    },
+    {
+      "status": 409,
+      "error": "close-intent-conflict",
+      "unchanged": true
+    },
+    {
+      "status": 409,
+      "error": "close-intent-conflict",
+      "unchanged": true
+    },
+    {
+      "status": 409,
+      "error": "close-intent-conflict",
+      "unchanged": true
+    },
+    {
+      "status": 409,
+      "error": "close-state-changed",
+      "unchanged": true
+    },
+    {
+      "status": 409,
+      "error": "close-state-changed",
+      "unchanged": true
+    },
+    {
+      "status": 409,
+      "error": "close-state-changed",
+      "unchanged": true
+    },
+    {
+      "status": 500,
+      "error": "internal-error",
+      "unchanged": true
+    },
+    {
+      "status": 500,
+      "error": "internal-error",
+      "unchanged": true
+    },
+    {
+      "status": 409,
+      "error": "close-intent-conflict",
+      "unchanged": true
+    },
+    {
+      "status": 409,
+      "error": "close-review-required",
+      "unchanged": true
+    },
+    {
+      "status": 409,
+      "error": "quick-not-supported",
+      "unchanged": true
+    },
+    {
+      "status": 409,
+      "error": "quick-not-supported",
+      "unchanged": true
+    },
+    {
+      "status": 409,
+      "error": "unsupported-opening",
+      "unchanged": true
+    },
+    {
+      "status": 409,
+      "error": "unsupported-flow",
+      "unchanged": true
+    },
+    {
+      "status": 409,
+      "error": "unsupported-sale",
+      "unchanged": true
+    },
+    {
+      "status": 409,
+      "error": "unsupported-sale",
+      "unchanged": true
+    },
+    {
+      "status": 409,
+      "error": "unsupported-sale",
+      "unchanged": true
+    },
+    {
+      "status": 409,
+      "error": "unsupported-sale",
+      "unchanged": true
+    },
+    {
+      "status": 409,
+      "error": "close-reconciliation-required",
+      "unchanged": true
+    },
+    {
+      "status": 409,
+      "error": "close-reconciliation-required",
+      "unchanged": true
+    },
+    {
+      "status": 409,
+      "error": "close-reconciliation-required",
+      "unchanged": true
+    },
+    {
+      "status": 503,
+      "error": "temporarily-unavailable",
+      "unchanged": true
+    }
+  ],
+  "closeCheckpoints": [
+    {
+      "case": "H04 parallel same operation closes once and returns byte-equivalent saved results",
+      "status": "closed",
+      "quantity": 3,
+      "revision": 2,
+      "summary": {
+        "skuSalesTotal": 1,
+        "quickSalesTotal": 0,
+        "quickAllocatedTotal": 0,
+        "closingTotal": 4,
+        "recordedReductionTotal": 1,
+        "stockAdjustmentTotal": 0,
+        "movementCount": 1,
+        "unclassifiedDifference": 0,
+        "openingTotal": 4,
+        "flowAdjustedOpeningTotal": 6,
+        "restockTotal": 2,
+        "openingCorrectionTotal": 0
+      },
+      "recovery": null,
+      "lockStatus": "committed",
+      "operationId": "close-1",
+      "actorUid": "fixture-business",
+      "movementCount": 2
+    },
+    {
+      "case": "H05 commit response lost through HTTP proxy then API restart replays durable result",
+      "status": "closed",
+      "quantity": 3,
+      "revision": 2,
+      "summary": {
+        "skuSalesTotal": 1,
+        "quickSalesTotal": 0,
+        "quickAllocatedTotal": 0,
+        "closingTotal": 4,
+        "recordedReductionTotal": 1,
+        "stockAdjustmentTotal": 0,
+        "movementCount": 1,
+        "unclassifiedDifference": 0,
+        "openingTotal": 4,
+        "flowAdjustedOpeningTotal": 6,
+        "restockTotal": 2,
+        "openingCorrectionTotal": 0
+      },
+      "recovery": null,
+      "lockStatus": "committed",
+      "operationId": "close-1",
+      "actorUid": "fixture-business",
+      "movementCount": 2
+    },
+    {
+      "case": "H08 buffered final-write failure rolls back identity and all business effects then retry succeeds",
+      "status": "closed",
+      "quantity": 3,
+      "revision": 2,
+      "summary": {
+        "skuSalesTotal": 1,
+        "quickSalesTotal": 0,
+        "quickAllocatedTotal": 0,
+        "closingTotal": 4,
+        "recordedReductionTotal": 1,
+        "stockAdjustmentTotal": 0,
+        "movementCount": 1,
+        "unclassifiedDifference": 0,
+        "openingTotal": 4,
+        "flowAdjustedOpeningTotal": 6,
+        "restockTotal": 2,
+        "openingCorrectionTotal": 0
+      },
+      "recovery": null,
+      "lockStatus": "committed",
+      "operationId": "close-1",
+      "actorUid": "fixture-business",
+      "movementCount": 2
+    },
+    {
+      "case": "H09 real Firestore commit rejection rolls back close and operation evidence",
+      "status": "closed",
+      "quantity": 3,
+      "revision": 2,
+      "summary": {
+        "skuSalesTotal": 1,
+        "quickSalesTotal": 0,
+        "quickAllocatedTotal": 0,
+        "closingTotal": 4,
+        "recordedReductionTotal": 1,
+        "stockAdjustmentTotal": 0,
+        "movementCount": 1,
+        "unclassifiedDifference": 0,
+        "openingTotal": 4,
+        "flowAdjustedOpeningTotal": 6,
+        "restockTotal": 2,
+        "openingCorrectionTotal": 0
+      },
+      "recovery": null,
+      "lockStatus": "committed",
+      "operationId": "close-1",
+      "actorUid": "fixture-business",
+      "movementCount": 2
+    }
+  ],
+  "observationsSHA256": "89b279a7728a839365bedf707bd739bf103694074ee194875fa3c092bcea9225",
+  "sha256LF": {
+    "close-api.mjs": "839ac2cbee8aef4328ab2f6422f92e8590bebed0141dd737b791878afe78e33a",
+    "close-api.test.mjs": "0a5e6bf7388c20705a3229aeca40b5cf124a3f2a15c2f5725d5237be8f0f9831",
+    "http.mjs": "c9e7f680922edf324edde36840eb381d1fad992b8c9f0711f581cbabbd3c6b89",
+    "real-flow-adapter.mjs": "f15ce42ee2a2f84512693a5b3902ebcaeb99fd63eaedaaa6a7157564ebaf962b",
+    "real-close-adapter.mjs": "0a3f4f63c5545cfef175fdd1cac29832c5cf5cef867bcf0d22b110b3279b8b64",
+    "real-flow.test.mjs": "1d82be2250866c7a8cdaee087b29d6f9abdb54cd9d0c891f7ba880302959612a",
+    "real-close.test.mjs": "916b4a0ca338507afa4cef89aa661eb7f7ddbddf50f890bc5cf45334ea69ac80",
+    "void-api.test.mjs": "5b3b73645cd5c9c5416b75ea172bd2d74b727893eb4d8079ed4f383ed56a92f9",
+    "api.test.mjs": "99845897315a7dfc4d623597b2df79463a4ad375ec6107ddcd280738880575cb",
+    "runtime.mjs": "d3daaf4eff7be46603e62c5e65be4a3a72fa5c9a2691459ae618683c4ed1a74b",
+    "sales.mjs": "458107b7fd093655ee916dc5a9595ad3b3484845525c5b0bd957cf36704bf8f7",
+    "validation.mjs": "23df06e9ad24788ca300a5cab138130b058e4aab55b9099c7d6ca3bfeb77b8af",
+    "void-runtime.mjs": "cfa82885ab6342c749df086cabb3fafab07cf0af06c011773bd05c3ee59b8a54",
+    "firestore.rules": "82a0dee68f3de0c9da39b46b414e55d58d9be90804484580681b2ffe7dc9f883",
+    "firebase.json": "42043e654c97f7d40dd5a6908826f5c75432f2d064f3ff622bf723e03312350e",
+    "package-lock.json": "60d3c5f5bd789b730b284c13e7fb50d874c1340ff7a2945336deb10d2353079b",
+    "emulator-isolated.mjs": "79989978d96e9e0c2c7db83552de61f4f6e7e2108ad9e5b912240b21367fb986",
+    "loopback-guard.cjs": "3806b5c8043a06c6159ac3df397432d0fc1b0dfec9082100a87fbf2f9326bfaa",
+    "loopback-probe.cjs": "c793ecc1d73ca2848584559efa59d267db275c49ec23c75e7329d28967314c18",
+    "artifacts/tools/package-lock.json": "c9a9fdd60272ed7de975dd5bedfd76d87ff4fa6a27058180bddb9c25996ea7cc",
+    "../../js/services/eventCloseService.js": "ff1310636b0180911777076abbe0f7f1b7d02a18981f18fe20bd83dfc7dba200",
+    "../../js/services/eventCloseServiceCompat.js": "3827f1ff4e064bd220e699067a98e317e0a5523ac21dff815eb689a075c88432",
+    "../../js/services/eventCloseFlowCompatService.js": "d6ef7e4b0637c95d1d02c1de70f5bae8e5f16908272f01a163c050a0800209f9",
+    "../../js/services/eventFlowAccountingService.js": "c7c54f2183f7c7b725637d5ad53c9fca41f69ec1b546365144cf21be00a01031",
+    "../../js/inventory-concurrency.mjs": "6932a99faa26ff77268f242d8731a98df7b86b4343378dda965fd2be23cd9a71"
+  },
+  "limitations": [
+    "Fixture session s / single exact tshirt coordinate only",
+    "OutsideOpening, Quick, accessories, unidentified/later SKU and opening correction refused",
+    "No public preflight endpoint or close UI integration",
+    "Legacy writers and real Auth/IAM remain unresolved",
+    "No production/staging, Rules, product source, deploy, merge or workflow dispatch changes"
+  ]
+}
