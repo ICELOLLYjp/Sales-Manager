@@ -1,0 +1,8 @@
+{
+  "name": "icelolly-method-b-isolated",
+  "private": true,
+  "type": "module",
+  "scripts": { "test": "node run-tests.mjs" },
+  "dependencies": { "firebase-admin": "14.4.0" },
+  "devDependencies": { "firebase": "11.0.2", "@firebase/rules-unit-testing": "4.0.1" }
+}

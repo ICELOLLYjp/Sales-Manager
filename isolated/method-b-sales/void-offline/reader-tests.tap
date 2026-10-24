@@ -1,0 +1,773 @@
+PREFLIGHT: SystemRoot only; fetch/WebSocket/EventSource disabled; restricted filesystem; child/worker/addons denied
+TAP version 13
+# Subtest: B01 three exact legacy return documents; duplicate SKU keeps row IDs
+ok 1 - B01 three exact legacy return documents; duplicate SKU keeps row IDs
+  ---
+  duration_ms: 8.6335
+  type: 'test'
+  ...
+# Subtest: B02 sale audit fields lock fingerprint and original proof/movements preserved
+ok 2 - B02 sale audit fields lock fingerprint and original proof/movements preserved
+  ---
+  duration_ms: 3.821
+  type: 'test'
+  ...
+# Subtest: B03 exact original session deltas removed and unrelated metadata survives
+ok 3 - B03 exact original session deltas removed and unrelated metadata survives
+  ---
+  duration_ms: 2.2948
+  type: 'test'
+  ...
+# Subtest: B04 observed void replay and delayed sale/result preserve exact original reply contract
+ok 4 - B04 observed void replay and delayed sale/result preserve exact original reply contract
+  ---
+  duration_ms: 19.4179
+  type: 'test'
+  ...
+# Subtest: B05 missing/extra/orphan/changed original or return movement is rejected
+ok 5 - B05 missing/extra/orphan/changed original or return movement is rejected
+  ---
+  duration_ms: 38.073
+  type: 'test'
+  ...
+# Subtest: B06 candidate alone and status-only legacy void cannot masquerade as observed proof
+ok 6 - B06 candidate alone and status-only legacy void cannot masquerade as observed proof
+  ---
+  duration_ms: 3.0986
+  type: 'test'
+  ...
+# Subtest: B07 before after audit and original anchor binding rejects tampering
+ok 7 - B07 before after audit and original anchor binding rejects tampering
+  ---
+  duration_ms: 27.0855
+  type: 'test'
+  ...
+# Subtest: B08 replay requires correct existing session but no open status/current stock check
+ok 8 - B08 replay requires correct existing session but no open status/current stock check
+  ---
+  duration_ms: 17.7519
+  type: 'test'
+  ...
+# Subtest: B09 conflicting cancel/sale intent and arbitrary query payload rejected
+ok 9 - B09 conflicting cancel/sale intent and arbitrary query payload rejected
+  ---
+  duration_ms: 24.8
+  type: 'test'
+  ...
+# Subtest: B10 self-rehashed extra summary effect cannot erase unrelated summary
+ok 10 - B10 self-rehashed extra summary effect cannot erase unrelated summary
+  ---
+  duration_ms: 1.4087
+  type: 'test'
+  ...
+# Subtest: B11 self-rehashed result inconsistent with original sale rejected
+ok 11 - B11 self-rehashed result inconsistent with original sale rejected
+  ---
+  duration_ms: 1.6758
+  type: 'test'
+  ...
+# Subtest: B12 completed sale carrying void audit fields rejected even after rehash
+ok 12 - B12 completed sale carrying void audit fields rejected even after rehash
+  ---
+  duration_ms: 0.9539
+  type: 'test'
+  ...
+# Subtest: B13 duplicate SKU effects must form continuous quantities and shared revision
+ok 13 - B13 duplicate SKU effects must form continuous quantities and shared revision
+  ---
+  duration_ms: 1.1764
+  type: 'test'
+  ...
+# Subtest: B14 raw Timestamp/non-JSON values blocked at offline boundary
+ok 14 - B14 raw Timestamp/non-JSON values blocked at offline boundary
+  ---
+  duration_ms: 0.9467
+  type: 'test'
+  ...
+# Subtest: W01 serializable serverVoidV1 round trip survives a new verifier instance
+ok 15 - W01 serializable serverVoidV1 round trip survives a new verifier instance
+  ---
+  duration_ms: 27.7558
+  type: 'test'
+  ...
+# Subtest: W02 one write set contains exact targets, row returns, grouped quantities and revision once
+ok 16 - W02 one write set contains exact targets, row returns, grouped quantities and revision once
+  ---
+  duration_ms: 9.2689
+  type: 'test'
+  ...
+# Subtest: W03 metadata Timestamp survives stock write and original cost snapshot survives void
+ok 17 - W03 metadata Timestamp survives stock write and original cost snapshot survives void
+  ---
+  duration_ms: 9.3161
+  type: 'test'
+  ...
+# Subtest: W04 unproven source denies coherent wholesale rewrites before structural checks
+ok 18 - W04 unproven source denies coherent wholesale rewrites before structural checks
+  ---
+  duration_ms: 11.9998
+  type: 'test'
+  ...
+# Subtest: W05 even self consistent complete replacement has no origin authority
+ok 19 - W05 even self consistent complete replacement has no origin authority
+  ---
+  duration_ms: 20.8352
+  type: 'test'
+  ...
+# Subtest: W06 trusted malicious Admin is outside tamper evidence threat model
+ok 20 - W06 trusted malicious Admin is outside tamper evidence threat model
+  ---
+  duration_ms: 15.9564
+  type: 'test'
+  ...
+# Subtest: W07 arbitrary sentinel and unresolved read rejected
+ok 21 - W07 arbitrary sentinel and unresolved read rejected
+  ---
+  duration_ms: 9.6193
+  type: 'test'
+  ...
+# Subtest: W08 resolved Timestamp requires provenance and identical audit slots
+ok 22 - W08 resolved Timestamp requires provenance and identical audit slots
+  ---
+  duration_ms: 39.6208
+  type: 'test'
+  ...
+# Subtest: W09 commit and result share verifier and preserve original sale reply
+ok 23 - W09 commit and result share verifier and preserve original sale reply
+  ---
+  duration_ms: 21.7842
+  type: 'test'
+  ...
+# Subtest: W10 wrong sale or void intent and wrong query identity rejected
+ok 24 - W10 wrong sale or void intent and wrong query identity rejected
+  ---
+  duration_ms: 25.1762
+  type: 'test'
+  ...
+# Subtest: W11 partial returns, extra movement and modified original movement reject both replay paths
+ok 25 - W11 partial returns, extra movement and modified original movement reject both replay paths
+  ---
+  duration_ms: 58.275
+  type: 'test'
+  ...
+# Subtest: W12 original snapshot, lock fingerprint, proof hash or saved result change fails closed
+ok 26 - W12 original snapshot, lock fingerprint, proof hash or saved result change fails closed
+  ---
+  duration_ms: 48.5775
+  type: 'test'
+  ...
+# Subtest: W13 initial closed session rejected but replay only needs matching session existence
+ok 27 - W13 initial closed session rejected but replay only needs matching session existence
+  ---
+  duration_ms: 16.3189
+  type: 'test'
+  ...
+# Subtest: W14 revision mismatch, unknown stock and summary underflow reject before write set
+ok 28 - W14 revision mismatch, unknown stock and summary underflow reject before write set
+  ---
+  duration_ms: 8.8879
+  type: 'test'
+  ...
+# Subtest: W15 unauthorized actor, input proof injection and unknown sale state fail closed
+ok 29 - W15 unauthorized actor, input proof injection and unknown sale state fail closed
+  ---
+  duration_ms: 4.1251
+  type: 'test'
+  ...
+# Subtest: W16 plan captures input and rejects fabricated handle
+ok 30 - W16 plan captures input and rejects fabricated handle
+  ---
+  duration_ms: 7.7312
+  type: 'test'
+  ...
+# Subtest: W17 public integration gate stops before any database property access
+ok 31 - W17 public integration gate stops before any database property access
+  ---
+  duration_ms: 0.2859
+  type: 'test'
+  ...
+# Subtest: W18 injected transaction stages all writes after reads and resolves through commit
+ok 32 - W18 injected transaction stages all writes after reads and resolves through commit
+  ---
+  duration_ms: 7.7211
+  type: 'test'
+  ...
+# Subtest: W19 injected write failure has no published writes; ack failure is never success
+ok 33 - W19 injected write failure has no published writes; ack failure is never success
+  ---
+  duration_ms: 15.7267
+  type: 'test'
+  ...
+# Subtest: W20 retry rereads, discards previous staged writes and replay stages none
+ok 34 - W20 retry rereads, discards previous staged writes and replay stages none
+  ---
+  duration_ms: 29.4532
+  type: 'test'
+  ...
+# Subtest: W21 confirmed missing records create no reservation and conflicting read intent rejects
+ok 35 - W21 confirmed missing records create no reservation and conflicting read intent rejects
+  ---
+  duration_ms: 0.7667
+  type: 'test'
+  ...
+# Subtest: W22 persisted values rehydrated by trusted reader need no live plan or held digest
+ok 36 - W22 persisted values rehydrated by trusted reader need no live plan or held digest
+  ---
+  duration_ms: 15.8087
+  type: 'test'
+  ...
+# Subtest: R01 transaction-only reads precede all writes; original data and metadata preserved
+ok 37 - R01 transaction-only reads precede all writes; original data and metadata preserved
+  ---
+  duration_ms: 14.6754
+  type: 'test'
+  ...
+# Subtest: R02 duplicate void and stale sale replay share stored result and stage zero writes
+ok 38 - R02 duplicate void and stale sale replay share stored result and stage zero writes
+  ---
+  duration_ms: 36.6452
+  type: 'test'
+  ...
+# Subtest: R03 unknown writer boundary fails before any database access
+ok 39 - R03 unknown writer boundary fails before any database access
+  ---
+  duration_ms: 1.3738
+  type: 'test'
+  ...
+# Subtest: R04 actor spoof in body and unverified/outsider principals fail before reads
+ok 40 - R04 actor spoof in body and unverified/outsider principals fail before reads
+  ---
+  duration_ms: 1.4535
+  type: 'test'
+  ...
+# Subtest: R05 revocation checked before transaction and again before attempt reads
+ok 41 - R05 revocation checked before transaction and again before attempt reads
+  ---
+  duration_ms: 1.0557
+  type: 'test'
+  ...
+# Subtest: R06 plain and prototype-spoof Timestamp rejected with zero staged writes
+ok 42 - R06 plain and prototype-spoof Timestamp rejected with zero staged writes
+  ---
+  duration_ms: 1.9056
+  type: 'test'
+  ...
+# Subtest: R07 missing original movement and partial sale/lock evidence reject before writes
+ok 43 - R07 missing original movement and partial sale/lock evidence reject before writes
+  ---
+  duration_ms: 3.4884
+  type: 'test'
+  ...
+# Subtest: R08 missing or extra returns reject both replay branches
+ok 44 - R08 missing or extra returns reject both replay branches
+  ---
+  duration_ms: 67.2075
+  type: 'test'
+  ...
+# Subtest: R09 stale stock revision and invalid metadata are rejected before encoding writes
+ok 45 - R09 stale stock revision and invalid metadata are rejected before encoding writes
+  ---
+  duration_ms: 7.0804
+  type: 'test'
+  ...
+# Subtest: R10 retry rereads updated revision and quantity without overwriting concurrent changes
+ok 46 - R10 retry rereads updated revision and quantity without overwriting concurrent changes
+  ---
+  duration_ms: 18.0916
+  type: 'test'
+  ...
+# Subtest: R11 revoked token on retry prevents second attempt reads or writes
+ok 47 - R11 revoked token on retry prevents second attempt reads or writes
+  ---
+  duration_ms: 8.3963
+  type: 'test'
+  ...
+# Subtest: R12 response waits for injected ack; unknown ack never returns success
+ok 48 - R12 response waits for injected ack; unknown ack never returns success
+  ---
+  duration_ms: 7.9711
+  type: 'test'
+  ...
+# Subtest: R13 absent records create no reservation; sale replay branch cannot create new sales
+ok 49 - R13 absent records create no reservation; sale replay branch cannot create new sales
+  ---
+  duration_ms: 0.6318
+  type: 'test'
+  ...
+# Subtest: R14 different sale/void intentions and closed initial session fail safely
+ok 50 - R14 different sale/void intentions and closed initial session fail safely
+  ---
+  duration_ms: 24.9629
+  type: 'test'
+  ...
+# Subtest: R15 sentinel factory spoof fails before any write is staged
+ok 51 - R15 sentinel factory spoof fails before any write is staged
+  ---
+  duration_ms: 4.7205
+  type: 'test'
+  ...
+# Subtest: R16 matching hashes cannot override a failed protected-source attestation
+ok 52 - R16 matching hashes cannot override a failed protected-source attestation
+  ---
+  duration_ms: 8.4318
+  type: 'test'
+  ...
+# Subtest: R17 reference preparation failure stages no earlier writes
+ok 53 - R17 reference preparation failure stages no earlier writes
+  ---
+  duration_ms: 7.9353
+  type: 'test'
+  ...
+# Subtest: R18 read source path mismatch fails before trusting records
+ok 54 - R18 read source path mismatch fails before trusting records
+  ---
+  duration_ms: 0.5099
+  type: 'test'
+  ...
+# Subtest: R19 lost boundary attestation on retry stops before more reads
+ok 55 - R19 lost boundary attestation on retry stops before more reads
+  ---
+  duration_ms: 8.2883
+  type: 'test'
+  ...
+# Subtest: R20 missing session rejects initial void and both saved replay branches
+ok 56 - R20 missing session rejects initial void and both saved replay branches
+  ---
+  duration_ms: 9.6349
+  type: 'test'
+  ...
+# Subtest: T01 typed timestamp differs from JSON tuple and tag-like object
+ok 57 - T01 typed timestamp differs from JSON tuple and tag-like object
+  ---
+  duration_ms: 0.4871
+  type: 'test'
+  ...
+# Subtest: T02 prototype forgery subclass and proxy are rejected
+ok 58 - T02 prototype forgery subclass and proxy are rejected
+  ---
+  duration_ms: 0.3439
+  type: 'test'
+  ...
+# Subtest: T03 exact timestamp limits accepted without millisecond truncation
+ok 59 - T03 exact timestamp limits accepted without millisecond truncation
+  ---
+  duration_ms: 0.2319
+  type: 'test'
+  ...
+# Subtest: T04 invalid timestamp scalar types ranges and negative zero rejected
+ok 60 - T04 invalid timestamp scalar types ranges and negative zero rejected
+  ---
+  duration_ms: 0.406
+  type: 'test'
+  ...
+# Subtest: T05 no getter toJSON symbol sparse undefined cycle or exotic object coercion
+ok 61 - T05 no getter toJSON symbol sparse undefined cycle or exotic object coercion
+  ---
+  duration_ms: 0.4089
+  type: 'test'
+  ...
+# Subtest: T06 canonical object order stable and array order significant
+ok 62 - T06 canonical object order stable and array order significant
+  ---
+  duration_ms: 0.1118
+  type: 'test'
+  ...
+# Subtest: T07 preserves original snapshots audit object identity and no input mutations
+ok 63 - T07 preserves original snapshots audit object identity and no input mutations
+  ---
+  duration_ms: 11.5465
+  type: 'test'
+  ...
+# Subtest: T08 same cancel intent replays without new commit
+ok 64 - T08 same cancel intent replays without new commit
+  ---
+  duration_ms: 10.5646
+  type: 'test'
+  ...
+# Subtest: T09 commit retry and result query return exact original result and voided status
+ok 65 - T09 commit retry and result query return exact original result and voided status
+  ---
+  duration_ms: 18.9191
+  type: 'test'
+  ...
+# Subtest: T10 different cancellation and sale intents rejected
+ok 66 - T10 different cancellation and sale intents rejected
+  ---
+  duration_ms: 24.0999
+  type: 'test'
+  ...
+# Subtest: T11 missing or different session rejected; replay does not inspect live stock or open state
+ok 67 - T11 missing or different session rejected; replay does not inspect live stock or open state
+  ---
+  duration_ms: 20.7835
+  type: 'test'
+  ...
+# Subtest: T12 closed first cancellation rejected
+ok 68 - T12 closed first cancellation rejected
+  ---
+  duration_ms: 8.4657
+  type: 'test'
+  ...
+# Subtest: T13 original audit changes rejected even though sale core hash excludes them
+ok 69 - T13 original audit changes rejected even though sale core hash excludes them
+  ---
+  duration_ms: 23.3685
+  type: 'test'
+  ...
+# Subtest: T14 original raw JSON timestamp is not promoted to trusted instance
+ok 70 - T14 original raw JSON timestamp is not promoted to trusted instance
+  ---
+  duration_ms: 5.362
+  type: 'test'
+  ...
+# Subtest: T15 unauthorized actor unverified email and audit JSON rejected
+ok 71 - T15 unauthorized actor unverified email and audit JSON rejected
+  ---
+  duration_ms: 10.4027
+  type: 'test'
+  ...
+# Subtest: T16 original and return movement missing extra or replaced rejected
+ok 72 - T16 original and return movement missing extra or replaced rejected
+  ---
+  duration_ms: 32.9302
+  type: 'test'
+  ...
+# Subtest: T17 void audit time email result and proof hashes bound
+ok 73 - T17 void audit time email result and proof hashes bound
+  ---
+  duration_ms: 30.1884
+  type: 'test'
+  ...
+# Subtest: T18 coherent audit rewrite cannot pass independently held candidate digest
+ok 74 - T18 coherent audit rewrite cannot pass independently held candidate digest
+  ---
+  duration_ms: 8.861
+  type: 'test'
+  ...
+# Subtest: T19 old candidate schemas missing proof and unknown status rejected
+ok 75 - T19 old candidate schemas missing proof and unknown status rejected
+  ---
+  duration_ms: 23.2579
+  type: 'test'
+  ...
+# Subtest: T20 structural verifier rejects inconsistency even if outer digest recomputed
+ok 76 - T20 structural verifier rejects inconsistency even if outer digest recomputed
+  ---
+  duration_ms: 16.0902
+  type: 'test'
+  ...
+# Subtest: T21 returns stay row specific and keep exact original quantity
+ok 77 - T21 returns stay row specific and keep exact original quantity
+  ---
+  duration_ms: 4.5122
+  type: 'test'
+  ...
+# Subtest: C01 valid ancestor is only structural consistency, never durable trust
+ok 78 - C01 valid ancestor is only structural consistency, never durable trust
+  ---
+  duration_ms: 6.21
+  type: 'test'
+  ...
+# Subtest: C02 durable gate cannot be enabled by claims or self digests
+ok 79 - C02 durable gate cannot be enabled by claims or self digests
+  ---
+  duration_ms: 0.2294
+  type: 'test'
+  ...
+# Subtest: C03 fully coherent audit rewrite passes structure but cannot acquire trust
+ok 80 - C03 fully coherent audit rewrite passes structure but cannot acquire trust
+  ---
+  duration_ms: 20.1951
+  type: 'test'
+  ...
+# Subtest: C04 sentinel is write-only and all resolved times must agree
+ok 81 - C04 sentinel is write-only and all resolved times must agree
+  ---
+  duration_ms: 4.4604
+  type: 'test'
+  ...
+# Subtest: C05 timestamp resolution preserves semantic hash without postcommit patch
+ok 82 - C05 timestamp resolution preserves semantic hash without postcommit patch
+  ---
+  duration_ms: 4.573
+  type: 'test'
+  ...
+# Subtest: C06 sentinel clones unknown types and unresolved values fail closed
+ok 83 - C06 sentinel clones unknown types and unresolved values fail closed
+  ---
+  duration_ms: 4.3232
+  type: 'test'
+  ...
+# Subtest: C07 exact paths operations values and timestamp slots bound
+ok 84 - C07 exact paths operations values and timestamp slots bound
+  ---
+  duration_ms: 5.9314
+  type: 'test'
+  ...
+# Subtest: C08 no candidate proof is emitted as server receipt
+ok 85 - C08 no candidate proof is emitted as server receipt
+  ---
+  duration_ms: 4.3859
+  type: 'test'
+  ...
+# Subtest: C09 request audit or identity fields rejected
+ok 86 - C09 request audit or identity fields rejected
+  ---
+  duration_ms: 32.0521
+  type: 'test'
+  ...
+# Subtest: C10 actor boundary rejects outsider unverified extra fields and getters
+ok 87 - C10 actor boundary rejects outsider unverified extra fields and getters
+  ---
+  duration_ms: 4.7312
+  type: 'test'
+  ...
+# Subtest: C11 original proof and movement omissions reject
+ok 88 - C11 original proof and movement omissions reject
+  ---
+  duration_ms: 21.465
+  type: 'test'
+  ...
+# Subtest: C12 original snapshot is captured and later source mutation cannot change plan
+ok 89 - C12 original snapshot is captured and later source mutation cannot change plan
+  ---
+  duration_ms: 7.6802
+  type: 'test'
+  ...
+# Subtest: C13 session identity existence status and stock revision enforced
+ok 90 - C13 session identity existence status and stock revision enforced
+  ---
+  duration_ms: 17.5118
+  type: 'test'
+  ...
+# Subtest: C14 commit and result use one verifier preserve reply and forbid new sale
+ok 91 - C14 commit and result use one verifier preserve reply and forbid new sale
+  ---
+  duration_ms: 21.0202
+  type: 'test'
+  ...
+# Subtest: C15 different sale intent or query identity cannot fall through
+ok 92 - C15 different sale intent or query identity cannot fall through
+  ---
+  duration_ms: 17.4498
+  type: 'test'
+  ...
+# Subtest: C16 ancestor or return corruption rejected by both replay paths
+ok 93 - C16 ancestor or return corruption rejected by both replay paths
+  ---
+  duration_ms: 58.9951
+  type: 'test'
+  ...
+# Subtest: U01 persisted P05 sale proof and price/cost snapshots remain compatible
+ok 94 - U01 persisted P05 sale proof and price/cost snapshots remain compatible
+  ---
+  duration_ms: 2.2855
+  type: 'test'
+  ...
+# Subtest: U02 duplicate SKU rows aggregate once; each stock revision increases once
+ok 95 - U02 duplicate SKU rows aggregate once; each stock revision increases once
+  ---
+  duration_ms: 1.7692
+  type: 'test'
+  ...
+# Subtest: U03 original sale lock movement proof and all inputs are nonmutable
+ok 96 - U03 original sale lock movement proof and all inputs are nonmutable
+  ---
+  duration_ms: 2.9867
+  type: 'test'
+  ...
+# Subtest: U04 non-target cells and metadata survive
+ok 97 - U04 non-target cells and metadata survive
+  ---
+  duration_ms: 1.8439
+  type: 'test'
+  ...
+# Subtest: U05 tampered sale or movement hash is rejected
+ok 98 - U05 tampered sale or movement hash is rejected
+  ---
+  duration_ms: 2.1413
+  type: 'test'
+  ...
+# Subtest: U06 absent extra and orphan movements fail closed
+ok 99 - U06 absent extra and orphan movements fail closed
+  ---
+  duration_ms: 2.8007
+  type: 'test'
+  ...
+# Subtest: U07 unknown SKU null quantity and duplicate accessory IDs fail closed
+ok 100 - U07 unknown SKU null quantity and duplicate accessory IDs fail closed
+  ---
+  duration_ms: 3.2951
+  type: 'test'
+  ...
+# Subtest: U08 stale baseline and revision overflow are rejected
+ok 101 - U08 stale baseline and revision overflow are rejected
+  ---
+  duration_ms: 14.1979
+  type: 'test'
+  ...
+# Subtest: U09 initial closed session rejected but candidate replay only needs existence
+ok 102 - U09 initial closed session rejected but candidate replay only needs existence
+  ---
+  duration_ms: 8.0543
+  type: 'test'
+  ...
+# Subtest: U10 same ID same intent replays; conflicting hash rejects
+ok 103 - U10 same ID same intent replays; conflicting hash rejects
+  ---
+  duration_ms: 6.4672
+  type: 'test'
+  ...
+# Subtest: U11 strict intent rejects extra keys and partial/unsupported reason
+ok 104 - U11 strict intent rejects extra keys and partial/unsupported reason
+  ---
+  duration_ms: 1.7018
+  type: 'test'
+  ...
+# Subtest: U12 before and after sale hashes and entire projection bind candidate
+ok 105 - U12 before and after sale hashes and entire projection bind candidate
+  ---
+  duration_ms: 11.4955
+  type: 'test'
+  ...
+# Subtest: U13 cancel then late sale retry never indicates a new commit
+ok 106 - U13 cancel then late sale retry never indicates a new commit
+  ---
+  duration_ms: 5.1271
+  type: 'test'
+  ...
+# Subtest: U14 summaries reverse only original effects and preserve other sales
+ok 107 - U14 summaries reverse only original effects and preserve other sales
+  ---
+  duration_ms: 2.4286
+  type: 'test'
+  ...
+# Subtest: U15 inconsistent summaries reject without clamp
+ok 108 - U15 inconsistent summaries reject without clamp
+  ---
+  duration_ms: 2.0606
+  type: 'test'
+  ...
+# Subtest: U16 current prices and variants cannot replace saved SKU or snapshots
+ok 109 - U16 current prices and variants cannot replace saved SKU or snapshots
+  ---
+  duration_ms: 1.549
+  type: 'test'
+  ...
+# Subtest: U17 quantity overflow rejects and negative integer stock remains valid
+ok 110 - U17 quantity overflow rejects and negative integer stock remains valid
+  ---
+  duration_ms: 2.6068
+  type: 'test'
+  ...
+# Subtest: U18 legacy status-only void is not trusted
+ok 111 - U18 legacy status-only void is not trusted
+  ---
+  duration_ms: 0.9153
+  type: 'test'
+  ...
+# Subtest: U19 missing records cannot produce cancellation reservation
+ok 112 - U19 missing records cannot produce cancellation reservation
+  ---
+  duration_ms: 0.4765
+  type: 'test'
+  ...
+# Subtest: U20 self-rehashed evidence cannot replace independent original anchor
+ok 113 - U20 self-rehashed evidence cannot replace independent original anchor
+  ---
+  duration_ms: 1.4964
+  type: 'test'
+  ...
+# Subtest: U21 stored numeric strings and null summaries cannot coerce to numbers
+ok 114 - U21 stored numeric strings and null summaries cannot coerce to numbers
+  ---
+  duration_ms: 2.8318
+  type: 'test'
+  ...
+# Subtest: D01 exact fixed route and unchanged intent
+ok 115 - D01 exact fixed route and unchanged intent
+  ---
+  duration_ms: 0.7359
+  type: 'test'
+  ...
+# Subtest: D02 method suffix query and alternate route rejected
+ok 116 - D02 method suffix query and alternate route rejected
+  ---
+  duration_ms: 0.2702
+  type: 'test'
+  ...
+# Subtest: D03 duplicate JSON keys and malformed JSON rejected
+ok 117 - D03 duplicate JSON keys and malformed JSON rejected
+  ---
+  duration_ms: 0.3423
+  type: 'test'
+  ...
+# Subtest: D04 HTTP cannot supply actor anchor state patch or partial quantity
+ok 118 - D04 HTTP cannot supply actor anchor state patch or partial quantity
+  ---
+  duration_ms: 1.939
+  type: 'test'
+  ...
+# Subtest: D05 invalid hash reason version rejected
+ok 119 - D05 invalid hash reason version rejected
+  ---
+  duration_ms: 1.0725
+  type: 'test'
+  ...
+# Subtest: D06 body size limit
+ok 120 - D06 body size limit
+  ---
+  duration_ms: 0.1177
+  type: 'test'
+  ...
+# Subtest: D07 offline write set is not commit evidence; original data immutable
+ok 121 - D07 offline write set is not commit evidence; original data immutable
+  ---
+  duration_ms: 2.1294
+  type: 'test'
+  ...
+# Subtest: D08 return writes are create-only per row; original movements never written
+ok 122 - D08 return writes are create-only per row; original movements never written
+  ---
+  duration_ms: 1.836
+  type: 'test'
+  ...
+# Subtest: D09 stock document revision once and targeted fields only
+ok 123 - D09 stock document revision once and targeted fields only
+  ---
+  duration_ms: 1.8592
+  type: 'test'
+  ...
+# Subtest: D10 sale update never overwrites snapshots; session retains unrelated fields
+ok 124 - D10 sale update never overwrites snapshots; session retains unrelated fields
+  ---
+  duration_ms: 1.8533
+  type: 'test'
+  ...
+# Subtest: D11 closed first cancellation rejected without write-set output
+ok 125 - D11 closed first cancellation rejected without write-set output
+  ---
+  duration_ms: 1.4879
+  type: 'test'
+  ...
+# Subtest: D12 transaction draft stops before any DB access
+ok 126 - D12 transaction draft stops before any DB access
+  ---
+  duration_ms: 0.5233
+  type: 'test'
+  ...
+# Subtest: D13 sale retry and query drafts stop before any DB access
+ok 127 - D13 sale retry and query drafts stop before any DB access
+  ---
+  duration_ms: 0.5356
+  type: 'test'
+  ...
+1..127
+# tests 127
+# suites 0
+# pass 127
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1481.001

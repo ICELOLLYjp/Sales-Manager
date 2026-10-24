@@ -1,0 +1,40 @@
+{
+  "baseHead": "040dfb30a6aed3b00c75fb038aeb6e1452bcfd70",
+  "inheritedGithubExactMatches": 13,
+  "node": "v24.21.0",
+  "tests": {
+    "inheritedPass": 69,
+    "newPass": 16,
+    "totalPass": 85,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0,
+    "todo": 0
+  },
+  "durableIndependentAnchor": "NOT_ESTABLISHED",
+  "realSdkTimestamp": "UNPROVEN",
+  "authentication": "UNPROVEN",
+  "atomicity": "UNPROVEN",
+  "commitAck": "UNPROVEN",
+  "V01toV10": "UNPROVEN",
+  "apiConnected": false,
+  "gate": "void-timestamp-proof-gate-closed",
+  "sourceSha256": {
+    "boundary-fixture.mjs": "93b65f1e98d787fffd726d4dceca34c409be499029f72ceb2ade879fb33272e8",
+    "boundary.test.mjs": "443f4dea983486f7a0ef2ab1bfe992e7cb80c221d1860cbaeb9b2e3b0485970a",
+    "fixture.mjs": "17aac8deeb5e3120196c65394ac9e1349875eefa3f44c25715c539e83c0aa4b8",
+    "preflight.mjs": "a84439c96ab1a4f0696b6f91fb1a1b6044b9da2b0fe78f14bac8f153154e3f32",
+    "sale-primitives.mjs": "a2ac5d72a510573e9b1cb87c567b6952a4ea5d3b8e61a0b7623116d044ea6ac8",
+    "timestamp-codec.mjs": "7fd28cb596855ae83827fa2837ffd20d6b748bbf87cb1d75861efc2053b66bf1",
+    "typed-proof.test.mjs": "198484c9bd0ce81a698240febec9c47000392a60bfb814eac64f97f3628d11e2",
+    "validation.mjs": "23df06e9ad24788ca300a5cab138130b058e4aab55b9099c7d6ca3bfeb77b8af",
+    "void-boundary.mjs": "be7df44bf31d9124291483990024d78d099bb817d8b434f24f9a6e5204325e69",
+    "void-contract.mjs": "ff1b7f1835bdb25e9a728deaeadb982cf6890f3f0e4a8e2f69593faf8b9d465a",
+    "void-contract.test.mjs": "0e8d08fdd43e93a1f4698c6a127ba7a614e48ce27383f6a044fcd8a9de6e7311",
+    "void-proof-candidate.mjs": "a3e5c48247dbce25e6d00693e14605a6a38af21fa4d6d1e4e1a343c28f860954",
+    "void-pure.mjs": "07369f31bf97982189b06943a61ff33259540d63f352848c6d0720d986700228",
+    "void-pure.test.mjs": "82798796533908d2c9858fde148650c077a6ac8602c2f64bdf0b1cda2b64b872",
+    "void-transaction.draft.mjs": "72b7b0d90fc03b6a900e1654df6f4d1e667c893417af687f8e34db2e522fa973",
+    "void-transaction.draft.test.mjs": "a43b331db9e379f9775ca01f9f0427a24783fe4fc8e8e9692c2b9b358a3e4eae"
+  }
+}

@@ -1,0 +1,161 @@
+{
+  "dateJST": "2026-10-24",
+  "baseHead": "8a1ab5a24e0b7854795d625265aadf16d06c3bbe",
+  "scope": "Actual finalizeEventSession and guardedTransaction through a trusted demo Admin SDK bridge; no public close API",
+  "reconstruction": "New local Git clone plus exact GitHub head fetch; existing working trees untouched. Retained locked dependency installations and Java/JAR copied, no dependency upgrades. Loader verifies LF-normalized source pins.",
+  "integration": {
+    "counts": {
+      "pass": 3,
+      "fail": 0,
+      "skip": 0,
+      "cancelled": 0
+    },
+    "logSHA256": "0a35610e0d20d89bf56f9cc5214ddfef189eb96d271dd21e100602bd0edf26e7",
+    "cases": [
+      "C01 real finalize: void excluded, retained exact sale not decremented twice, loss and revision applied once",
+      "C02 real preflight versus void: event-data-changed, no close writes, recount and fresh finalize succeed",
+      "C03 real close complete: first void denied, saved void and commit/result replay immutable"
+    ]
+  },
+  "regression": {
+    "counts": {
+      "pass": 32,
+      "fail": 0,
+      "skip": 0,
+      "cancelled": 0
+    },
+    "logSHA256": "7f4071e22907d92a846b52ad9a83717999972cd0f42991b2317a612560544180",
+    "cases": [
+      "P01 authentication on commit/result and three equal synthetic UIDs",
+      "P02 Web SDK writes denied across canonical and related documents",
+      "P03 fixed schema rejects malicious payload and duplicate decoded JSON keys",
+      "P04 IDs, quantities, line count and byte boundaries",
+      "P05 multiple rows/sources preserve IDs, fields, fingerprint and aggregates",
+      "P06 identical replay and later stock changes preserve original result",
+      "P07 changed intent including legacy fingerprint omissions is rejected",
+      "P08 S02 a/b/a concurrent requests create exactly two sales and decrements",
+      "P09 forced retry, finite exhaustion and different SKU concurrency",
+      "P10 original manual operation with stale baseline after sales",
+      "P11 real committed reply lost through proxy then same-ID retry",
+      "P12 API stopped before delivery and restarted with durable result",
+      "P13 replay after session close/context change, new sale rejected",
+      "P14 real commit failure leaves no partial business writes",
+      "P15 legacy locks/sales/receipt cannot suppress server operation",
+      "P16 orphan and tampered stored proof rejected without repairs",
+      "P17 price, policy ABA, unsupported money, negative and unknown stock",
+      "P23 result read-only including missing/inflight/voided/inconsistent",
+      "P24 environment project credential guards and parser depth",
+      "V02 multi-source and repeated SKU reversal preserves original evidence and unrelated data",
+      "V01 authorized UIDs, authentication and fixed input schema",
+      "V03 serial/parallel replay and lost committed reply survive API restart",
+      "V04 concurrent sale replay/void then commit/result never resurrect sale",
+      "V05 bounded retries/exhaustion and concurrent sales preserve effects",
+      "V06 forged/missing/orphan evidence refuses mutation",
+      "V07 closed first cancellation rejected; saved cancellation replays after close",
+      "V08 real commit failure rolls back all staged writes then retry succeeds",
+      "V09 inconsistent summary, revision overflow and missing coordinate reject; current catalog ignored",
+      "V10 absent cancellation creates no reservation; original ID can later commit and cancel",
+      "V05b held void overlaps another sale; stale manual edit cannot erase either effect",
+      "V07b session-close transaction overlaps held void in a legal serial order",
+      "V10b cancellation overlapping in-flight sale leaves one original ID and no reservation"
+    ],
+    "salesPass": 19,
+    "voidPass": 13
+  },
+  "offline": {
+    "runThisChange": false,
+    "historicalPass": 42,
+    "historicalDateJST": "2026-10-24",
+    "reason": "No offline candidate changes; prior result retained, not counted as a new pass"
+  },
+  "authentication": {
+    "scope": "unmodified Auth Emulator tokens; production signatures/IAM not tested",
+    "disabled": {
+      "unchangedToken": true,
+      "before": "accepted",
+      "after": "auth/user-disabled",
+      "httpStatus": 401,
+      "restored": "accepted"
+    },
+    "revoked": {
+      "unchangedToken": true,
+      "algorithm": "none",
+      "authTime": 1792798722,
+      "validAfter": "Fri, 23 Oct 2026 23:38:44 GMT",
+      "before": "accepted",
+      "after": "auth/id-token-revoked",
+      "httpStatus": 401,
+      "freshLogin": "accepted"
+    }
+  },
+  "isolation": {
+    "project": "demo-icelolly-method-b-sales",
+    "firestore": "127.0.0.1:8088",
+    "auth": "127.0.0.1:9099",
+    "nodeAndJavaPreflight": "external sockets denied, IPv4/IPv6 loopback passed",
+    "credentials": "fresh dummy HOME and allowlisted child environment",
+    "rules": "unchanged deny-client-write; six document types rejected",
+    "portsReleased": [
+      8088,
+      9099,
+      9153,
+      4403,
+      4503
+    ]
+  },
+  "sourceSHA256": {
+    "real-close-adapter.mjs": "d8f46f8a5507c76db2fe53fe516f410716a0a6bb2d0e51883aebc63fbaea03c5",
+    "real-close.test.mjs": "916b4a0ca338507afa4cef89aa661eb7f7ddbddf50f890bc5cf45334ea69ac80",
+    "runtime.mjs": "d3daaf4eff7be46603e62c5e65be4a3a72fa5c9a2691459ae618683c4ed1a74b",
+    "void-runtime.mjs": "cfa82885ab6342c749df086cabb3fafab07cf0af06c011773bd05c3ee59b8a54",
+    "sales.mjs": "458107b7fd093655ee916dc5a9595ad3b3484845525c5b0bd957cf36704bf8f7",
+    "http.mjs": "f098e757d2e692f8262de66a26cbbf57f43c649a78555e3392ab4d7c914de5f7",
+    "firestore.rules": "82a0dee68f3de0c9da39b46b414e55d58d9be90804484580681b2ffe7dc9f883",
+    "firebase.json": "42043e654c97f7d40dd5a6908826f5c75432f2d064f3ff622bf723e03312350e",
+    "package-lock.json": "60d3c5f5bd789b730b284c13e7fb50d874c1340ff7a2945336deb10d2353079b",
+    "emulator-isolated.mjs": "79989978d96e9e0c2c7db83552de61f4f6e7e2108ad9e5b912240b21367fb986",
+    "loopback-guard.cjs": "3806b5c8043a06c6159ac3df397432d0fc1b0dfec9082100a87fbf2f9326bfaa",
+    "void-api.test.mjs": "5b3b73645cd5c9c5416b75ea172bd2d74b727893eb4d8079ed4f383ed56a92f9",
+    "api.test.mjs": "99845897315a7dfc4d623597b2df79463a4ad375ec6107ddcd280738880575cb",
+    "../../js/services/eventCloseService.js": "ff1310636b0180911777076abbe0f7f1b7d02a18981f18fe20bd83dfc7dba200",
+    "../../js/inventory-concurrency.mjs": "6932a99faa26ff77268f242d8731a98df7b86b4343378dda965fd2be23cd9a71"
+  },
+  "sourceHashNormalization": "LF; product adapter normalizes before pinning/compiling",
+  "snapshotsSHA256": "fd3fe507fc36b5476d007a5dda529e377c576e6b61f6a89f348473db38cc4e3c",
+  "appLockSHA256": "9fd37faea43be18c8808a95afc5c92aa1fb0b6374d2aea00a99bccb47a7cd699",
+  "toolsLockSHA256": "c9a9fdd60272ed7de975dd5bedfd76d87ff4fa6a27058180bddb9c25996ea7cc",
+  "preservedFiles": [
+    {
+      "name": "sm123-repro-20261024/isolated/method-b-sales/README.md",
+      "sha256": "9e20a5a5382bc2acb5c45d1acc1e7d2f8e47d457b7468327f56758d23e9191ed"
+    },
+    {
+      "name": "sm123-repro-20261024/isolated/method-b-sales/void-api.test.mjs",
+      "sha256": "5b3b73645cd5c9c5416b75ea172bd2d74b727893eb4d8079ed4f383ed56a92f9"
+    },
+    {
+      "name": "sm123-repro-20261024/isolated/method-b-sales/void-integration-results.json",
+      "sha256": "84e2675c434f860ae5fe062d8a8a3190c53dd539d793d7c94a178384106753e8"
+    },
+    {
+      "name": "sm123-integration-20261023/isolated/method-b-sales/.gitignore",
+      "sha256": "2f9213399cd285befa88b33a390ea32609f313e03b3a7c65dea3f2a849b46fef"
+    },
+    {
+      "name": "sm123-integration-20261023/isolated/method-b-sales/emulator-run.mjs",
+      "sha256": "38673dc7d94390140edf07e81401480ecc79ef0504e6e1f8beff14608288c390"
+    },
+    {
+      "name": "sm123-integration-20261023/isolated/method-b-sales/loopback-only.cjs",
+      "sha256": "4282749b46e74193254a46c1e4279d10d38ca9b8fcd46136e32f6d734d71b449"
+    }
+  ],
+  "limits": [
+    "OS sandbox initially rejected loopback before tests; same guarded runner succeeded with escalation",
+    "Privileged demo Admin transactions do not establish production IAM or Web SDK optimistic concurrency parity",
+    "C02 schedules void after real preflight and before final transaction; not all possible transaction interleavings",
+    "Compat pre/post writers, public close authentication/input validation, Quick/accessory/late allocation and legacy writer migration remain unconnected",
+    "V07/V07b remain fixtures and are counted only in the separate void regression",
+    "No production, staging, Rules/IAM, payments, deploy, merge, force push or workflow dispatch"
+  ]
+}

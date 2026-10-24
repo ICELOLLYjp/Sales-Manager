@@ -1,0 +1,134 @@
+{
+  "startedAt": "2026-10-14T11:17:54.273Z",
+  "finishedAt": "2026-10-14T11:18:30.846Z",
+  "projectId": "demo-icelolly-method-b-sales",
+  "firestoreHost": "127.0.0.1:8088",
+  "authHost": "127.0.0.1:9099",
+  "node": "v24.21.0",
+  "versions": {
+    "firebase-admin": "14.4.0",
+    "firebase": "11.0.2",
+    "@firebase/rules-unit-testing": "4.0.1"
+  },
+  "exitCode": 0,
+  "sha256": {
+    "runtime.mjs": "d3daaf4eff7be46603e62c5e65be4a3a72fa5c9a2691459ae618683c4ed1a74b",
+    "sales.mjs": "ae6e82f23149056cf0a621f49da0b65a5b4c4172c9a05dbd46f95d2bd4b414b8",
+    "validation.mjs": "23df06e9ad24788ca300a5cab138130b058e4aab55b9099c7d6ca3bfeb77b8af",
+    "legacy-cost.mjs": "16737305f430982584dbb528d3ee12c7983303de4fd2ce9299e958b4a884235f",
+    "manual-compat.mjs": "01db1da7a78956472b12b99b1cd9f5e8d7a9367f293d1c9026608dd603631872",
+    "http.mjs": "5682eb5884d5bff3ea1fa764e8c91a15719e6b09719e596610262d16bb10bc17",
+    "api.test.mjs": "51ed05ed3780068f40a9fa49082d1108948b57c135cb19445880b715be10d638",
+    "run-tests.mjs": "735000d28156348ac637fc48e12f8818fd7146d1fe2cb38ddc59c4a939edd149",
+    "firestore.rules": "82a0dee68f3de0c9da39b46b414e55d58d9be90804484580681b2ffe7dc9f883",
+    "firebase.json": "42043e654c97f7d40dd5a6908826f5c75432f2d064f3ff622bf723e03312350e",
+    "package-lock.json": "60d3c5f5bd789b730b284c13e7fb50d874c1340ff7a2945336deb10d2353079b"
+  },
+  "counts": {
+    "total": 19,
+    "pass": 19,
+    "fail": 0
+  },
+  "cases": [
+    {
+      "index": 1,
+      "name": "P01 authentication on commit/result and three equal synthetic UIDs",
+      "result": "pass"
+    },
+    {
+      "index": 2,
+      "name": "P02 Web SDK writes denied across canonical and related documents",
+      "result": "pass"
+    },
+    {
+      "index": 3,
+      "name": "P03 fixed schema rejects malicious payload and duplicate decoded JSON keys",
+      "result": "pass"
+    },
+    {
+      "index": 4,
+      "name": "P04 IDs, quantities, line count and byte boundaries",
+      "result": "pass"
+    },
+    {
+      "index": 5,
+      "name": "P05 multiple rows/sources preserve IDs, fields, fingerprint and aggregates",
+      "result": "pass"
+    },
+    {
+      "index": 6,
+      "name": "P06 identical replay and later stock changes preserve original result",
+      "result": "pass"
+    },
+    {
+      "index": 7,
+      "name": "P07 changed intent including legacy fingerprint omissions is rejected",
+      "result": "pass"
+    },
+    {
+      "index": 8,
+      "name": "P08 S02 a/b/a concurrent requests create exactly two sales and decrements",
+      "result": "pass"
+    },
+    {
+      "index": 9,
+      "name": "P09 forced retry, finite exhaustion and different SKU concurrency",
+      "result": "pass"
+    },
+    {
+      "index": 10,
+      "name": "P10 original manual operation with stale baseline after sales",
+      "result": "pass"
+    },
+    {
+      "index": 11,
+      "name": "P11 real committed reply lost through proxy then same-ID retry",
+      "result": "pass"
+    },
+    {
+      "index": 12,
+      "name": "P12 API stopped before delivery and restarted with durable result",
+      "result": "pass"
+    },
+    {
+      "index": 13,
+      "name": "P13 replay after session close/context change, new sale rejected",
+      "result": "pass"
+    },
+    {
+      "index": 14,
+      "name": "P14 real commit failure leaves no partial business writes",
+      "result": "pass"
+    },
+    {
+      "index": 15,
+      "name": "P15 legacy locks/sales/receipt cannot suppress server operation",
+      "result": "pass"
+    },
+    {
+      "index": 16,
+      "name": "P16 orphan and tampered stored proof rejected without repairs",
+      "result": "pass"
+    },
+    {
+      "index": 17,
+      "name": "P17 price, policy ABA, unsupported money, negative and unknown stock",
+      "result": "pass"
+    },
+    {
+      "index": 18,
+      "name": "P23 result read-only including missing/inflight/voided/inconsistent",
+      "result": "pass"
+    },
+    {
+      "index": 19,
+      "name": "P24 environment project credential guards and parser depth",
+      "result": "pass"
+    }
+  ],
+  "limits": [
+    "Emulator unsigned Auth tokens only; production signature/IAM untested",
+    "JPY exact SKU/manual/no-discount only; P18-P22 and extended behavior unimplemented",
+    "Existing POS and old 32 tests are not migrated or changed"
+  ]
+}

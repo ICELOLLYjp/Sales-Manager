@@ -1,0 +1,225 @@
+{
+  "date": "2026-10-23",
+  "baseHead": "48284e816887498a3b5ada4e3c6a46035feb9ae6",
+  "node": "v24.21.0",
+  "scope": "Node standard-library offline tests only; no SDK/credential/network access",
+  "final": {
+    "tests": 107,
+    "pass": 107,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0,
+    "todo": 0,
+    "existingTestsRerun": 85,
+    "newTests": 22
+  },
+  "history": [
+    {
+      "tests": 102,
+      "pass": 100,
+      "fail": 2,
+      "reason": "New W02 fixture expectation was 10 instead of literal fixture baseline 5; W03 assumed stock write ordering. Corrected tests to literal 5 and path lookup; no production behavior changed to mask failures."
+    },
+    {
+      "tests": 106,
+      "pass": 106,
+      "fail": 0
+    },
+    {
+      "stage": "preflight",
+      "result": "denied before test launch",
+      "reason": "Static process-token filter caught test title; title reworded, guard unchanged."
+    }
+  ],
+  "sourceAudit": [
+    {
+      "file": "validation.mjs",
+      "sha256": "23DF06E9AD24788CA300A5CAB138130B058E4AAB55B9099C7D6CA3BFEB77B8AF",
+      "imports": [
+        "node:crypto"
+      ]
+    },
+    {
+      "file": "sale-primitives.mjs",
+      "sha256": "A2AC5D72A510573E9B1CB87C567B6952A4EA5D3B8E61A0B7623116D044EA6AC8",
+      "imports": [
+        "./validation.mjs"
+      ]
+    },
+    {
+      "file": "void-pure.mjs",
+      "sha256": "07369F31BF97982189B06943A61FF33259540D63F352848C6D0720D986700228",
+      "imports": [
+        "./validation.mjs",
+        "./sale-primitives.mjs"
+      ]
+    },
+    {
+      "file": "fixture.mjs",
+      "sha256": "0239CCD420D941960B71D9CB556FCEC6E95A3FF3021E370FA240F82197FFCBEB",
+      "imports": []
+    },
+    {
+      "file": "void-pure.test.mjs",
+      "sha256": "82798796533908D2C9858FDE148650C077A6AC8602C2F64BDF0B1CDA2B64B872",
+      "imports": [
+        "node:test",
+        "node:assert/strict",
+        "./fixture.mjs",
+        "./validation.mjs",
+        "./void-pure.mjs"
+      ]
+    },
+    {
+      "file": "preflight.mjs",
+      "sha256": "A84439C96AB1A4F0696B6F91FB1A1B6044B9DA2B0FE78F14BAC8F153154E3F32",
+      "imports": []
+    },
+    {
+      "file": "void-boundary.mjs",
+      "sha256": "BE7DF44BF31D9124291483990024D78D099BB817D8B434F24F9A6E5204325E69",
+      "imports": [
+        "./validation.mjs",
+        "./sale-primitives.mjs",
+        "./void-pure.mjs"
+      ]
+    },
+    {
+      "file": "boundary-fixture.mjs",
+      "sha256": "93B65F1E98D787FFFD726D4DCECA34C409BE499029F72CEB2ADE879FB33272E8",
+      "imports": [
+        "./fixture.mjs",
+        "./validation.mjs"
+      ]
+    },
+    {
+      "file": "boundary.test.mjs",
+      "sha256": "443F4DEA983486F7A0EF2AB1BFE992E7CB80C221D1860CBAEB9B2E3B0485970A",
+      "imports": [
+        "node:test",
+        "node:assert/strict",
+        "./validation.mjs",
+        "./sale-primitives.mjs",
+        "./void-pure.mjs",
+        "./void-boundary.mjs",
+        "./boundary-fixture.mjs"
+      ]
+    },
+    {
+      "file": "void-transaction.draft.mjs",
+      "sha256": "72B7B0D90FC03B6A900E1654DF6F4D1E667C893417AF687F8E34DB2E522FA973",
+      "imports": [
+        "./validation.mjs",
+        "./void-pure.mjs",
+        "./void-boundary.mjs",
+        "./sale-primitives.mjs"
+      ]
+    },
+    {
+      "file": "void-transaction.draft.test.mjs",
+      "sha256": "A43B331DB9E379F9775CA01F9F0427A24783FE4FC8E8E9692C2B9B358A3E4EAE",
+      "imports": [
+        "node:test",
+        "node:assert/strict",
+        "./boundary-fixture.mjs",
+        "./validation.mjs",
+        "./void-transaction.draft.mjs"
+      ]
+    },
+    {
+      "file": "timestamp-codec.mjs",
+      "sha256": "7FD28CB596855AE83827FA2837FFD20D6B748BBF87CB1D75861EFC2053B66BF1",
+      "imports": [
+        "node:util",
+        "./validation.mjs"
+      ]
+    },
+    {
+      "file": "void-proof-candidate.mjs",
+      "sha256": "A3E5C48247DBCE25E6D00693E14605A6A38AF21FA4D6D1E4E1A343C28F860954",
+      "imports": [
+        "./validation.mjs",
+        "./void-pure.mjs",
+        "./void-boundary.mjs"
+      ]
+    },
+    {
+      "file": "typed-proof.test.mjs",
+      "sha256": "198484C9BD0CE81A698240FEBEC9C47000392A60BFB814EAC64F97F3628D11E2",
+      "imports": [
+        "node:test",
+        "node:assert/strict",
+        "./boundary-fixture.mjs",
+        "./timestamp-codec.mjs",
+        "./void-proof-candidate.mjs"
+      ]
+    },
+    {
+      "file": "void-contract.mjs",
+      "sha256": "FF1B7F1835BDB25E9A728DEAEADB982CF6890F3F0E4A8E2F69593FAF8B9D465A",
+      "imports": [
+        "./validation.mjs",
+        "./void-pure.mjs",
+        "./void-proof-candidate.mjs",
+        "./void-transaction.draft.mjs"
+      ]
+    },
+    {
+      "file": "void-contract.test.mjs",
+      "sha256": "0E8D08FDD43E93A1F4698C6A127BA7A614E48CE27383F6A044FCD8A9DE6E7311",
+      "imports": [
+        "node:test",
+        "node:assert/strict",
+        "./boundary-fixture.mjs",
+        "./timestamp-codec.mjs",
+        "./void-proof-candidate.mjs",
+        "./void-contract.mjs"
+      ]
+    },
+    {
+      "file": "protected-void.mjs",
+      "sha256": "7C087017F6197B92FF39D4BAC9F0AE33BA970120E307F28701E55C2D671C0AC9",
+      "imports": [
+        "./validation.mjs",
+        "./sale-primitives.mjs",
+        "./void-pure.mjs",
+        "./void-boundary.mjs"
+      ]
+    },
+    {
+      "file": "protected-void.test.mjs",
+      "sha256": "63D35DCFEDC70982C4074FAC727D9AAD150CD85EC4A332B97CBE3BC18D270EAB",
+      "imports": [
+        "node:test",
+        "node:assert/strict",
+        "./boundary-fixture.mjs",
+        "./timestamp-codec.mjs",
+        "./protected-void.mjs"
+      ]
+    }
+  ],
+  "execution": {
+    "flags": [
+      "--permission",
+      "--test",
+      "--test-isolation=none",
+      "--test-reporter=tap",
+      "--test-timeout=10000",
+      "--allow-fs-read=<each audited file only>",
+      "--import ./preflight.mjs"
+    ],
+    "environmentKeys": [
+      "SystemRoot"
+    ],
+    "preflight": "Pinned runtime hash checked; home/ADC reads and filesystem writes not permitted; child/worker/addons denied; fetch/WebSocket/EventSource disabled. Static import allowlist checked before launch. No OS firewall isolation claim.",
+    "baseSources": "Fetched at baseHead; local copies may normalize trailing blank lines; existing repository files are not changed."
+  },
+  "limits": [
+    "Injected Stamp/Sentinel and authorization provenance only, not real Admin SDK verification.",
+    "Injected transaction staging/retry/failure/ack protocol only, not Firestore atomicity or real commit ack.",
+    "All 3 UID authorization and V01-V10 remain unproven.",
+    "No API wiring, runtime or Rules/IAM/Secrets change; existing hard gates preserved.",
+    "A trusted malicious Admin can rewrite a consistent history; this is not independent tamper evidence.",
+    "Complete-query reader and protected-writer migration attestation are not implemented or proven."
+  ]
+}

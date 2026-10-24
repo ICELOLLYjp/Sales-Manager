@@ -1,0 +1,439 @@
+{
+  "dateJST": "2026-10-24",
+  "baseHead": "1d67db31254e662d2d979ca7b7f86d8a35ee821f",
+  "scope": "Pinned genuine FlowCompat + accounting + ServiceCompat no-outside-opening branch + real base close/revision bodies; synthetic event input. Trusted demo Admin bridge only.",
+  "counts": {
+    "pass": 41,
+    "fail": 0,
+    "skip": 0,
+    "cancelled": 0,
+    "flow": 6,
+    "existingRealClose": 3,
+    "voidRegression": 13,
+    "salesRegression": 19
+  },
+  "interpretation": "C05 assertion PASS reproduces an UNSAFE original behavior; original sequential close is not safe under final-write failure. C06-C08 verify bounded atomic proposal.",
+  "historicalOnly": {
+    "offline": 42,
+    "rerun": false
+  },
+  "isolation": "New independent local clone of exact official head; retained locked packages/tools/Java/JAR copied. Java21 SM and Node loopback guards, dummy HOME, official JAR checksum, both egress-denial preflights, Auth/Firestore Emulator, unchanged deny-write Rules. Initial sandbox loopback probe was blocked; guarded final run used approved execution outside OS sandbox.",
+  "recovery": "Atomic failure leaves DB unchanged; fresh retry succeeds once. Sequential C05 has lost marker and missing reconciliation after committed close; replay does not repair. Existing marker requires review and is rejected without writes.",
+  "limitations": [
+    "No real Auth/IAM proof or formal close API contract",
+    "Outside-opening ServiceCompat calculations not supported/tested",
+    "No legacy writer migration, POS, production/staging, deployment or merge",
+    "Atomic adapter is bounded transaction buffering, not general Firebase Web SDK emulation",
+    "Concurrent close/void under new atomic wrapper and broader flow variants remain untested"
+  ],
+  "cases": [
+    "P01 authentication on commit/result and three equal synthetic UIDs",
+    "P02 Web SDK writes denied across canonical and related documents",
+    "P03 fixed schema rejects malicious payload and duplicate decoded JSON keys",
+    "P04 IDs, quantities, line count and byte boundaries",
+    "P05 multiple rows/sources preserve IDs, fields, fingerprint and aggregates",
+    "P06 identical replay and later stock changes preserve original result",
+    "P07 changed intent including legacy fingerprint omissions is rejected",
+    "P08 S02 a/b/a concurrent requests create exactly two sales and decrements",
+    "P09 forced retry, finite exhaustion and different SKU concurrency",
+    "P10 original manual operation with stale baseline after sales",
+    "P11 real committed reply lost through proxy then same-ID retry",
+    "P12 API stopped before delivery and restarted with durable result",
+    "P13 replay after session close/context change, new sale rejected",
+    "P14 real commit failure leaves no partial business writes",
+    "P15 legacy locks/sales/receipt cannot suppress server operation",
+    "P16 orphan and tampered stored proof rejected without repairs",
+    "P17 price, policy ABA, unsupported money, negative and unknown stock",
+    "P23 result read-only including missing/inflight/voided/inconsistent",
+    "P24 environment project credential guards and parser depth",
+    "C01 real finalize: void excluded, retained exact sale not decremented twice, loss and revision applied once",
+    "C02 real preflight versus void: event-data-changed, no close writes, recount and fresh finalize succeed",
+    "C03 real close complete: first void denied, saved void and commit/result replay immutable",
+    "C04 genuine FlowCompat sequential success restores opening and applies loss only once",
+    "C05 known defect reproduced: post-close write failure clears marker but loses reconciliation",
+    "C06 atomic genuine FlowCompat success and replay preserve all close evidence",
+    "C07 atomic post-close failure rolls back session stock lock movements then fresh retry succeeds",
+    "C08 atomic real database commit failure rolls back all staged close writes",
+    "C09 demo boundary rejects other authority outside-opening and retained recovery marker without writes",
+    "V02 multi-source and repeated SKU reversal preserves original evidence and unrelated data",
+    "V01 authorized UIDs, authentication and fixed input schema",
+    "V03 serial/parallel replay and lost committed reply survive API restart",
+    "V04 concurrent sale replay/void then commit/result never resurrect sale",
+    "V05 bounded retries/exhaustion and concurrent sales preserve effects",
+    "V06 forged/missing/orphan evidence refuses mutation",
+    "V07 closed first cancellation rejected; saved cancellation replays after close",
+    "V08 real commit failure rolls back all staged writes then retry succeeds",
+    "V09 inconsistent summary, revision overflow and missing coordinate reject; current catalog ignored",
+    "V10 absent cancellation creates no reservation; original ID can later commit and cancel",
+    "V05b held void overlaps another sale; stale manual edit cannot erase either effect",
+    "V07b session-close transaction overlaps held void in a legal serial order",
+    "V10b cancellation overlapping in-flight sale leaves one original ID and no reservation"
+  ],
+  "checkpoints": [
+    {
+      "case": "C04 genuine FlowCompat sequential success restores opening and applies loss only once",
+      "db": {
+        "status": "closed",
+        "opening": [
+          {
+            "variantId": "t",
+            "openingQty": 4
+          }
+        ],
+        "recovery": null,
+        "reconciliation": {
+          "restockTotal": 2,
+          "openingTotal": 4,
+          "adjustedOpeningTotal": 6,
+          "stockMutationApplied": false
+        },
+        "summary": {
+          "openingTotal": 4,
+          "restockTotal": 2,
+          "flowAdjustedOpeningTotal": 6,
+          "skuSalesTotal": 1,
+          "movementCount": 1
+        },
+        "stockQty": 3,
+        "revision": 2,
+        "closeLock": {
+          "status": "committed",
+          "action": "event_close",
+          "movementCount": 1
+        },
+        "movements": [
+          {
+            "path": "inventoryMovements/eventclose_s__1__loss",
+            "sourceAction": "event_close",
+            "reason": "loss",
+            "delta": -1
+          },
+          {
+            "path": "inventoryMovements/retained__1",
+            "reason": "sale",
+            "delta": -1
+          }
+        ]
+      }
+    },
+    {
+      "case": "C05 unsafe original state after failed final write and replay",
+      "db": {
+        "status": "closed",
+        "opening": [
+          {
+            "variantId": "t",
+            "openingQty": 4
+          }
+        ],
+        "recovery": null,
+        "reconciliation": null,
+        "summary": {
+          "openingTotal": 6,
+          "skuSalesTotal": 1,
+          "movementCount": 1
+        },
+        "stockQty": 3,
+        "revision": 2,
+        "closeLock": {
+          "status": "committed",
+          "action": "event_close",
+          "movementCount": 1
+        },
+        "movements": [
+          {
+            "path": "inventoryMovements/eventclose_s__1__loss",
+            "sourceAction": "event_close",
+            "reason": "loss",
+            "delta": -1
+          },
+          {
+            "path": "inventoryMovements/retained__1",
+            "reason": "sale",
+            "delta": -1
+          }
+        ]
+      }
+    },
+    {
+      "case": "C05 known defect reproduced: post-close write failure clears marker but loses reconciliation",
+      "db": {
+        "status": "closed",
+        "opening": [
+          {
+            "variantId": "t",
+            "openingQty": 4
+          }
+        ],
+        "recovery": null,
+        "reconciliation": null,
+        "summary": {
+          "openingTotal": 6,
+          "skuSalesTotal": 1,
+          "movementCount": 1
+        },
+        "stockQty": 3,
+        "revision": 2,
+        "closeLock": {
+          "status": "committed",
+          "action": "event_close",
+          "movementCount": 1
+        },
+        "movements": [
+          {
+            "path": "inventoryMovements/eventclose_s__1__loss",
+            "sourceAction": "event_close",
+            "reason": "loss",
+            "delta": -1
+          },
+          {
+            "path": "inventoryMovements/retained__1",
+            "reason": "sale",
+            "delta": -1
+          }
+        ]
+      }
+    },
+    {
+      "case": "C06 atomic genuine FlowCompat success and replay preserve all close evidence",
+      "db": {
+        "status": "closed",
+        "opening": [
+          {
+            "variantId": "t",
+            "openingQty": 4
+          }
+        ],
+        "recovery": null,
+        "reconciliation": {
+          "restockTotal": 2,
+          "openingTotal": 4,
+          "adjustedOpeningTotal": 6,
+          "stockMutationApplied": false
+        },
+        "summary": {
+          "openingTotal": 4,
+          "restockTotal": 2,
+          "flowAdjustedOpeningTotal": 6,
+          "skuSalesTotal": 1,
+          "movementCount": 1
+        },
+        "stockQty": 3,
+        "revision": 2,
+        "closeLock": {
+          "status": "committed",
+          "action": "event_close",
+          "movementCount": 1
+        },
+        "movements": [
+          {
+            "path": "inventoryMovements/eventclose_s__1__loss",
+            "sourceAction": "event_close",
+            "reason": "loss",
+            "delta": -1
+          },
+          {
+            "path": "inventoryMovements/retained__1",
+            "reason": "sale",
+            "delta": -1
+          }
+        ]
+      }
+    },
+    {
+      "case": "C07 unchanged after injected failure before retry",
+      "db": {
+        "status": "open",
+        "opening": [
+          {
+            "variantId": "t",
+            "openingQty": 4
+          }
+        ],
+        "recovery": null,
+        "reconciliation": null,
+        "summary": null,
+        "stockQty": 4,
+        "revision": 1,
+        "closeLock": null,
+        "movements": [
+          {
+            "path": "inventoryMovements/retained__1",
+            "reason": "sale",
+            "delta": -1
+          }
+        ]
+      }
+    },
+    {
+      "case": "C07 atomic post-close failure rolls back session stock lock movements then fresh retry succeeds",
+      "db": {
+        "status": "closed",
+        "opening": [
+          {
+            "variantId": "t",
+            "openingQty": 4
+          }
+        ],
+        "recovery": null,
+        "reconciliation": {
+          "restockTotal": 2,
+          "openingTotal": 4,
+          "adjustedOpeningTotal": 6,
+          "stockMutationApplied": false
+        },
+        "summary": {
+          "openingTotal": 4,
+          "restockTotal": 2,
+          "flowAdjustedOpeningTotal": 6,
+          "skuSalesTotal": 1,
+          "movementCount": 1
+        },
+        "stockQty": 3,
+        "revision": 2,
+        "closeLock": {
+          "status": "committed",
+          "action": "event_close",
+          "movementCount": 1
+        },
+        "movements": [
+          {
+            "path": "inventoryMovements/eventclose_s__1__loss",
+            "sourceAction": "event_close",
+            "reason": "loss",
+            "delta": -1
+          },
+          {
+            "path": "inventoryMovements/retained__1",
+            "reason": "sale",
+            "delta": -1
+          }
+        ]
+      }
+    },
+    {
+      "case": "C08 unchanged after Emulator commit rejection before retry",
+      "db": {
+        "status": "open",
+        "opening": [
+          {
+            "variantId": "t",
+            "openingQty": 4
+          }
+        ],
+        "recovery": null,
+        "reconciliation": null,
+        "summary": null,
+        "stockQty": 4,
+        "revision": 1,
+        "closeLock": null,
+        "movements": [
+          {
+            "path": "inventoryMovements/retained__1",
+            "reason": "sale",
+            "delta": -1
+          }
+        ]
+      }
+    },
+    {
+      "case": "C08 atomic real database commit failure rolls back all staged close writes",
+      "db": {
+        "status": "closed",
+        "opening": [
+          {
+            "variantId": "t",
+            "openingQty": 4
+          }
+        ],
+        "recovery": null,
+        "reconciliation": {
+          "restockTotal": 2,
+          "openingTotal": 4,
+          "adjustedOpeningTotal": 6,
+          "stockMutationApplied": false
+        },
+        "summary": {
+          "openingTotal": 4,
+          "restockTotal": 2,
+          "flowAdjustedOpeningTotal": 6,
+          "skuSalesTotal": 1,
+          "movementCount": 1
+        },
+        "stockQty": 3,
+        "revision": 2,
+        "closeLock": {
+          "status": "committed",
+          "action": "event_close",
+          "movementCount": 1
+        },
+        "movements": [
+          {
+            "path": "inventoryMovements/eventclose_s__1__loss",
+            "sourceAction": "event_close",
+            "reason": "loss",
+            "delta": -1
+          },
+          {
+            "path": "inventoryMovements/retained__1",
+            "reason": "sale",
+            "delta": -1
+          }
+        ]
+      }
+    },
+    {
+      "case": "C09 demo boundary rejects other authority outside-opening and retained recovery marker without writes",
+      "db": {
+        "status": "open",
+        "opening": [
+          {
+            "variantId": "t",
+            "openingQty": 4
+          }
+        ],
+        "recovery": {
+          "originalOpeningItems": []
+        },
+        "reconciliation": null,
+        "summary": null,
+        "stockQty": 5,
+        "revision": 0,
+        "closeLock": null,
+        "movements": []
+      }
+    }
+  ],
+  "evidence": {
+    "logSHA256": "3e96e4a86c8d984225d09912f6381e9a1d6f7b8c02771bb5ca058495fe767ad9",
+    "observationsSHA256": "a20c8f33759720ae8761eee5db272d40263fecbf4c8ab5b0e073480321bfaef3",
+    "initialFiveCaseRunLogSHA256": "8ee90ecda545fc4aa154d571e8a3d5e9ccbf2faa9ba48a7bd429ec117273ed81"
+  },
+  "sha256": {
+    "real-flow-adapter.mjs": "7940cf920fb60353b84da8a74ff574ead473d7693f65331472f433015fd61601",
+    "real-flow.test.mjs": "1d82be2250866c7a8cdaee087b29d6f9abdb54cd9d0c891f7ba880302959612a",
+    "real-close-adapter.mjs": "0a3f4f63c5545cfef175fdd1cac29832c5cf5cef867bcf0d22b110b3279b8b64",
+    "real-close.test.mjs": "916b4a0ca338507afa4cef89aa661eb7f7ddbddf50f890bc5cf45334ea69ac80",
+    "void-api.test.mjs": "5b3b73645cd5c9c5416b75ea172bd2d74b727893eb4d8079ed4f383ed56a92f9",
+    "api.test.mjs": "99845897315a7dfc4d623597b2df79463a4ad375ec6107ddcd280738880575cb",
+    "runtime.mjs": "d3daaf4eff7be46603e62c5e65be4a3a72fa5c9a2691459ae618683c4ed1a74b",
+    "void-runtime.mjs": "cfa82885ab6342c749df086cabb3fafab07cf0af06c011773bd05c3ee59b8a54",
+    "http.mjs": "f098e757d2e692f8262de66a26cbbf57f43c649a78555e3392ab4d7c914de5f7",
+    "sales.mjs": "458107b7fd093655ee916dc5a9595ad3b3484845525c5b0bd957cf36704bf8f7",
+    "validation.mjs": "23df06e9ad24788ca300a5cab138130b058e4aab55b9099c7d6ca3bfeb77b8af",
+    "firestore.rules": "82a0dee68f3de0c9da39b46b414e55d58d9be90804484580681b2ffe7dc9f883",
+    "firebase.json": "42043e654c97f7d40dd5a6908826f5c75432f2d064f3ff622bf723e03312350e",
+    "package.json": "42ff09c599b395633c44aa46d8da893f67ec947481e64ff2191555d0a60e5da7",
+    "package-lock.json": "60d3c5f5bd789b730b284c13e7fb50d874c1340ff7a2945336deb10d2353079b",
+    "emulator-isolated.mjs": "79989978d96e9e0c2c7db83552de61f4f6e7e2108ad9e5b912240b21367fb986",
+    "loopback-guard.cjs": "3806b5c8043a06c6159ac3df397432d0fc1b0dfec9082100a87fbf2f9326bfaa",
+    "loopback-probe.cjs": "c793ecc1d73ca2848584559efa59d267db275c49ec23c75e7329d28967314c18",
+    "LoopbackProbe.java": "9a6e55e7ab54bb9254952dc09d58df69b6264cf970210abd3da97d0440258dad",
+    "artifacts/tools/package-lock.json": "c9a9fdd60272ed7de975dd5bedfd76d87ff4fa6a27058180bddb9c25996ea7cc",
+    "../../js/services/eventCloseFlowCompatService.js": "d6ef7e4b0637c95d1d02c1de70f5bae8e5f16908272f01a163c050a0800209f9",
+    "../../js/services/eventFlowAccountingService.js": "c7c54f2183f7c7b725637d5ad53c9fca41f69ec1b546365144cf21be00a01031",
+    "../../js/services/eventCloseServiceCompat.js": "3827f1ff4e064bd220e699067a98e317e0a5523ac21dff815eb689a075c88432",
+    "../../js/services/eventCloseService.js": "ff1310636b0180911777076abbe0f7f1b7d02a18981f18fe20bd83dfc7dba200",
+    "../../js/inventory-concurrency.mjs": "6932a99faa26ff77268f242d8731a98df7b86b4343378dda965fd2be23cd9a71"
+  }
+}
