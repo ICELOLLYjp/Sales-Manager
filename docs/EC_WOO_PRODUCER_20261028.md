@@ -1,0 +1,17 @@
+# Woo/HPOS temporary hold — 2026-10-28
+
+Isolated implementation complete and tested; not deployed. Single pending unpaid order line only. Existing persisted Woo order/product/Bridge evidence is HMAC signed with an allowlisted site/key and a fresh 128-bit server challenge. Durable source revision detects ABA; the fixture SQLite triggers are not a production revision provider.
+
+The dedicated producer authenticates through Auth, pins the site/order/line-derived operationId and exact stock revision in a server-only intent, and atomically writes the hold/ledger/checkpoint/receipt in Firestore. Caller cannot choose a new operationId, quantity, SKU or proof. Generic EC actors cannot bypass the Woo namespace gate. No confirm/release path exists for this actor.
+
+Unknown completion is queried with the same persisted operation. Retry uses that exact operation and fresh matching evidence; changed source or stock revision latches review. Response loss after commit replays the receipt without changing stock again. Postflight change/unavailability retains the hold. Woo and Firestore cannot commit atomically; every response keeps purchaseAuthorized/paymentAuthorized/reservationConfirmed false and reviewRequired true. A held receipt is historical evidence, never purchase permission.
+
+Final verification: PHP 19 PASS, Node/Firestore/Auth 52 PASS (producer 20, event release 12, Woo 20), all 0 FAIL / 0 SKIP. Seven syntax checks passed. The interrupted parse failure, intermediate W01 failure and resume sandbox launch failure remain in raw evidence; earlier 19/48 successes are superseded. SQLite 158 PASS is reused only after all 50 LF-normalized source hashes matched. See evidence/woo-producer-20261028/manifest.json and raw logs. Source hashes were checked against the pre-test rescue and again when packaging.
+
+Preservation: full independent copy (15,271 files) plus source/evidence rescue (316 files), all copy hashes matched. All 26 original worktrees retain their HEADs and 97 dirty files; separate six consent files remain unchanged and excluded. Only the seven interrupted implementation/test files plus these documentation/evidence files are saved.
+
+Reproduction: PHP tests/run-woo-reservation.cjs requires explicit absolute WOO_PHP_BIN, WOO_WP_ROOT and WOO_FIXTURE_RUNTIME pointing to the pinned isolated-drop WordPress install and copied SQLite DB. Run it once to generate woo-envelope.json. Set WOO_PHP_RUNNER to that runner and WOO_FIXTURE_PATH to the generated envelope before running woo-bridge.test.mjs with reservations.test.mjs and event-release.test.mjs using the existing demo Firestore/Auth emulator config (127.0.0.1:8087/9098). The shared manifest records the exact local wrapper commands. No live credentials.
+
+Remaining before scoped Staging: production source revision/writer closure, server authentication and evidence transport, reconciliation issuance, all legacy writers/offline queues, backup/independent restore and stop procedures, and explicit approval. This slice does not complete EC migration or publication.
+
+Pinkoi Design Fest 2026-10-30–11-01: preserve live POS and stock. The 2026-10-27 20:23 count of 180 shirts is historical only, never seed or available-to-sell. All EC purchases stay stopped until post-event unsynced sales, cancellations and physical count reconcile, followed by separately approved manual reopening. No live/Staging/Stripe/Rules/IAM writes, deployments or PR merge.

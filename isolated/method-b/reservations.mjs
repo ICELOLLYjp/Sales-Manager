@@ -2,6 +2,7 @@ import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { ApiError, normalize, hash, revision, target, updatedField, reservationFloor, assertReservationAuthority } from './inventory.mjs';
 import { assertIsolated, PROJECT } from './runtime.mjs';
 import { readEventReleaseProof, assertEventReleaseProof } from './event-release.mjs';
+import { WOO_ACTOR, readWooProof, assertWooProof } from './woo-proof.mjs';
 
 // Server identities only; never use the stock operator's browser identity.
 // Production service identity/IAM and upstream Woo/Session adapters are not enabled.
@@ -55,11 +56,14 @@ function transition(ledger,op) {
 // Call only with a token obtained by the trusted upstream server. Verification
 // is performed here (revocation included), not delegated to a caller-supplied UID.
 // Input has no complete flag, ledger, arbitrary path, or receipt proof.
-export async function produceReservation({db,auth},token,input) {
+export async function produceReservation({db,auth},token,input,{lookupOnly=false}={}) {
   assertIsolated(); if(db.projectId!==PROJECT) fail(500,'wrong-project');
   const op=normalizeReservation(input);
   let claims; try { claims=await auth.verifyIdToken(token,true); } catch { fail(401,'unauthenticated'); }
-  if(claims.uid!==PRODUCERS[op.kind] || claims.inventoryProducer!==op.kind || claims.email_verified!==true) fail(403,'forbidden');
+  const woo=claims.uid===WOO_ACTOR;
+  if((woo ? op.kind!=='ec' || op.action!=='hold' || !/^woo-fixture-site-[ab]$/.test(op.source.namespace)
+    : claims.uid!==PRODUCERS[op.kind] || op.source.namespace.startsWith('woo-fixture-site-'))
+    || claims.inventoryProducer!==op.kind || claims.email_verified!==true) fail(403,'forbidden');
   const path=op.stock==='tshirt'?'tshirtStock/master':'accessoryStock/shared', fingerprint=hash(op);
   const ref=db.doc(path), receipt=db.doc(`inventoryWriteReceipts/${op.operationId}`), authorityRef=db.doc(`inventoryReservationAuthorities/${op.stock}`);
   const sourceRef=db.doc(`inventoryCommitmentSources/${hash({kind:op.kind,source:op.source})}`);
@@ -75,6 +79,7 @@ export async function produceReservation({db,auth},token,input) {
         || r.revision!==op.expectedRevision+1 || rev<r.revision) fail(409,'operation-id-conflict');
       let proof;
       try {
+        if(woo) assertWooProof(r.wooProof,op);
         if(op.kind==='event' && op.action==='release') assertEventReleaseProof(r.eventReleaseProof,op);
         assertReservationAuthority({exists:true,data:()=>r.authorityBefore},r.beforeLedger,path);
         floor(r.beforeLedger,op); proof=transition(r.beforeLedger,op);
@@ -84,6 +89,7 @@ export async function produceReservation({db,auth},token,input) {
       if(hash(result)!==hash(r.result)) fail(409,'operation-id-conflict');
       return {...result,replayed:true};
     }
+    if(lookupOnly) return {status:'unknown',operationId:op.operationId};
     const {cell,field}=target(data,op);
     if(rev!==op.expectedRevision || cell[field]!==op.expectedQuantity) fail(409,'inventory-conflict');
     floor(data.inventoryReservations,op);
@@ -94,6 +100,7 @@ export async function produceReservation({db,auth},token,input) {
     // same transaction. Closed/elapsed time/zero remainder alone never releases.
     const eventReleaseProof=op.kind==='event' && op.action==='release'
       ? await readEventReleaseProof(tx,db,op) : null;
+    const wooProof=woo ? await readWooProof(tx,db,op) : null;
     if(op.action==='return') {
       const s=sale.exists?sale.data():null;
       if(!s || s.schema!=='reservation-server-v1' || s.operation?.action!=='sale'
@@ -111,7 +118,7 @@ export async function produceReservation({db,auth},token,input) {
     tx.update(ref,{...updatedField(data,{...op,quantity:next.quantity}),inventoryReservations:next.ledger,inventoryReservationAuthority:1,inventoryRevision:rev+1,inventoryWriteProtocol:1,updatedAt:FieldValue.serverTimestamp()});
     tx.update(authorityRef,{ledgerHash:hash(next.ledger),updatedAt:FieldValue.serverTimestamp()});
     if(!binding.exists) tx.create(sourceRef,{commitmentId:commitmentId(op),path,kind:op.kind,source:op.source,sku:op.sku,createdAt:FieldValue.serverTimestamp()});
-    tx.create(receipt,{schema:'reservation-server-v1',actorUid:claims.uid,operation:op,intent:fingerprint,path,revision:rev+1,beforeLedger:data.inventoryReservations,authorityBefore:authority.data(),result,...(eventReleaseProof?{eventReleaseProof}:{}),createdAt:FieldValue.serverTimestamp()});
+    tx.create(receipt,{schema:'reservation-server-v1',actorUid:claims.uid,operation:op,intent:fingerprint,path,revision:rev+1,beforeLedger:data.inventoryReservations,authorityBefore:authority.data(),result,...(eventReleaseProof?{eventReleaseProof}:{}),...(wooProof?{wooProof}:{}),createdAt:FieldValue.serverTimestamp()});
     if(op.action==='return') tx.create(returnRefs[1],{operationId:op.operationId,saleOperationId:op.returnOf,createdAt:FieldValue.serverTimestamp()});
     return {...result,replayed:false};
   },{maxAttempts:3});

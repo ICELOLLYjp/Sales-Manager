@@ -1,0 +1,20 @@
+PASS export leaves all HPOS and SQLite tables unchanged
+PASS server envelope HMAC
+PASS persisted order/line/product/SKU/quantity retained
+PASS Bridge canonical mapping retained
+PASS only unpaid pending hold intent
+PASS different line rejected
+PASS different order rejected
+PASS multi-line unsupported fails closed
+PASS cancelled does not create hold
+PASS refunded does not create hold
+PASS processing does not create hold
+PASS on-hold does not create hold
+PASS failed does not create hold
+PASS completed does not create hold
+PASS actual HPOS pending/cancelled/pending ABA advances durable source fence
+PASS source changes during capture rejected
+PASS missing revision provider rejected
+PASS inactive product rejected
+PASS missing SKU rejected
+RESULT 19 PASS 0 FAIL 0 SKIP; live calls 0

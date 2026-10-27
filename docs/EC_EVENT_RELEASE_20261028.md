@@ -1,3 +1,5 @@
+> 2026-10-28 follow-up: isolated Woo/HPOS temporary-hold adapter now tested; see [current slice and evidence](EC_WOO_PRODUCER_20261028.md). Production integration remains incomplete.
+
 # Event release source gate — 2026-10-28 JST
 
 Isolated implementation, not deployed. Extends Sales-Manager Draft #127 at `5da4f0aae8c2edc2f652fe6f5eb01a91e6c3cca9`. One vertical slice of priority 1: native Session/sales source reads → reconciliation gate → shared reservation producer → atomic revision/ledger/receipt → same-ID replay. Woo/HPOS adapters and full producer source coverage are not complete.

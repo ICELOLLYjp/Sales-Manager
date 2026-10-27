@@ -1,3 +1,5 @@
+> 2026-10-28 follow-up: isolated Woo/HPOS temporary-hold adapter now tested; see [current slice and evidence](EC_WOO_PRODUCER_20261028.md). Production integration remains incomplete.
+
 > 2026-10-28: Event release now requires native Session/sales snapshot reconciliation in the same transaction, including zero remainder. See [current implementation and event restrictions](EC_EVENT_RELEASE_20261028.md). Final affected tests: producer 20 + release gate 12 PASS; no deployment or purchase enablement.
 
 # EC/event reservation producer and first UI connection — 2026-10-27
