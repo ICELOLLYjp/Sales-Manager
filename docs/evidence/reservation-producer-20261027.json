@@ -1,0 +1,383 @@
+{
+  "dateJST": "2026-10-27",
+  "node": "v24.21.0",
+  "baseHeads": {
+    "sales": "27d886883e12dae1c455d192e92777eb822319b9",
+    "tshirt": "4f87a7d61c6acd6e496f3324474d6d4a38201548",
+    "website": "ed5699a76ed94edea4ad4e40ca5a970cf8c44d34"
+  },
+  "finalSuites": {
+    "manualAPI": {
+      "pass": 38,
+      "fail": 0,
+      "skip": 0,
+      "note": "Q01 + B01-B25 + F01-F12 from 56-case run. Its 18 producer results superseded by final producer suite; not added twice."
+    },
+    "producer": {
+      "pass": 20,
+      "fail": 0,
+      "skip": 0
+    },
+    "tshirtClientAndA1": {
+      "pass": 23,
+      "fail": 0,
+      "skip": 0
+    },
+    "tshirtToEmulator": {
+      "pass": 3,
+      "fail": 0,
+      "skip": 0
+    }
+  },
+  "earlierFailures": [
+    {
+      "pass": 42,
+      "fail": 13,
+      "cause": "Producer passed extra fields into strict manual normalizer; fixed projection before floor validation"
+    },
+    {
+      "pass": 21,
+      "fail": 2,
+      "cause": "A1 extracted-function fixtures lacked new methodBRequired dependency; injected false for legacy mode"
+    }
+  ],
+  "setupFailure": "Sandbox loopback hub timeout before tests; bounded emulator execution succeeded through approved escalation. Node loopback guard used, no JVM OS egress guarantee.",
+  "sourceHashes": {
+    "producer-sales-20261027/isolated/method-b/inventory.mjs": "55eb2e2e8c50f7d4fc168ac7a882171d75131ac9e4dc9a43f7a09aa20ff66251",
+    "producer-sales-20261027/isolated/method-b/http.mjs": "86c399bab0c2963f6794f0093cddbeb173a924aa690abcc74d34f7fa22b9e7e5",
+    "producer-sales-20261027/isolated/method-b/runtime.mjs": "211863a2e9d46a1e0aa38fd04bc71c751479b20f76cdc504a6ea348ae440f0a4",
+    "producer-sales-20261027/isolated/method-b/reservations.mjs": "e191482c0016dc757c2ad71faee06115596f3d3acc283f7ff8bb36d64bf72e8f",
+    "producer-sales-20261027/isolated/method-b/reservations.test.mjs": "767fdd23c4bc5bfa11f6488d49e8a3ef0587a910097ce5f2aee518819cf3ad63",
+    "producer-sales-20261027/isolated/method-b/api.test.mjs": "ceae63e64f08b07e067c343f81832e202d92eeef689490e9b8823420e4f3f4d6",
+    "producer-sales-20261027/isolated/method-b/firestore.rules": "4fa9497953992ea9949979f9f7bb3176acbbe513b2a8f0719db91c2f82c3c20c",
+    "producer-sales-20261027/isolated/method-b/firebase.json": "e44f879a9a0540c3f3445d7af3013af27ddd070b345cc8edb24d6a6f52869c93",
+    "producer-sales-20261027/isolated/method-b/package-lock.json": "9fd37faea43be18c8808a95afc5c92aa1fb0b6374d2aea00a99bccb47a7cd699",
+    "producer-tshirt-20261027/index.html": "0291709e56ab1f6a636cc5ba579916a06efac6b073dc24fda19c384eb681bc19",
+    "producer-tshirt-20261027/manual-inventory-client.mjs": "a085360f83be93e4b95ddf81bafcdb0f51a9b12728f44b105885b5a3723c3cca",
+    "producer-tshirt-20261027/manual-inventory-config.mjs": "76f0bff2a7316aec37f23426d1b66ddd3eed3e5e839359c3a91139c68f685911",
+    "producer-tshirt-20261027/tests/manual-inventory-client.test.mjs": "b90f00c70e7a77be57f68a1e8e37e3f12091006a40c5c9fbaa95392bf20b26cc",
+    "producer-tshirt-20261027/tests/inventory-concurrency.test.mjs": "581590178130bdfcf9087ec35e5ed087e83adc9f0f8f1e34b8d0ccda42b0c8f1",
+    "producer-tshirt-20261027/tests/manual-emulator.test.mjs": "96a32bdb4dbf254b25ade45e44f7e39ad225e9da7cf413c83234e243ff8618c8"
+  },
+  "evidenceHashes": {
+    "producer-sales-20261027/docs/evidence/reservation-manual-and-initial-producer.tap": "4ae22ea70977c555c8a0ab74f279fe7516a03947d875a82404e7898cba4ca18b",
+    "producer-sales-20261027/docs/evidence/reservation-producer-final.tap": "102d3095eecd6bb7ca77a9e9b677cb158393374fe9024710ef7ae5fe962c7863",
+    "producer-tshirt-20261027/docs/evidence/manual-emulator.tap": "11c0163ebee6b9c907ae35cd32a2727de5e8d6ab88f4df5c0a93a828de5f4f94",
+    "producer-tshirt-20261027/docs/evidence/manual-client.tap": "fa0f639f9961cc9c1e48099400381483f4edd7d83a5300a66a8fa31d7fe22284",
+    "producer-tshirt-20261027/docs/evidence/manual-client-final.tap": "09c8cff92964c90b34011beb61c61f82207dd8b119dafb390d8e6e4ab577e87a"
+  },
+  "sqliteReuse": {
+    "pass": 158,
+    "rerun": false,
+    "checks": [
+      {
+        "path": "isolated/ec-purchase/allocation-sqlite-fixture.php",
+        "expected": "4f2e9638d957853ac71ffaa15e23f50152d21099fc560a121933ba963fa4430a",
+        "actual": "4f2e9638d957853ac71ffaa15e23f50152d21099fc560a121933ba963fa4430a",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/allocation-sqlite-worker.php",
+        "expected": "f160e7bfdf3200e948f39f2b9821222096af5d0287ba1d3fe294c9496d114d42",
+        "actual": "f160e7bfdf3200e948f39f2b9821222096af5d0287ba1d3fe294c9496d114d42",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/allocation-sqlite.test.py",
+        "expected": "62c378f157e25818678e11d565ed3321d6c88d548d67898eccad0a67e301c3d5",
+        "actual": "62c378f157e25818678e11d565ed3321d6c88d548d67898eccad0a67e301c3d5",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/allocation-store-boundary.php",
+        "expected": "315f4683f40514b22f01a1d7f6c53244d55281509fbdab3c92a541ea6ff544c4",
+        "actual": "315f4683f40514b22f01a1d7f6c53244d55281509fbdab3c92a541ea6ff544c4",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/allocation-store-boundary.test.php",
+        "expected": "593151391f3245c5ce33db484a8913a83f47d4da41c5122179d046b345ddb1fa",
+        "actual": "593151391f3245c5ce33db484a8913a83f47d4da41c5122179d046b345ddb1fa",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/allocation-store-model.php",
+        "expected": "33ffd8afc9ebac3dbf55161151e1a2618e948b6a1a0e8c612b923aea737ccc15",
+        "actual": "33ffd8afc9ebac3dbf55161151e1a2618e948b6a1a0e8c612b923aea737ccc15",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/allocation-store-sqlite.php",
+        "expected": "0634c5d5976e5cd001bf0867215e7132d356fbdeb5ae50e6826393c9808c30a2",
+        "actual": "0634c5d5976e5cd001bf0867215e7132d356fbdeb5ae50e6826393c9808c30a2",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/bridge-policy.php",
+        "expected": "e56b739f4d19baf69425bf4b4a6961f02b6adae22f4eeb33b5fd4d69f5ff36f7",
+        "actual": "e56b739f4d19baf69425bf4b4a6961f02b6adae22f4eeb33b5fd4d69f5ff36f7",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/catalog-checkout-gate.php",
+        "expected": "8613084a1dfd46b50620cfae1990473c5b8ae755e18030b00d46055cba0428c2",
+        "actual": "8613084a1dfd46b50620cfae1990473c5b8ae755e18030b00d46055cba0428c2",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/catalog-checkout-gate.test.php",
+        "expected": "ef1da68a581c03c5dba9026e28dec68f18eb3a3e2cd47102298fa6079d5bb744",
+        "actual": "ef1da68a581c03c5dba9026e28dec68f18eb3a3e2cd47102298fa6079d5bb744",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/consent-approved-copy.test.php",
+        "expected": "7d70270f2a02eba00391032755a3d6ac2b048755b7662792a95618f39ae47a83",
+        "actual": "7d70270f2a02eba00391032755a3d6ac2b048755b7662792a95618f39ae47a83",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/consent-copy.php",
+        "expected": "5cb5020b3eb71e7216c914c3d2aff9ed082dd28e57b9b31eda4fd3cd2a62cbe0",
+        "actual": "5cb5020b3eb71e7216c914c3d2aff9ed082dd28e57b9b31eda4fd3cd2a62cbe0",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/dispatch-consent-boundary.php",
+        "expected": "09dabb902cfa50e9234e64860cd4122aa5cbc9f71375fede273c9f788bf53b7f",
+        "actual": "09dabb902cfa50e9234e64860cd4122aa5cbc9f71375fede273c9f788bf53b7f",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/dispatch-consent-boundary.test.php",
+        "expected": "a9902d27b13d1ef3770a723238e747e4c623972d16721f4bf8daddbf3c8c9398",
+        "actual": "a9902d27b13d1ef3770a723238e747e4c623972d16721f4bf8daddbf3c8c9398",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/dispatch-consent-policy.test.php",
+        "expected": "1ad2983b50e3f7e50d2544e99157794d8071a7ce519865ccb83e5a051e0630ab",
+        "actual": "1ad2983b50e3f7e50d2544e99157794d8071a7ce519865ccb83e5a051e0630ab",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/dispatch-evidence-manifest.php",
+        "expected": "4478e1d2d962c6d58d6e64d76a6b0c0b865a54b7015a6aa17cac23e61682a060",
+        "actual": "4478e1d2d962c6d58d6e64d76a6b0c0b865a54b7015a6aa17cac23e61682a060",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/dispatch-evidence-manifest.test.php",
+        "expected": "9964a572e0f38d6cb7d7fb38b18a1b5ceacb00c51672bce4f31d2a2425aa50fa",
+        "actual": "9964a572e0f38d6cb7d7fb38b18a1b5ceacb00c51672bce4f31d2a2425aa50fa",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/dispatch-quote-contract.php",
+        "expected": "b83261ee5243ab4a893b8e26b85659c1fe0eef4253ec782ca513796975ce4aed",
+        "actual": "b83261ee5243ab4a893b8e26b85659c1fe0eef4253ec782ca513796975ce4aed",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/dispatch-quote-contract.test.php",
+        "expected": "bec1fa9b13041cc8ac4d1e2520478c5207a3f6cc4a162e4a71ae77c5f4ad7e5d",
+        "actual": "bec1fa9b13041cc8ac4d1e2520478c5207a3f6cc4a162e4a71ae77c5f4ad7e5d",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/eligibility.php",
+        "expected": "868a6a536c7214df6ba4a8cc4676b98b1a55fb51c618f7ee0778f11892e75559",
+        "actual": "868a6a536c7214df6ba4a8cc4676b98b1a55fb51c618f7ee0778f11892e75559",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/eligibility.test.php",
+        "expected": "d6355bddb95f21ba742d051dceceaab42e27bd678e9473166ec6886aed34a582",
+        "actual": "d6355bddb95f21ba742d051dceceaab42e27bd678e9473166ec6886aed34a582",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/event-stock-transition.php",
+        "expected": "d2d7077f1523b1dbe70062e885a91766e48693698a31c6f6875cf81b06750802",
+        "actual": "d2d7077f1523b1dbe70062e885a91766e48693698a31c6f6875cf81b06750802",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/event-stock-transition.test.php",
+        "expected": "d9f994ae9e98ea792b957e0961dc21e8d80fd3709d4afbd5c15970333f1a0819",
+        "actual": "d9f994ae9e98ea792b957e0961dc21e8d80fd3709d4afbd5c15970333f1a0819",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/finished-capacity.test.php",
+        "expected": "45edc5baa6640aec934428ad4b71bbf84097b685bf249d9982af302fbd8d6b7f",
+        "actual": "45edc5baa6640aec934428ad4b71bbf84097b685bf249d9982af302fbd8d6b7f",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/finished-sqlite.test.py",
+        "expected": "e9146ad16334b91d5b0475fa6462d81d30a374c5409b2dab8459c3fdfbf5ac01",
+        "actual": "e9146ad16334b91d5b0475fa6462d81d30a374c5409b2dab8459c3fdfbf5ac01",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/order-allocation-transition.php",
+        "expected": "cfff8e4cf1aa63bc8b70994baacc56856ae5405023475bda33a1d01b60a3291b",
+        "actual": "cfff8e4cf1aa63bc8b70994baacc56856ae5405023475bda33a1d01b60a3291b",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/order-allocation-transition.test.php",
+        "expected": "0a7a7b3ccd22a1df5229f69bd4cd675e8626d34205e97ffaa9164ecaeb670811",
+        "actual": "0a7a7b3ccd22a1df5229f69bd4cd675e8626d34205e97ffaa9164ecaeb670811",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/order-capacity-adapter.php",
+        "expected": "fd6233262884b5df4bf63cc69b543c946d44cb5a8cac541c49b4b080a72f872a",
+        "actual": "fd6233262884b5df4bf63cc69b543c946d44cb5a8cac541c49b4b080a72f872a",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/order-capacity-adapter.test.php",
+        "expected": "73136e6212385207ff5dcd825ee7802a70b527d1f894e4cdf55d5f11755ffe67",
+        "actual": "73136e6212385207ff5dcd825ee7802a70b527d1f894e4cdf55d5f11755ffe67",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/purchase-consent-v4.php",
+        "expected": "55ff2040d51f8eaca20af6c629a1f790d8f946a3d83b4b225953915013315042",
+        "actual": "55ff2040d51f8eaca20af6c629a1f790d8f946a3d83b4b225953915013315042",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/purchase-consent-v4.test.php",
+        "expected": "62069d14c15a3bd877a66b96eb343a5d166da5d191bcbaac5a840656261fdf6a",
+        "actual": "62069d14c15a3bd877a66b96eb343a5d166da5d191bcbaac5a840656261fdf6a",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/purchase-consent.php",
+        "expected": "0e101e4dd55b7b37e053a798f2b9cda0e3547bcf47ba6482ea49e974fc2a1054",
+        "actual": "0e101e4dd55b7b37e053a798f2b9cda0e3547bcf47ba6482ea49e974fc2a1054",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/purchase-consent.test.php",
+        "expected": "5b54629e21c9078e3861b6d25dc5b38b403adfd2af5eb46dfc852795757da4b1",
+        "actual": "5b54629e21c9078e3861b6d25dc5b38b403adfd2af5eb46dfc852795757da4b1",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/stock-writer-transition.php",
+        "expected": "72c25f8788146ea3dda320d154eb24c9ef40d082f6d0dbfc89f444f93fce616f",
+        "actual": "72c25f8788146ea3dda320d154eb24c9ef40d082f6d0dbfc89f444f93fce616f",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/stock-writer-worker.php",
+        "expected": "e0425b48cf2f07554b55cec5c95b88c994dd47f912e0873c60b358d86a170a4b",
+        "actual": "e0425b48cf2f07554b55cec5c95b88c994dd47f912e0873c60b358d86a170a4b",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/stock-writer.test.cjs",
+        "expected": "a9543fcf194b419450dd5d94f9331c679041721a08b2952e69fc5c95631a617e",
+        "actual": "a9543fcf194b419450dd5d94f9331c679041721a08b2952e69fc5c95631a617e",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/verify-catalog-gate-v2.py",
+        "expected": "ae8865cbe998a801024a613864343d6d13e258d0cbabcc37df595d285e90a9a6",
+        "actual": "ae8865cbe998a801024a613864343d6d13e258d0cbabcc37df595d285e90a9a6",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/woo-allocation-store.php",
+        "expected": "9b1f7e101fe52ec9b52bae27eb4ff5dc5f28aa0401a8d64329cb3b29befa4fe5",
+        "actual": "9b1f7e101fe52ec9b52bae27eb4ff5dc5f28aa0401a8d64329cb3b29befa4fe5",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/woo-allocation-store.test.php",
+        "expected": "dbaf0005885696c77eb9cfb6348344d0094b78faed43e4abb53b3b9bbe62e10d",
+        "actual": "dbaf0005885696c77eb9cfb6348344d0094b78faed43e4abb53b3b9bbe62e10d",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/woo-crud-readonly.php",
+        "expected": "c456e0f3e0ced3c69d3208983f39b174922374583c7a6e21a792452a0d87edf0",
+        "actual": "c456e0f3e0ced3c69d3208983f39b174922374583c7a6e21a792452a0d87edf0",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/woo-order-snapshot.php",
+        "expected": "acdc532bb8cb6d3f9e1ad69ca0097f6d504ef9785aa8b3354bf0bbcc5f9e890e",
+        "actual": "acdc532bb8cb6d3f9e1ad69ca0097f6d504ef9785aa8b3354bf0bbcc5f9e890e",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/woo-order-snapshot.test.php",
+        "expected": "85b0641a3ed8e6b3237e6af080b4f1e3ff3ed27b21e59b67f7f45fe63a74c059",
+        "actual": "85b0641a3ed8e6b3237e6af080b4f1e3ff3ed27b21e59b67f7f45fe63a74c059",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/woo-order-transform.php",
+        "expected": "3d230efe83c0d32cc402af06ca2bcdd099559f1e34af03f9979851335e87f9ba",
+        "actual": "3d230efe83c0d32cc402af06ca2bcdd099559f1e34af03f9979851335e87f9ba",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/woo-order-transform.test.php",
+        "expected": "5c0b05dd247bd5b527aea53210d5dbb62ea2945d19472b0296b420a4cc8ef6ff",
+        "actual": "5c0b05dd247bd5b527aea53210d5dbb62ea2945d19472b0296b420a4cc8ef6ff",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/woo-product-evidence.php",
+        "expected": "0fcc7ef4de4b94bbe37b2fad79dbda1bc3f18484fefdf6c2fa19d8116e79079f",
+        "actual": "0fcc7ef4de4b94bbe37b2fad79dbda1bc3f18484fefdf6c2fa19d8116e79079f",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-capacity/capacity.php",
+        "expected": "c7c9350fc64d7e9492ebf7c587a8466f67f89b33b98d582c673891c3e5011688",
+        "actual": "c7c9350fc64d7e9492ebf7c587a8466f67f89b33b98d582c673891c3e5011688",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-capacity/capacity.test.php",
+        "expected": "4702dab51cd97c8747d40912e2b827f7b55b6d1b8654274e55ccb34cee2fb26c",
+        "actual": "4702dab51cd97c8747d40912e2b827f7b55b6d1b8654274e55ccb34cee2fb26c",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-calendar/audit-prior.cjs",
+        "expected": "ff1c56876719725e9dd5823134f8143f1a6e7d0e3e6497af3e8d92b83ab1864a",
+        "actual": "ff1c56876719725e9dd5823134f8143f1a6e7d0e3e6497af3e8d92b83ab1864a",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-calendar/calendar.php",
+        "expected": "a125b2f652698d8f26cb560a88cf45d5a1238094239979fc8ea81adad94314a2",
+        "actual": "a125b2f652698d8f26cb560a88cf45d5a1238094239979fc8ea81adad94314a2",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-calendar/calendar.test.php",
+        "expected": "1a45001422be47b3efbbc9e82bb72b359b3ed9967b7942a38f4cfdca4f6fcfb3",
+        "actual": "1a45001422be47b3efbbc9e82bb72b359b3ed9967b7942a38f4cfdca4f6fcfb3",
+        "match": true
+      }
+    ]
+  },
+  "unverified": [
+    "Production signatures/IAM/Rules",
+    "Real Woo/HPOS/Stripe/Session upstream adapters",
+    "Reconciliation/bootstrap of real reservation sources",
+    "Browser/device/service-worker end-to-end",
+    "All old T/A/S writers and queues closure",
+    "Staging/production deployment"
+  ]
+}

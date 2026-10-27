@@ -1,0 +1,201 @@
+i  emulators: Starting emulators: auth, firestore
+i  emulators: Detected demo project ID "demo-icelolly-method-b", emulated services will use a demo configuration and attempts to access non-emulated services for this project will fail.
+i  firestore: Firestore Emulator logging to firestore-debug.log
++  firestore: Firestore Emulator was started in standard edition.
++  firestore: Firestore Emulator UI websocket is running on 9152.
+i  Running script: node --test --test-timeout=60000 --test-reporter=tap reservations.test.mjs
+TAP version 13
+# (node:21068) MetadataLookupWarning: received unexpected error = All promises were rejected code = UNKNOWN
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: P01 held to confirmed replaces identity and advances revision; release and replay
+ok 1 - P01 held to confirmed replaces identity and advances revision; release and replay
+  ---
+  duration_ms: 1388.0894
+  type: 'test'
+  ...
+# Subtest: P02 concurrent same ID has one effect; changed intent rejected
+ok 2 - P02 concurrent same ID has one effect; changed intent rejected
+  ---
+  duration_ms: 3578.5076
+  type: 'test'
+  ...
+# Subtest: P03 same and different SKU conflicts use shared canonical revision
+ok 3 - P03 same and different SKU conflicts use shared canonical revision
+  ---
+  duration_ms: 6385.0146
+  type: 'test'
+  ...
+# Subtest: P04 EC plus event floor rejects overbooking and manual below floor
+ok 4 - P04 EC plus event floor rejects overbooking and manual below floor
+  ---
+  duration_ms: 201.7697
+  type: 'test'
+  ...
+# Subtest: P05 zero, unknown and unregistered stock fail safely
+ok 5 - P05 zero, unknown and unregistered stock fail safely
+  ---
+  duration_ms: 165.1815
+  type: 'test'
+  ...
+# Subtest: P06 missing/incomplete/tampered ledger and forged complete flag rejected
+ok 6 - P06 missing/incomplete/tampered ledger and forged complete flag rejected
+  ---
+  duration_ms: 179.0671
+  type: 'test'
+  ...
+# Subtest: P07 authority must cover both sources and exact ledger hash
+ok 7 - P07 authority must cover both sources and exact ledger hash
+  ---
+  duration_ms: 261.8049
+  type: 'test'
+  ...
+# Subtest: P08 service auth rejects browser, other producer, missing/expired and revoked user
+ok 8 - P08 service auth rejects browser, other producer, missing/expired and revoked user
+  ---
+  duration_ms: 29.4927
+  type: 'test'
+  ...
+# [2026-10-27T11:10:09.713Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x4df34c65 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:10:09.724Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x4df34c66 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-27T11:10:09.739Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x4df34c67 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:10:09.751Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x4df34c68 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-27T11:10:09.760Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x4df34c69 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:10:09.767Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x4df34c6a error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-27T11:10:09.786Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x4df34c6b error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:10:09.793Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x4df34c6c error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-27T11:10:09.829Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x4df34c6d error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:10:09.837Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x4df34c6e error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-27T11:10:09.847Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x4df34c6f error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:10:09.861Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x4df34c70 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-27T11:10:09.879Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x4df34c71 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:10:09.891Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x4df34c72 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-27T11:10:09.919Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x4df34c73 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:10:09.937Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x4df34c74 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-27T11:10:09.954Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x4df34c75 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:10:09.959Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x4df34c76 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-27T11:10:09.965Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x4df34c77 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:10:09.984Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x4df34c78 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-27T11:10:10.001Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x4df34c79 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:10:10.015Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x4df34c7a error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-27T11:10:10.023Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x4df34c7b error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:10:10.028Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x4df34c7c error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-27T11:10:10.048Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x4df34c7d error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:10:10.061Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x4df34c7e error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-27T11:10:10.079Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x4df34c7f error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:10:10.085Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x4df34c80 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# Subtest: P09 old client whole-map/init/queue/authority/receipt writes denied
+ok 9 - P09 old client whole-map/init/queue/authority/receipt writes denied
+  ---
+  duration_ms: 570.3596
+  type: 'test'
+  ...
+# Subtest: P10 lost response and server restart replay original ID
+ok 10 - P10 lost response and server restart replay original ID
+  ---
+  duration_ms: 114.255
+  type: 'test'
+  ...
+# Subtest: P11 forged historical receipt result and ledger rejected
+ok 11 - P11 forged historical receipt result and ledger rejected
+  ---
+  duration_ms: 171.6321
+  type: 'test'
+  ...
+# Subtest: P12 atomic rollback includes ledger authority physical and receipt
+ok 12 - P12 atomic rollback includes ledger authority physical and receipt
+  ---
+  duration_ms: 137.8808
+  type: 'test'
+  ...
+# Subtest: P13 sale reduces physical and event remainder once, return binds original sale
+ok 13 - P13 sale reduces physical and event remainder once, return binds original sale
+  ---
+  duration_ms: 253.1893
+  type: 'test'
+  ...
+# Subtest: P14 reserve/count/sale contention commits only one and preserves EC floor
+ok 14 - P14 reserve/count/sale contention commits only one and preserves EC floor
+  ---
+  duration_ms: 96.8149
+  type: 'test'
+  ...
+# Subtest: P15 no implicit release by time or session close, no arbitrary caller ledger
+ok 15 - P15 no implicit release by time or session close, no arbitrary caller ledger
+  ---
+  duration_ms: 73.8444
+  type: 'test'
+  ...
+# Subtest: P16 accessory uses same producer and preserves metadata and other SKU
+ok 16 - P16 accessory uses same producer and preserves metadata and other SKU
+  ---
+  duration_ms: 63.4383
+  type: 'test'
+  ...
+# Subtest: P17 held confirmed released ABA invalidates old manual revision
+ok 17 - P17 held confirmed released ABA invalidates old manual revision
+  ---
+  duration_ms: 129.1096
+  type: 'test'
+  ...
+# Subtest: P18 refund cannot invent sale or use other identity / quantity
+ok 18 - P18 refund cannot invent sale or use other identity / quantity
+  ---
+  duration_ms: 203.7684
+  type: 'test'
+  ...
+# Subtest: P19 original order/Session line cannot silently rebind to another SKU
+ok 19 - P19 original order/Session line cannot silently rebind to another SKU
+  ---
+  duration_ms: 94.4061
+  type: 'test'
+  ...
+# Subtest: P20 sold-out event hold can release explicit zero but cannot reserve zero
+ok 20 - P20 sold-out event hold can release explicit zero but cannot reserve zero
+  ---
+  duration_ms: 217.1541
+  type: 'test'
+  ...
+1..20
+# tests 20
+# suites 0
+# pass 20
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 15393.8558
++  Script exited successfully (code 0)
+i  emulators: Shutting down emulators.
+i  firestore: Stopping Firestore Emulator
+!  Firestore Emulator has exited upon receiving signal: SIGINT
+i  auth: Stopping Authentication Emulator
+i  hub: Stopping emulator hub
+i  logging: Stopping Logging Emulator

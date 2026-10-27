@@ -18,6 +18,15 @@ const acc=()=>({inventoryRevision:0,inventoryReservations:ledger(),designs:[{id:
 const payload=(operationId='op',extra={})=>({version:1,operationId,stock:'tshirt',sku:{bodyId:'b',designId:'d',colorId:'c',sizeId:'s'},expectedRevision:0,expectedQuantity:5,quantity:4,...extra});
 const read=async(path=stock)=>(await rt.db.doc(path).get()).data();
 const qty=async()=> (await read()).inventory_v2.b.d.c.s.qty;
+test('Q01 result lookup never creates a write; lost reply resolves exact original operation',async()=>{
+  const query=url+'/result';
+  const absent=await call(payload(),tokens[UIDS[0]],query);
+  assert.equal(absent.status,200);assert.equal(absent.body.status,'unknown');assert.equal(await qty(),5);
+  assert.equal((await rt.db.collection('inventoryWriteReceipts').get()).size,0);
+  await call();const found=await call(payload(),tokens[UIDS[0]],query);assert.equal(found.body.replayed,true);assert.equal(await qty(),4);
+  assert.equal((await call(payload('op',{quantity:2}),tokens[UIDS[0]],query)).status,409);
+  assert.equal((await call(payload(),null,query)).status,401);
+});
 async function listen(s) {s.listen(0,'127.0.0.1'); await once(s,'listening'); return `http://127.0.0.1:${s.address().port}/v1/inventory/manual-edit`;}
 async function close(s) {s.closeAllConnections(); await new Promise(r=>s.close(r));}
 async function call(body=payload(),token=tokens[UIDS[0]],endpoint=url) {

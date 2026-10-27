@@ -49,3 +49,9 @@ Staging requires those writer gaps, identity/Rules/IAM checks, backup/independen
 ## Preservation and save
 
 Original dirty Website worktrees were left intact. Current stock changes and the separate six consent files were copied with binary patches and SHA-256 manifest into local `shared-writer-preserved-20261027`; consent changes were not integrated. Work was done in separate checkouts. Save uses a dedicated Draft based on #123, `[skip ci]`, fresh HEAD comparison, expected-SHA CAS and `force=false`. Website #34 receives only the concise cross-repository pointer.
+
+
+## 2026-10-27 Codex: reservation producer and T-shirt API connection
+
+Server producer, source/SKU binding, reconciliation checkpoint and read-only result lookup implemented. Final affected suites: manual API 38, producer 20, T-shirt client+A1 23, actual client to HTTP/Auth/Firestore 3 PASS, all 0 FAIL / 0 SKIP. SQLite 158 reused after 50 source hash matches. See [implementation, evidence and remaining gates](EC_RESERVATION_PRODUCER_20261027.md). Disabled/unreleased; real Woo/Session adapters, all old writers, production identities/Rules and Staging acceptance remain incomplete. No deploy, purchase enablement, real stock write or merge.
+
