@@ -1,0 +1,101 @@
+[36m[1mi  emulators:[22m[39m Starting emulators: auth, firestore
+[36m[1mi  emulators:[22m[39m Detected demo project ID "demo-icelolly-method-b", emulated services will use a demo configuration and attempts to access non-emulated services for this project will fail.
+[36m[1mi  firestore:[22m[39m Firestore Emulator logging to [1mfirestore-debug.log[22m
+[32m[1m+  firestore:[22m[39m Firestore Emulator was started in standard edition.
+[32m[1m+  firestore:[22m[39m Firestore Emulator UI websocket is running on 9152.
+[36m[1mi [22m[39m Running script: [1mnode --test --test-concurrency=1 --test-timeout=60000 --test-reporter=tap event-release.test.mjs[22m
+TAP version 13
+# (node:28476) MetadataLookupWarning: received unexpected error = All promises were rejected code = ETIMEDOUT, ENOTFOUND
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: R01 real Session/sales query -> reviewed release -> receipt; replay after later source change does not write
+ok 1 - R01 real Session/sales query -> reviewed release -> receipt; replay after later source change does not write
+  ---
+  duration_ms: 4601.0083
+  type: 'test'
+  ...
+# Subtest: R02 closed Session alone cannot release; no receipt or revision side effects
+ok 2 - R02 closed Session alone cannot release; no receipt or revision side effects
+  ---
+  duration_ms: 180.3174
+  type: 'test'
+  ...
+# Subtest: R03 each missing review condition fails closed
+ok 3 - R03 each missing review condition fails closed
+  ---
+  duration_ms: 687.1601
+  type: 'test'
+  ...
+# Subtest: R04 pending Session and missing final inventory count reject even with review
+ok 4 - R04 pending Session and missing final inventory count reject even with review
+  ---
+  duration_ms: 344.3803
+  type: 'test'
+  ...
+# Subtest: R05 late offline insert, cancellation update and deletion invalidate review
+ok 5 - R05 late offline insert, cancellation update and deletion invalidate review
+  ---
+  duration_ms: 347.5687
+  type: 'test'
+  ...
+# Subtest: R06 Session ABA with equal content still invalidates reviewed snapshot
+ok 6 - R06 Session ABA with equal content still invalidates reviewed snapshot
+  ---
+  duration_ms: 212.9821
+  type: 'test'
+  ...
+# Subtest: R07 stale stock revision rejects; operator must reread and explicitly review a new intent
+ok 7 - R07 stale stock revision rejects; operator must reread and explicitly review a new intent
+  ---
+  duration_ms: 243.3555
+  type: 'test'
+  ...
+# Subtest: R08 concurrent same operation releases exactly once
+ok 8 - R08 concurrent same operation releases exactly once
+  ---
+  duration_ms: 3522.6249
+  type: 'test'
+  ...
+# Subtest: R09 receipt without historical proof or tampered review cannot replay
+ok 9 - R09 receipt without historical proof or tampered review cannot replay
+  ---
+  duration_ms: 281.7733
+  type: 'test'
+  ...
+# Subtest: R10 transaction rollback preserves hold, checkpoint and source review
+ok 10 - R10 transaction rollback preserves hold, checkpoint and source review
+  ---
+  duration_ms: 205.0264
+  type: 'test'
+  ...
+# [2026-10-27T16:11:24.463Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x3bf9d637 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T16:11:24.493Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x3bf9d638 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# Subtest: R11 browser and producer clients cannot forge privileged review
+ok 11 - R11 browser and producer clients cannot forge privileged review
+  ---
+  duration_ms: 258.9079
+  type: 'test'
+  ...
+# Subtest: R12 concurrent count versus reviewed release commits only one canonical revision
+ok 12 - R12 concurrent count versus reviewed release commits only one canonical revision
+  ---
+  duration_ms: 3100.8214
+  type: 'test'
+  ...
+1..12
+# tests 12
+# suites 0
+# pass 12
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 15164.3414
+[32m[1m+ [22m[39m Script exited successfully (code 0)
+[36m[1mi  emulators:[22m[39m Shutting down emulators.
+[36m[1mi  firestore:[22m[39m Stopping Firestore Emulator
+[33m[1m! [22m[39m Firestore Emulator has exited upon receiving signal: SIGINT
+[36m[1mi  auth:[22m[39m Stopping Authentication Emulator
+[36m[1mi  hub:[22m[39m Stopping emulator hub
+[36m[1mi  logging:[22m[39m Stopping Logging Emulator

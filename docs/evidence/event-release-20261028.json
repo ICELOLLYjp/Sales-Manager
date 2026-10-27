@@ -1,0 +1,307 @@
+{
+  "dateJST": "2026-10-28",
+  "baseHead": "5da4f0aae8c2edc2f652fe6f5eb01a91e6c3cca9",
+  "project": "demo-icelolly-method-b",
+  "node": "v24.21.0",
+  "final": {
+    "producer": {
+      "pass": 20,
+      "fail": 0,
+      "skip": 0
+    },
+    "eventRelease": {
+      "pass": 12,
+      "fail": 0,
+      "skip": 0
+    }
+  },
+  "initial": {
+    "pass": 31,
+    "fail": 0,
+    "cancelled": 1,
+    "reason": "R12 test self-deadlock while waiting for a competing write under the transaction query lock. Replaced with concurrent count/release CAS test. Only new gate suite rerun."
+  },
+  "sourceSha256LF": {
+    "isolated/method-b/event-release.mjs": "e993778b74f5ced0f5cada74cd728acfe88c0178a1e2d224e0a3442a300dc6e1",
+    "isolated/method-b/event-release.test.mjs": "6025aa3e1547eca37c980c1d8b6b82ce78465b867b8a9c592f6473a0541b0fbb",
+    "isolated/method-b/reservations.mjs": "a3ff56345ce05ef5b02eb6562276aea73b84ae0e260e3e63e9eef13aad389f1c",
+    "isolated/method-b/reservations.test.mjs": "20db04e19fda146ce1a0d8ebdc732913f118fc3c41fa0c95aebdfa194ee5d722",
+    "isolated/method-b/inventory.mjs": "2c15ee2de8272b1f47071f340ad7e7d4e9901f1e94816c521cef16fb99d2f485",
+    "isolated/method-b/runtime.mjs": "780a965320f6b7f63f40745403882bdf95a1cfe76858dcb91f2e48ab631b394e",
+    "isolated/method-b/firestore.rules": "82a0dee68f3de0c9da39b46b414e55d58d9be90804484580681b2ffe7dc9f883",
+    "isolated/method-b/firebase.json": "7d269595379866e5bbe14522248c910af09f1f5404010be228c96f87b230a12e",
+    "isolated/method-b/package-lock.json": "60d3c5f5bd789b730b284c13e7fb50d874c1340ff7a2945336deb10d2353079b"
+  },
+  "sqliteReuse": {
+    "pass": 158,
+    "rerun": false,
+    "matches": [
+      {
+        "file": "isolated/ec-purchase/allocation-sqlite-fixture.php",
+        "expected": "4f2e9638d957853ac71ffaa15e23f50152d21099fc560a121933ba963fa4430a",
+        "actual": "4f2e9638d957853ac71ffaa15e23f50152d21099fc560a121933ba963fa4430a"
+      },
+      {
+        "file": "isolated/ec-purchase/allocation-sqlite-worker.php",
+        "expected": "f160e7bfdf3200e948f39f2b9821222096af5d0287ba1d3fe294c9496d114d42",
+        "actual": "f160e7bfdf3200e948f39f2b9821222096af5d0287ba1d3fe294c9496d114d42"
+      },
+      {
+        "file": "isolated/ec-purchase/allocation-sqlite.test.py",
+        "expected": "62c378f157e25818678e11d565ed3321d6c88d548d67898eccad0a67e301c3d5",
+        "actual": "62c378f157e25818678e11d565ed3321d6c88d548d67898eccad0a67e301c3d5"
+      },
+      {
+        "file": "isolated/ec-purchase/allocation-store-boundary.php",
+        "expected": "315f4683f40514b22f01a1d7f6c53244d55281509fbdab3c92a541ea6ff544c4",
+        "actual": "315f4683f40514b22f01a1d7f6c53244d55281509fbdab3c92a541ea6ff544c4"
+      },
+      {
+        "file": "isolated/ec-purchase/allocation-store-boundary.test.php",
+        "expected": "593151391f3245c5ce33db484a8913a83f47d4da41c5122179d046b345ddb1fa",
+        "actual": "593151391f3245c5ce33db484a8913a83f47d4da41c5122179d046b345ddb1fa"
+      },
+      {
+        "file": "isolated/ec-purchase/allocation-store-model.php",
+        "expected": "33ffd8afc9ebac3dbf55161151e1a2618e948b6a1a0e8c612b923aea737ccc15",
+        "actual": "33ffd8afc9ebac3dbf55161151e1a2618e948b6a1a0e8c612b923aea737ccc15"
+      },
+      {
+        "file": "isolated/ec-purchase/allocation-store-sqlite.php",
+        "expected": "0634c5d5976e5cd001bf0867215e7132d356fbdeb5ae50e6826393c9808c30a2",
+        "actual": "0634c5d5976e5cd001bf0867215e7132d356fbdeb5ae50e6826393c9808c30a2"
+      },
+      {
+        "file": "isolated/ec-purchase/bridge-policy.php",
+        "expected": "e56b739f4d19baf69425bf4b4a6961f02b6adae22f4eeb33b5fd4d69f5ff36f7",
+        "actual": "e56b739f4d19baf69425bf4b4a6961f02b6adae22f4eeb33b5fd4d69f5ff36f7"
+      },
+      {
+        "file": "isolated/ec-purchase/catalog-checkout-gate.php",
+        "expected": "8613084a1dfd46b50620cfae1990473c5b8ae755e18030b00d46055cba0428c2",
+        "actual": "8613084a1dfd46b50620cfae1990473c5b8ae755e18030b00d46055cba0428c2"
+      },
+      {
+        "file": "isolated/ec-purchase/catalog-checkout-gate.test.php",
+        "expected": "ef1da68a581c03c5dba9026e28dec68f18eb3a3e2cd47102298fa6079d5bb744",
+        "actual": "ef1da68a581c03c5dba9026e28dec68f18eb3a3e2cd47102298fa6079d5bb744"
+      },
+      {
+        "file": "isolated/ec-purchase/consent-approved-copy.test.php",
+        "expected": "7d70270f2a02eba00391032755a3d6ac2b048755b7662792a95618f39ae47a83",
+        "actual": "7d70270f2a02eba00391032755a3d6ac2b048755b7662792a95618f39ae47a83"
+      },
+      {
+        "file": "isolated/ec-purchase/consent-copy.php",
+        "expected": "5cb5020b3eb71e7216c914c3d2aff9ed082dd28e57b9b31eda4fd3cd2a62cbe0",
+        "actual": "5cb5020b3eb71e7216c914c3d2aff9ed082dd28e57b9b31eda4fd3cd2a62cbe0"
+      },
+      {
+        "file": "isolated/ec-purchase/dispatch-consent-boundary.php",
+        "expected": "09dabb902cfa50e9234e64860cd4122aa5cbc9f71375fede273c9f788bf53b7f",
+        "actual": "09dabb902cfa50e9234e64860cd4122aa5cbc9f71375fede273c9f788bf53b7f"
+      },
+      {
+        "file": "isolated/ec-purchase/dispatch-consent-boundary.test.php",
+        "expected": "a9902d27b13d1ef3770a723238e747e4c623972d16721f4bf8daddbf3c8c9398",
+        "actual": "a9902d27b13d1ef3770a723238e747e4c623972d16721f4bf8daddbf3c8c9398"
+      },
+      {
+        "file": "isolated/ec-purchase/dispatch-consent-policy.test.php",
+        "expected": "1ad2983b50e3f7e50d2544e99157794d8071a7ce519865ccb83e5a051e0630ab",
+        "actual": "1ad2983b50e3f7e50d2544e99157794d8071a7ce519865ccb83e5a051e0630ab"
+      },
+      {
+        "file": "isolated/ec-purchase/dispatch-evidence-manifest.php",
+        "expected": "4478e1d2d962c6d58d6e64d76a6b0c0b865a54b7015a6aa17cac23e61682a060",
+        "actual": "4478e1d2d962c6d58d6e64d76a6b0c0b865a54b7015a6aa17cac23e61682a060"
+      },
+      {
+        "file": "isolated/ec-purchase/dispatch-evidence-manifest.test.php",
+        "expected": "9964a572e0f38d6cb7d7fb38b18a1b5ceacb00c51672bce4f31d2a2425aa50fa",
+        "actual": "9964a572e0f38d6cb7d7fb38b18a1b5ceacb00c51672bce4f31d2a2425aa50fa"
+      },
+      {
+        "file": "isolated/ec-purchase/dispatch-quote-contract.php",
+        "expected": "b83261ee5243ab4a893b8e26b85659c1fe0eef4253ec782ca513796975ce4aed",
+        "actual": "b83261ee5243ab4a893b8e26b85659c1fe0eef4253ec782ca513796975ce4aed"
+      },
+      {
+        "file": "isolated/ec-purchase/dispatch-quote-contract.test.php",
+        "expected": "bec1fa9b13041cc8ac4d1e2520478c5207a3f6cc4a162e4a71ae77c5f4ad7e5d",
+        "actual": "bec1fa9b13041cc8ac4d1e2520478c5207a3f6cc4a162e4a71ae77c5f4ad7e5d"
+      },
+      {
+        "file": "isolated/ec-purchase/eligibility.php",
+        "expected": "868a6a536c7214df6ba4a8cc4676b98b1a55fb51c618f7ee0778f11892e75559",
+        "actual": "868a6a536c7214df6ba4a8cc4676b98b1a55fb51c618f7ee0778f11892e75559"
+      },
+      {
+        "file": "isolated/ec-purchase/eligibility.test.php",
+        "expected": "d6355bddb95f21ba742d051dceceaab42e27bd678e9473166ec6886aed34a582",
+        "actual": "d6355bddb95f21ba742d051dceceaab42e27bd678e9473166ec6886aed34a582"
+      },
+      {
+        "file": "isolated/ec-purchase/event-stock-transition.php",
+        "expected": "d2d7077f1523b1dbe70062e885a91766e48693698a31c6f6875cf81b06750802",
+        "actual": "d2d7077f1523b1dbe70062e885a91766e48693698a31c6f6875cf81b06750802"
+      },
+      {
+        "file": "isolated/ec-purchase/event-stock-transition.test.php",
+        "expected": "d9f994ae9e98ea792b957e0961dc21e8d80fd3709d4afbd5c15970333f1a0819",
+        "actual": "d9f994ae9e98ea792b957e0961dc21e8d80fd3709d4afbd5c15970333f1a0819"
+      },
+      {
+        "file": "isolated/ec-purchase/finished-capacity.test.php",
+        "expected": "45edc5baa6640aec934428ad4b71bbf84097b685bf249d9982af302fbd8d6b7f",
+        "actual": "45edc5baa6640aec934428ad4b71bbf84097b685bf249d9982af302fbd8d6b7f"
+      },
+      {
+        "file": "isolated/ec-purchase/finished-sqlite.test.py",
+        "expected": "e9146ad16334b91d5b0475fa6462d81d30a374c5409b2dab8459c3fdfbf5ac01",
+        "actual": "e9146ad16334b91d5b0475fa6462d81d30a374c5409b2dab8459c3fdfbf5ac01"
+      },
+      {
+        "file": "isolated/ec-purchase/order-allocation-transition.php",
+        "expected": "cfff8e4cf1aa63bc8b70994baacc56856ae5405023475bda33a1d01b60a3291b",
+        "actual": "cfff8e4cf1aa63bc8b70994baacc56856ae5405023475bda33a1d01b60a3291b"
+      },
+      {
+        "file": "isolated/ec-purchase/order-allocation-transition.test.php",
+        "expected": "0a7a7b3ccd22a1df5229f69bd4cd675e8626d34205e97ffaa9164ecaeb670811",
+        "actual": "0a7a7b3ccd22a1df5229f69bd4cd675e8626d34205e97ffaa9164ecaeb670811"
+      },
+      {
+        "file": "isolated/ec-purchase/order-capacity-adapter.php",
+        "expected": "fd6233262884b5df4bf63cc69b543c946d44cb5a8cac541c49b4b080a72f872a",
+        "actual": "fd6233262884b5df4bf63cc69b543c946d44cb5a8cac541c49b4b080a72f872a"
+      },
+      {
+        "file": "isolated/ec-purchase/order-capacity-adapter.test.php",
+        "expected": "73136e6212385207ff5dcd825ee7802a70b527d1f894e4cdf55d5f11755ffe67",
+        "actual": "73136e6212385207ff5dcd825ee7802a70b527d1f894e4cdf55d5f11755ffe67"
+      },
+      {
+        "file": "isolated/ec-purchase/purchase-consent-v4.php",
+        "expected": "55ff2040d51f8eaca20af6c629a1f790d8f946a3d83b4b225953915013315042",
+        "actual": "55ff2040d51f8eaca20af6c629a1f790d8f946a3d83b4b225953915013315042"
+      },
+      {
+        "file": "isolated/ec-purchase/purchase-consent-v4.test.php",
+        "expected": "62069d14c15a3bd877a66b96eb343a5d166da5d191bcbaac5a840656261fdf6a",
+        "actual": "62069d14c15a3bd877a66b96eb343a5d166da5d191bcbaac5a840656261fdf6a"
+      },
+      {
+        "file": "isolated/ec-purchase/purchase-consent.php",
+        "expected": "0e101e4dd55b7b37e053a798f2b9cda0e3547bcf47ba6482ea49e974fc2a1054",
+        "actual": "0e101e4dd55b7b37e053a798f2b9cda0e3547bcf47ba6482ea49e974fc2a1054"
+      },
+      {
+        "file": "isolated/ec-purchase/purchase-consent.test.php",
+        "expected": "5b54629e21c9078e3861b6d25dc5b38b403adfd2af5eb46dfc852795757da4b1",
+        "actual": "5b54629e21c9078e3861b6d25dc5b38b403adfd2af5eb46dfc852795757da4b1"
+      },
+      {
+        "file": "isolated/ec-purchase/stock-writer-transition.php",
+        "expected": "72c25f8788146ea3dda320d154eb24c9ef40d082f6d0dbfc89f444f93fce616f",
+        "actual": "72c25f8788146ea3dda320d154eb24c9ef40d082f6d0dbfc89f444f93fce616f"
+      },
+      {
+        "file": "isolated/ec-purchase/stock-writer-worker.php",
+        "expected": "e0425b48cf2f07554b55cec5c95b88c994dd47f912e0873c60b358d86a170a4b",
+        "actual": "e0425b48cf2f07554b55cec5c95b88c994dd47f912e0873c60b358d86a170a4b"
+      },
+      {
+        "file": "isolated/ec-purchase/stock-writer.test.cjs",
+        "expected": "a9543fcf194b419450dd5d94f9331c679041721a08b2952e69fc5c95631a617e",
+        "actual": "a9543fcf194b419450dd5d94f9331c679041721a08b2952e69fc5c95631a617e"
+      },
+      {
+        "file": "isolated/ec-purchase/verify-catalog-gate-v2.py",
+        "expected": "ae8865cbe998a801024a613864343d6d13e258d0cbabcc37df595d285e90a9a6",
+        "actual": "ae8865cbe998a801024a613864343d6d13e258d0cbabcc37df595d285e90a9a6"
+      },
+      {
+        "file": "isolated/ec-purchase/woo-allocation-store.php",
+        "expected": "9b1f7e101fe52ec9b52bae27eb4ff5dc5f28aa0401a8d64329cb3b29befa4fe5",
+        "actual": "9b1f7e101fe52ec9b52bae27eb4ff5dc5f28aa0401a8d64329cb3b29befa4fe5"
+      },
+      {
+        "file": "isolated/ec-purchase/woo-allocation-store.test.php",
+        "expected": "dbaf0005885696c77eb9cfb6348344d0094b78faed43e4abb53b3b9bbe62e10d",
+        "actual": "dbaf0005885696c77eb9cfb6348344d0094b78faed43e4abb53b3b9bbe62e10d"
+      },
+      {
+        "file": "isolated/ec-purchase/woo-crud-readonly.php",
+        "expected": "c456e0f3e0ced3c69d3208983f39b174922374583c7a6e21a792452a0d87edf0",
+        "actual": "c456e0f3e0ced3c69d3208983f39b174922374583c7a6e21a792452a0d87edf0"
+      },
+      {
+        "file": "isolated/ec-purchase/woo-order-snapshot.php",
+        "expected": "acdc532bb8cb6d3f9e1ad69ca0097f6d504ef9785aa8b3354bf0bbcc5f9e890e",
+        "actual": "acdc532bb8cb6d3f9e1ad69ca0097f6d504ef9785aa8b3354bf0bbcc5f9e890e"
+      },
+      {
+        "file": "isolated/ec-purchase/woo-order-snapshot.test.php",
+        "expected": "85b0641a3ed8e6b3237e6af080b4f1e3ff3ed27b21e59b67f7f45fe63a74c059",
+        "actual": "85b0641a3ed8e6b3237e6af080b4f1e3ff3ed27b21e59b67f7f45fe63a74c059"
+      },
+      {
+        "file": "isolated/ec-purchase/woo-order-transform.php",
+        "expected": "3d230efe83c0d32cc402af06ca2bcdd099559f1e34af03f9979851335e87f9ba",
+        "actual": "3d230efe83c0d32cc402af06ca2bcdd099559f1e34af03f9979851335e87f9ba"
+      },
+      {
+        "file": "isolated/ec-purchase/woo-order-transform.test.php",
+        "expected": "5c0b05dd247bd5b527aea53210d5dbb62ea2945d19472b0296b420a4cc8ef6ff",
+        "actual": "5c0b05dd247bd5b527aea53210d5dbb62ea2945d19472b0296b420a4cc8ef6ff"
+      },
+      {
+        "file": "isolated/ec-purchase/woo-product-evidence.php",
+        "expected": "0fcc7ef4de4b94bbe37b2fad79dbda1bc3f18484fefdf6c2fa19d8116e79079f",
+        "actual": "0fcc7ef4de4b94bbe37b2fad79dbda1bc3f18484fefdf6c2fa19d8116e79079f"
+      },
+      {
+        "file": "isolated/ec-capacity/capacity.php",
+        "expected": "c7c9350fc64d7e9492ebf7c587a8466f67f89b33b98d582c673891c3e5011688",
+        "actual": "c7c9350fc64d7e9492ebf7c587a8466f67f89b33b98d582c673891c3e5011688"
+      },
+      {
+        "file": "isolated/ec-capacity/capacity.test.php",
+        "expected": "4702dab51cd97c8747d40912e2b827f7b55b6d1b8654274e55ccb34cee2fb26c",
+        "actual": "4702dab51cd97c8747d40912e2b827f7b55b6d1b8654274e55ccb34cee2fb26c"
+      },
+      {
+        "file": "isolated/ec-calendar/audit-prior.cjs",
+        "expected": "ff1c56876719725e9dd5823134f8143f1a6e7d0e3e6497af3e8d92b83ab1864a",
+        "actual": "ff1c56876719725e9dd5823134f8143f1a6e7d0e3e6497af3e8d92b83ab1864a"
+      },
+      {
+        "file": "isolated/ec-calendar/calendar.php",
+        "expected": "a125b2f652698d8f26cb560a88cf45d5a1238094239979fc8ea81adad94314a2",
+        "actual": "a125b2f652698d8f26cb560a88cf45d5a1238094239979fc8ea81adad94314a2"
+      },
+      {
+        "file": "isolated/ec-calendar/calendar.test.php",
+        "expected": "1a45001422be47b3efbbc9e82bb72b359b3ed9967b7942a38f4cfdca4f6fcfb3",
+        "actual": "1a45001422be47b3efbbc9e82bb72b359b3ed9967b7942a38f4cfdca4f6fcfb3"
+      }
+    ]
+  },
+  "preservation": {
+    "repos": 26,
+    "dirtyFiles": 97,
+    "consentMatches": true,
+    "originalFilesStillUnchanged": true
+  },
+  "liveWrites": false,
+  "deploy": false,
+  "merge": false,
+  "purchasesEnabled": false,
+  "limitations": [
+    "No production review issuer or device queue proof",
+    "Woo/HPOS and hold/confirm source adapters unconnected",
+    "Old writer/queue closure and Accessories UI incomplete",
+    "No JVM OS outbound isolation claim"
+  ]
+}

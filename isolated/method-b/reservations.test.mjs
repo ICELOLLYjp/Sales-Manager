@@ -147,8 +147,9 @@ test('P19 original order/Session line cannot silently rebind to another SKU',asy
   await call();await assert.rejects(call(op({operationId:'rebind',expectedRevision:1,expectedQuantity:8,sku:{...op().sku,sizeId:'m'}})),{code:'source-sku-conflict'});
   assert.equal((await read()).inventoryReservations.entries.length,1);
 });
-test('P20 sold-out event hold can release explicit zero but cannot reserve zero',async()=>{
+test('P20 sold-out event hold still requires explicit event reconciliation',async()=>{
   await eventConfirmed();await call(op({kind:'event',action:'sale',operationId:'all-sold',expectedRevision:2,quantity:3}));
   const release=op({kind:'event',action:'release',operationId:'release-zero',expectedRevision:3,expectedQuantity:2,quantity:0});
-  await call(release);assert.equal((await call(release)).replayed,true);assert.equal((await read()).inventoryReservations.entries[0].state,'released');
+  await assert.rejects(call(release),{code:'event-reconciliation-required'});
+  assert.equal((await read()).inventoryReservations.entries[0].state,'confirmed');
 });

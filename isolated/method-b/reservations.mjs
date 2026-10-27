@@ -1,6 +1,7 @@
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { ApiError, normalize, hash, revision, target, updatedField, reservationFloor, assertReservationAuthority } from './inventory.mjs';
 import { assertIsolated, PROJECT } from './runtime.mjs';
+import { readEventReleaseProof, assertEventReleaseProof } from './event-release.mjs';
 
 // Server identities only; never use the stock operator's browser identity.
 // Production service identity/IAM and upstream Woo/Session adapters are not enabled.
@@ -74,6 +75,7 @@ export async function produceReservation({db,auth},token,input) {
         || r.revision!==op.expectedRevision+1 || rev<r.revision) fail(409,'operation-id-conflict');
       let proof;
       try {
+        if(op.kind==='event' && op.action==='release') assertEventReleaseProof(r.eventReleaseProof,op);
         assertReservationAuthority({exists:true,data:()=>r.authorityBefore},r.beforeLedger,path);
         floor(r.beforeLedger,op); proof=transition(r.beforeLedger,op);
       }
@@ -88,6 +90,10 @@ export async function produceReservation({db,auth},token,input) {
     assertReservationAuthority(authority,data.inventoryReservations,path);
     if(binding.exists && (binding.data().commitmentId!==commitmentId(op) || binding.data().path!==path)) fail(409,'source-sku-conflict');
     if(op.action!=='hold' && !binding.exists) fail(409,'source-binding-required');
+    // Read native Session, sales/void evidence and privileged review inside this
+    // same transaction. Closed/elapsed time/zero remainder alone never releases.
+    const eventReleaseProof=op.kind==='event' && op.action==='release'
+      ? await readEventReleaseProof(tx,db,op) : null;
     if(op.action==='return') {
       const s=sale.exists?sale.data():null;
       if(!s || s.schema!=='reservation-server-v1' || s.operation?.action!=='sale'
@@ -105,7 +111,7 @@ export async function produceReservation({db,auth},token,input) {
     tx.update(ref,{...updatedField(data,{...op,quantity:next.quantity}),inventoryReservations:next.ledger,inventoryReservationAuthority:1,inventoryRevision:rev+1,inventoryWriteProtocol:1,updatedAt:FieldValue.serverTimestamp()});
     tx.update(authorityRef,{ledgerHash:hash(next.ledger),updatedAt:FieldValue.serverTimestamp()});
     if(!binding.exists) tx.create(sourceRef,{commitmentId:commitmentId(op),path,kind:op.kind,source:op.source,sku:op.sku,createdAt:FieldValue.serverTimestamp()});
-    tx.create(receipt,{schema:'reservation-server-v1',actorUid:claims.uid,operation:op,intent:fingerprint,path,revision:rev+1,beforeLedger:data.inventoryReservations,authorityBefore:authority.data(),result,createdAt:FieldValue.serverTimestamp()});
+    tx.create(receipt,{schema:'reservation-server-v1',actorUid:claims.uid,operation:op,intent:fingerprint,path,revision:rev+1,beforeLedger:data.inventoryReservations,authorityBefore:authority.data(),result,...(eventReleaseProof?{eventReleaseProof}:{}),createdAt:FieldValue.serverTimestamp()});
     if(op.action==='return') tx.create(returnRefs[1],{operationId:op.operationId,saleOperationId:op.returnOf,createdAt:FieldValue.serverTimestamp()});
     return {...result,replayed:false};
   },{maxAttempts:3});

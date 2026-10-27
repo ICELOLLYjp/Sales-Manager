@@ -1,3 +1,5 @@
+> 2026-10-28: Event release now requires native Session/sales snapshot reconciliation in the same transaction, including zero remainder. See [current implementation and event restrictions](EC_EVENT_RELEASE_20261028.md). Final affected tests: producer 20 + release gate 12 PASS; no deployment or purchase enablement.
+
 # EC/event reservation producer and first UI connection — 2026-10-27
 
 Implemented, emulator-tested, **not deployed / migration not complete**. Extends Draft #127 at `27d886883e12dae1c455d192e92777eb822319b9`; keeps existing canonical stock and the manual API. No real order, stock, payment, Rules/IAM or Staging writes.
@@ -37,3 +39,4 @@ Reproduce with the existing locked dependencies and emulator config: `firebase e
 4. Validate real service auth/IAM/deny-write Rules, backup/restore and stop/reconciliation; HPOS/Stripe sandbox workflow and per-SKU concurrent acceptance. Only then seek scoped Staging deployment approval. Production publication/purchases/reservations remain disabled pending explicit approval.
 
 Original worktrees and six consent files were copied to `producer-preserved-20261027` and left unchanged. Only selected files are saved. GitHub saves use fresh head checks, expected-SHA CAS, force=false, [skip ci], Draft and no merge.
+
