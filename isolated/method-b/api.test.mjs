@@ -8,11 +8,13 @@ import * as web from 'firebase/firestore';
 import { Timestamp } from 'firebase-admin/firestore';
 import { runtime,PROJECT,UIDS,assertIsolated } from './runtime.mjs';
 import { server } from './http.mjs';
+import { reservationFloor } from './inventory.mjs';
 let rt, env, api, url;
 const tokens={};
 const stock='tshirtStock/master', accessory='accessoryStock/shared';
-const base=()=>({inventoryRevision:0,inventory_v2:{b:{d:{c:{s:{qty:5,note:'retain'},m:{qty:8}}}}},masters:{keep:true},createdAt:Timestamp.fromMillis(123456)});
-const acc=()=>({inventoryRevision:0,designs:[{id:'a',name:'A',piercing:5,earring:null},{id:'b',piercing:8,earring:0}],keep:'metadata'});
+const ledger=(entries=[])=>({schema:'inventory-reservations-v1',complete:true,entries});
+const base=()=>({inventoryRevision:0,inventoryReservations:ledger(),inventory_v2:{b:{d:{c:{s:{qty:5,note:'retain'},m:{qty:8}}}}},masters:{keep:true},createdAt:Timestamp.fromMillis(123456)});
+const acc=()=>({inventoryRevision:0,inventoryReservations:ledger(),designs:[{id:'a',name:'A',piercing:5,earring:null},{id:'b',piercing:8,earring:0}],keep:'metadata'});
 const payload=(operationId='op',extra={})=>({version:1,operationId,stock:'tshirt',sku:{bodyId:'b',designId:'d',colorId:'c',sizeId:'s'},expectedRevision:0,expectedQuantity:5,quantity:4,...extra});
 const read=async(path=stock)=>(await rt.db.doc(path).get()).data();
 const qty=async()=> (await read()).inventory_v2.b.d.c.s.qty;
@@ -162,11 +164,11 @@ test('B16 null/missing quantity and unregistered SKU refused without converting 
   const b=base();delete b.inventory_v2.b.d.c.s.qty;await rt.db.doc(stock).set(b);
   assert.equal((await call()).status,409);assert.deepEqual(await read(),b);
 });
-test('B17 zero and negative integers retained, missing revision migrates once',async()=>{
+test('B17 known zero permitted but negative count rejected; missing revision migrates once',async()=>{
   const b=base();delete b.inventoryRevision;await rt.db.doc(stock).set(b);
   assert.equal((await call(payload('zero',{quantity:0}))).status,200);
-  assert.equal((await call(payload('negative',{expectedRevision:1,expectedQuantity:0,quantity:-1}))).status,200);
-  assert.equal(await qty(),-1);assert.equal((await read()).inventoryRevision,2);
+  assert.equal((await call(payload('negative',{expectedRevision:1,expectedQuantity:0,quantity:-1}))).body.error,'reserved-stock-floor');
+  assert.equal(await qty(),0);assert.equal((await read()).inventoryRevision,1);
 });
 test('B18 malformed stored revision and absent canonical reject without receipt',async()=>{
   for(const inventoryRevision of [null,-1,1.5,'0',Number.MAX_SAFE_INTEGER]) {
@@ -228,5 +230,102 @@ test('B25 final safe revision remains replayable but cannot overflow',async()=>{
   const replay=await call(op);assert.equal(replay.status,200);assert.equal(replay.body.replayed,true);
   assert.equal((await read()).inventoryRevision,Number.MAX_SAFE_INTEGER);
   assert.equal((await call(payload('overflow',{expectedRevision:Number.MAX_SAFE_INTEGER,expectedQuantity:4,quantity:3}))).status,400);
+  assert.equal(await qty(),4);
+});
+
+const hold=(id,kind,quantity,sku=payload().sku,state='held')=>({id,kind,quantity,sku,state});
+const setHolds=(entries,path=stock)=>rt.db.doc(path).update({inventoryReservations:ledger(entries)});
+test('F01 both stock types enforce EC plus event floor, equality succeeds',async()=>{
+  for(const [path,op] of [[stock,payload('floor-t')],[accessory,payload('floor-a',{stock:'accessory',sku:{designId:'a',quantityField:'piercing'}})]]) {
+    const entries=[hold('order','ec',2,op.sku,'confirmed'),hold('session','event',1,op.sku)];
+    await setHolds(entries,path);
+    const bad=await call({...op,quantity:2});assert.equal(bad.body.error,'reserved-stock-floor');
+    assert.equal((await rt.db.doc(`inventoryWriteReceipts/${op.operationId}`).get()).exists,false);
+    const good=await call({...op,quantity:3});assert.equal(good.status,200);
+    const r=(await rt.db.doc(`inventoryWriteReceipts/${op.operationId}`).get()).data();
+    assert.equal(r.reservationFloor.total,3);assert.deepEqual(r.reservations,ledger(entries));
+    assert.deepEqual((await read(path)).inventoryReservations,ledger(entries));
+  }
+});
+test('F02 missing/incomplete/malformed reservation evidence fails closed',async()=>{
+  const b=base();delete b.inventoryReservations;await rt.db.doc(stock).set(b);
+  assert.equal((await call()).body.error,'reservation-evidence-required');
+  for(const value of [null,{}, {...ledger(),complete:false},{...ledger(),schema:'old'}, {...ledger(),extra:0},ledger([hold('bad','ec',null)]),ledger([hold('bad','event',-1)]),ledger([hold('bad','ec',1,{},'held')]),ledger([hold('bad','ec',1,payload().sku,'expired')])]) {
+    await rt.db.doc(stock).update({inventoryReservations:value});
+    assert.equal((await call()).body.error,'reservation-evidence-required');
+  }
+  assert.equal(await qty(),5);assert.equal((await rt.db.collection('inventoryWriteReceipts').get()).size,0);
+});
+test('F03 confirmed replaces held identity; duplicates and overflow refused',async()=>{
+  const entry=hold('order','ec',3);
+  await setHolds([entry,{...entry,state:'confirmed'}]);assert.equal((await call()).status,409);
+  await setHolds([{...entry,state:'confirmed'}]);assert.equal((await call(payload('one',{quantity:3}))).status,200);
+  await setHolds([hold('x','ec',Number.MAX_SAFE_INTEGER),hold('y','event',1)]);
+  assert.equal((await call(payload('overflow',{expectedRevision:1,expectedQuantity:3}))).body.error,'reservation-evidence-required');
+});
+test('F04 released holds excluded, other SKU commitments and metadata preserved',async()=>{
+  const entries=[hold('released','ec',99,payload().sku,'released'),hold('other','event',7,{...payload().sku,sizeId:'m'})];
+  await setHolds(entries);assert.equal((await call(payload('zero',{quantity:0}))).status,200);
+  const data=await read();assert.deepEqual(data.inventoryReservations,ledger(entries));assert.equal(data.inventory_v2.b.d.c.m.qty,8);
+});
+test('F05 caller cannot substitute zero floor or a reservation ledger',async()=>{
+  await setHolds([hold('event','event',5)]);
+  for(const extra of [{inventoryReservations:ledger()},{reservationFloor:0},{ecReserved:0},{eventReserved:0}]) assert.equal((await call(payload('fake',extra))).status,400);
+  assert.equal(await qty(),5);
+});
+test('F06 historical receipt replays after later holds and rejects tampered floor proof',async()=>{
+  await setHolds([hold('order','ec',2)]);assert.equal((await call()).status,200);
+  await rt.db.doc(stock).update({inventoryRevision:2,inventoryReservations:ledger([hold('event','event',4)])});
+  const replay=await call();assert.equal(replay.status,200);assert.equal(replay.body.replayed,true);
+  assert.equal((await read()).inventoryRevision,2);assert.equal(await qty(),4);
+  const ref=rt.db.doc('inventoryWriteReceipts/op');await ref.update({'reservationFloor.total':0});
+  assert.equal((await call()).body.error,'operation-id-conflict');
+});
+test('F07 old v1 receipt cannot bypass the new floor contract',async()=>{
+  await call();await rt.db.doc('inventoryWriteReceipts/op').update({schema:'manual-inventory-server-v1'});
+  assert.equal((await call()).body.error,'operation-id-conflict');assert.equal(await qty(),4);
+});
+// A fixture producer only: not an event/EC reservation API. It shares the exact
+// canonical document and revision, demonstrating the required transaction boundary.
+async function fixtureReserve(entries) {
+  return rt.db.runTransaction(async tx=>{
+    const ref=rt.db.doc(stock), snap=await tx.get(ref), d=snap.data();
+    if(reservationFloor(ledger(entries),payload()).total>d.inventory_v2.b.d.c.s.qty) return false;
+    tx.update(ref,{inventoryReservations:ledger(entries),inventoryRevision:d.inventoryRevision+1});return true;
+  });
+}
+test('F08 count versus concurrent EC+event reservation has no floor violation',async()=>{
+  const [count,reserved]=await Promise.all([call(payload('race',{quantity:2})),fixtureReserve([hold('ec','ec',2),hold('event','event',2)])]);
+  assert([200,409].includes(count.status),JSON.stringify(count));
+  const d=await read(), floor=reservationFloor(d.inventoryReservations,payload());
+  assert(d.inventory_v2.b.d.c.s.qty>=floor.total);
+  assert.equal(count.status===200,!reserved);
+  assert.equal((await rt.db.collection('inventoryWriteReceipts').get()).size,count.status===200?1:0);
+});
+test('F09 reservation-only revision change invalidates stale absolute count (ABA)',async()=>{
+  await fixtureReserve([hold('ec','ec',2)]);await fixtureReserve([]);
+  assert.equal((await call()).body.error,'inventory-conflict');assert.equal(await qty(),5);
+  assert.equal((await read()).inventoryRevision,2);
+});
+test('F10 a/b/a concurrent count retains one effect per accepted receipt under holds',async()=>{
+  await setHolds([hold('ec','ec',2),hold('event','event',1)]);
+  const a=payload('a',{quantity:3}), b=payload('b',{quantity:4});
+  const rs=await Promise.all([call(a),call(b),call(a)]);
+  assert(rs.every(r=>[200,409].includes(r.status)),JSON.stringify(rs));
+  assert.equal((await read()).inventoryRevision,1);
+  assert.equal((await rt.db.collection('inventoryWriteReceipts').get()).size,1);
+  const winner=rs[0].status===200?a:b;const replay=await call(winner);
+  assert.equal(replay.body.replayed,true);assert.equal(await qty(),winner.quantity);
+});
+test('F11 floor rejection and real transaction failure preserve all reservation evidence',async()=>{
+  const entries=[hold('ec','ec',3),hold('event','event',2)];await setHolds(entries);
+  const prior=await read();assert.equal((await call()).body.error,'reserved-stock-floor');
+  assert.deepEqual(await read(),prior);assert.equal((await rt.db.collection('inventoryWriteReceipts').get()).size,0);
+});
+test('F12 missing or malformed historical reservation proof cannot replay',async()=>{
+  await call();const ref=rt.db.doc('inventoryWriteReceipts/op'), original=(await ref.get()).data();
+  for(const patch of [{reservations:null},{reservationFloor:null},{reservations:ledger([hold('forged','ec',5)])}]) {
+    await ref.set({...original,...patch});assert.equal((await call()).body.error,'operation-id-conflict');
+  }
   assert.equal(await qty(),4);
 });

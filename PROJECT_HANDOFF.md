@@ -1,3 +1,7 @@
+# EC共通数量writer — 2026-10-27 JST
+
+方式B #123 `6eda78b` の既存手動APIを再利用し、T-shirt/Accessoriesの絶対数量変更にEC＋イベント確保下限とv2 operation receiptを接続。Firestore/Auth Emulator **37 PASS / 0 FAIL / 0 SKIP**。専用Draftの隔離サーバー実装で、実アプリUI・確保producer・POS全writerは未接続。配備・購入解禁不可。実装契約、証拠、次工程は [EC_SHARED_WRITER_20261027.md](docs/EC_SHARED_WRITER_20261027.md)。下記の過去状態よりこの追補と対象PRの最新HEADを優先。
+
 # 工程A原因切分け — 2026-10-12 JST
 
 最新再開指示により原因究明・隔離検証・設計比較だけを実施。製品コード/Rulesは未修正。32件を再実行し安全合格26・競合失敗3・危険許可再現3で不変。11条件の最小実験でrevision制約によるRules拒否がSDKの再試行可能な版不一致より先に表面化することを確認。追加3プローブで差分制約の限界・receipt偽装の影響・架空3 UID認可案を検証。[診断報告と証拠](docs/EC_STAGE_A_DIAGNOSIS_2026-10-12.md)。Website #22に方式比較を記録。**サーバーAPI案は推奨のみ、採用未承認。工程A配備不可・工程B着手不可で停止。**

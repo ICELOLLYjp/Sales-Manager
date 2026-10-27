@@ -33,6 +33,30 @@ export function normalize(input) {
 }
 const canonical=x=>Array.isArray(x)?x.map(canonical):object(x)?Object.fromEntries(Object.keys(x).sort().map(k=>[k,canonical(x[k])])):x;
 const hash=x=>createHash('sha256').update(JSON.stringify(canonical(x))).digest('hex');
+// Server-owned, co-located reservation evidence, never supplied by the caller.
+// No implicit empty ledger/TTL release: producers must reconcile every hold.
+export function reservationFloor(ledger, op) {
+  try {
+    keys(ledger,['schema','complete','entries']);
+    if(ledger.schema!=='inventory-reservations-v1' || ledger.complete!==true
+      || !Array.isArray(ledger.entries) || ledger.entries.length>1000) throw new Error();
+    const seen=new Set(); let ec=0,event=0;
+    for(const entry of ledger.entries) {
+      keys(entry,['id','kind','state','sku','quantity']);
+      if(typeof entry.id!=='string' || !/^[A-Za-z0-9_-]{1,128}$/.test(entry.id)
+        || seen.has(entry.id) || !['ec','event'].includes(entry.kind)
+        || !['held','confirmed','released'].includes(entry.state)
+        || !integer(entry.quantity) || entry.quantity<0) throw new Error();
+      seen.add(entry.id);
+      const sku=normalize({...op,sku:entry.sku}).sku;
+      if(entry.state!=='released' && hash(sku)===hash(op.sku)) {
+        if(entry.kind==='ec') ec+=entry.quantity; else event+=entry.quantity;
+        if(!Number.isSafeInteger(ec+event)) throw new Error();
+      }
+    }
+    return {ec,event,total:ec+event,ledgerHash:hash(ledger)};
+  } catch { fail(409,'reservation-evidence-required'); }
+}
 function revision(data) {
   const value=Object.hasOwn(data,'inventoryRevision')?data.inventoryRevision:0;
   // Terminal MAX_SAFE_INTEGER may be read to replay its last receipt. New
@@ -84,17 +108,23 @@ export async function editInventory(db,uid,input) {
     if(done.exists) {
       const r=done.data();
       // Legacy/unknown receipts must never suppress a new server operation.
-      if(r.schema!=='manual-inventory-server-v1' || !UIDS.includes(r.actorUid)
+      if(r.schema!=='manual-inventory-server-v2' || !UIDS.includes(r.actorUid)
         || r.intent!==fingerprint || r.path!==path || r.revision!==result.revision
         || r.beforeRevision!==op.expectedRevision || !object(r.operation) || hash(r.operation)!==fingerprint
         || !object(r.result) || hash(r.result)!==hash(result) || !(r.createdAt instanceof Timestamp)
         || rev<r.revision) fail(409,'operation-id-conflict');
+      // Validate the historical floor, not today's holds, on a lost-reply replay.
+      let floor;
+      try { floor=reservationFloor(r.reservations,op); } catch { fail(409,'operation-id-conflict'); }
+      if(!object(r.reservationFloor) || hash(floor)!==hash(r.reservationFloor) || op.quantity<floor.total) fail(409,'operation-id-conflict');
       return {...result,replayed:true};
     }
     const {cell,field}=target(data,op);
     if(rev!==op.expectedRevision || cell[field]!==op.expectedQuantity) fail(409,'inventory-conflict');
+    const floor=reservationFloor(data.inventoryReservations,op);
+    if(op.quantity<floor.total) fail(409,'reserved-stock-floor');
     tx.update(ref,{...updatedField(data,op),inventoryRevision:rev+1,inventoryWriteProtocol:1,updatedAt:FieldValue.serverTimestamp()});
-    tx.create(receipt,{schema:'manual-inventory-server-v1',actorUid:uid,operation:op,intent:fingerprint,path,beforeRevision:rev,revision:rev+1,result,createdAt:FieldValue.serverTimestamp()});
+    tx.create(receipt,{schema:'manual-inventory-server-v2',actorUid:uid,operation:op,intent:fingerprint,path,beforeRevision:rev,revision:rev+1,result,reservations:data.inventoryReservations,reservationFloor:floor,createdAt:FieldValue.serverTimestamp()});
     return {...result,replayed:false};
   },{maxAttempts:3});
 }
