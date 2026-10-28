@@ -1,0 +1,665 @@
+[36m[1mi  emulators:[22m[39m Starting emulators: auth, firestore
+[36m[1mi  emulators:[22m[39m Detected demo project ID "demo-icelolly-method-b", emulated services will use a demo configuration and attempts to access non-emulated services for this project will fail.
+[36m[1mi  firestore:[22m[39m Firestore Emulator logging to [1mfirestore-debug.log[22m
+[32m[1m+  firestore:[22m[39m Firestore Emulator was started in standard edition.
+[32m[1m+  firestore:[22m[39m Firestore Emulator UI websocket is running on 9152.
+[36m[1mi [22m[39m Running script: [1mnode --test --test-concurrency=1 --test-timeout=60000 --test-reporter=tap woo-order-php.test.mjs woo-order.test.mjs woo-bridge.test.mjs reservations.test.mjs event-release.test.mjs[22m
+TAP version 13
+# (node:18900) MetadataLookupWarning: received unexpected error = All promises were rejected code = ETIMEDOUT, ENOTFOUND
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: R01 real Session/sales query -> reviewed release -> receipt; replay after later source change does not write
+ok 1 - R01 real Session/sales query -> reviewed release -> receipt; replay after later source change does not write
+  ---
+  duration_ms: 4598.3981
+  type: 'test'
+  ...
+# Subtest: R02 closed Session alone cannot release; no receipt or revision side effects
+ok 2 - R02 closed Session alone cannot release; no receipt or revision side effects
+  ---
+  duration_ms: 186.3543
+  type: 'test'
+  ...
+# Subtest: R03 each missing review condition fails closed
+ok 3 - R03 each missing review condition fails closed
+  ---
+  duration_ms: 758.4785
+  type: 'test'
+  ...
+# Subtest: R04 pending Session and missing final inventory count reject even with review
+ok 4 - R04 pending Session and missing final inventory count reject even with review
+  ---
+  duration_ms: 352.1351
+  type: 'test'
+  ...
+# Subtest: R05 late offline insert, cancellation update and deletion invalidate review
+ok 5 - R05 late offline insert, cancellation update and deletion invalidate review
+  ---
+  duration_ms: 381.4511
+  type: 'test'
+  ...
+# Subtest: R06 Session ABA with equal content still invalidates reviewed snapshot
+ok 6 - R06 Session ABA with equal content still invalidates reviewed snapshot
+  ---
+  duration_ms: 186.6844
+  type: 'test'
+  ...
+# Subtest: R07 stale stock revision rejects; operator must reread and explicitly review a new intent
+ok 7 - R07 stale stock revision rejects; operator must reread and explicitly review a new intent
+  ---
+  duration_ms: 232.3925
+  type: 'test'
+  ...
+# Subtest: R08 concurrent same operation releases exactly once
+ok 8 - R08 concurrent same operation releases exactly once
+  ---
+  duration_ms: 2940.1788
+  type: 'test'
+  ...
+# Subtest: R09 receipt without historical proof or tampered review cannot replay
+ok 9 - R09 receipt without historical proof or tampered review cannot replay
+  ---
+  duration_ms: 283.8375
+  type: 'test'
+  ...
+# Subtest: R10 transaction rollback preserves hold, checkpoint and source review
+ok 10 - R10 transaction rollback preserves hold, checkpoint and source review
+  ---
+  duration_ms: 189.0679
+  type: 'test'
+  ...
+# [2026-10-28T15:45:10.685Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x5a2aa4f2 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-28T15:45:10.722Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x5a2aa4f3 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# Subtest: R11 browser and producer clients cannot forge privileged review
+ok 11 - R11 browser and producer clients cannot forge privileged review
+  ---
+  duration_ms: 237.6195
+  type: 'test'
+  ...
+# Subtest: R12 concurrent count versus reviewed release commits only one canonical revision
+ok 12 - R12 concurrent count versus reviewed release commits only one canonical revision
+  ---
+  duration_ms: 3552.0689
+  type: 'test'
+  ...
+# (node:20300) MetadataLookupWarning: received unexpected error = All promises were rejected code = ETIMEDOUT, ENOTFOUND
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: P01 held to confirmed replaces identity and advances revision; release and replay
+ok 13 - P01 held to confirmed replaces identity and advances revision; release and replay
+  ---
+  duration_ms: 3480.6703
+  type: 'test'
+  ...
+# Subtest: P02 concurrent same ID has one effect; changed intent rejected
+ok 14 - P02 concurrent same ID has one effect; changed intent rejected
+  ---
+  duration_ms: 3223.1755
+  type: 'test'
+  ...
+# Subtest: P03 same and different SKU conflicts use shared canonical revision
+ok 15 - P03 same and different SKU conflicts use shared canonical revision
+  ---
+  duration_ms: 3375.4293
+  type: 'test'
+  ...
+# Subtest: P04 EC plus event floor rejects overbooking and manual below floor
+ok 16 - P04 EC plus event floor rejects overbooking and manual below floor
+  ---
+  duration_ms: 137.8048
+  type: 'test'
+  ...
+# Subtest: P05 zero, unknown and unregistered stock fail safely
+ok 17 - P05 zero, unknown and unregistered stock fail safely
+  ---
+  duration_ms: 121.7836
+  type: 'test'
+  ...
+# Subtest: P06 missing/incomplete/tampered ledger and forged complete flag rejected
+ok 18 - P06 missing/incomplete/tampered ledger and forged complete flag rejected
+  ---
+  duration_ms: 158.3182
+  type: 'test'
+  ...
+# Subtest: P07 authority must cover both sources and exact ledger hash
+ok 19 - P07 authority must cover both sources and exact ledger hash
+  ---
+  duration_ms: 174.1418
+  type: 'test'
+  ...
+# Subtest: P08 service auth rejects browser, other producer, missing/expired and revoked user
+ok 20 - P08 service auth rejects browser, other producer, missing/expired and revoked user
+  ---
+  duration_ms: 30.6948
+  type: 'test'
+  ...
+# [2026-10-28T15:45:26.003Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x74b135a6 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-28T15:45:26.013Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x74b135a7 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-28T15:45:26.022Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x74b135a8 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-28T15:45:26.028Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x74b135a9 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-28T15:45:26.037Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x74b135aa error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-28T15:45:26.050Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x74b135ab error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-28T15:45:26.068Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x74b135ac error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-28T15:45:26.080Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x74b135ad error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-28T15:45:26.097Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x74b135ae error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-28T15:45:26.111Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x74b135af error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-28T15:45:26.117Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x74b135b0 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-28T15:45:26.122Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x74b135b1 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-28T15:45:26.146Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x74b135b2 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-28T15:45:26.158Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x74b135b3 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-28T15:45:26.179Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x74b135b4 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-28T15:45:26.189Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x74b135b5 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-28T15:45:26.219Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x74b135b6 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-28T15:45:26.237Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x74b135b7 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-28T15:45:26.253Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x74b135b8 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-28T15:45:26.267Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x74b135b9 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-28T15:45:26.274Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x74b135ba error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-28T15:45:26.282Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x74b135bb error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-28T15:45:26.298Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x74b135bc error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-28T15:45:26.303Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x74b135bd error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-28T15:45:26.314Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x74b135be error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-28T15:45:26.330Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x74b135bf error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-28T15:45:26.358Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x74b135c0 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-28T15:45:26.378Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x74b135c1 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# Subtest: P09 old client whole-map/init/queue/authority/receipt writes denied
+ok 21 - P09 old client whole-map/init/queue/authority/receipt writes denied
+  ---
+  duration_ms: 438.4623
+  type: 'test'
+  ...
+# Subtest: P10 lost response and server restart replay original ID
+ok 22 - P10 lost response and server restart replay original ID
+  ---
+  duration_ms: 119.813
+  type: 'test'
+  ...
+# Subtest: P11 forged historical receipt result and ledger rejected
+ok 23 - P11 forged historical receipt result and ledger rejected
+  ---
+  duration_ms: 188.612
+  type: 'test'
+  ...
+# Subtest: P12 atomic rollback includes ledger authority physical and receipt
+ok 24 - P12 atomic rollback includes ledger authority physical and receipt
+  ---
+  duration_ms: 95.5577
+  type: 'test'
+  ...
+# Subtest: P13 sale reduces physical and event remainder once, return binds original sale
+ok 25 - P13 sale reduces physical and event remainder once, return binds original sale
+  ---
+  duration_ms: 263.6937
+  type: 'test'
+  ...
+# Subtest: P14 reserve/count/sale contention commits only one and preserves EC floor
+ok 26 - P14 reserve/count/sale contention commits only one and preserves EC floor
+  ---
+  duration_ms: 3360.6771
+  type: 'test'
+  ...
+# Subtest: P15 no implicit release by time or session close, no arbitrary caller ledger
+ok 27 - P15 no implicit release by time or session close, no arbitrary caller ledger
+  ---
+  duration_ms: 59.7534
+  type: 'test'
+  ...
+# Subtest: P16 accessory uses same producer and preserves metadata and other SKU
+ok 28 - P16 accessory uses same producer and preserves metadata and other SKU
+  ---
+  duration_ms: 62.723
+  type: 'test'
+  ...
+# Subtest: P17 held confirmed released ABA invalidates old manual revision
+ok 29 - P17 held confirmed released ABA invalidates old manual revision
+  ---
+  duration_ms: 112.7307
+  type: 'test'
+  ...
+# Subtest: P18 refund cannot invent sale or use other identity / quantity
+ok 30 - P18 refund cannot invent sale or use other identity / quantity
+  ---
+  duration_ms: 219.1059
+  type: 'test'
+  ...
+# Subtest: P19 original order/Session line cannot silently rebind to another SKU
+ok 31 - P19 original order/Session line cannot silently rebind to another SKU
+  ---
+  duration_ms: 77.0167
+  type: 'test'
+  ...
+# Subtest: P20 sold-out event hold still requires explicit event reconciliation
+ok 32 - P20 sold-out event hold still requires explicit event reconciliation
+  ---
+  duration_ms: 127.4647
+  type: 'test'
+  ...
+# (node:15464) MetadataLookupWarning: received unexpected error = All promises were rejected code = ETIMEDOUT, ENOTFOUND
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: W01 actual PHP/HPOS signed evidence reaches canonical producer; lookup is readonly
+ok 33 - W01 actual PHP/HPOS signed evidence reaches canonical producer; lookup is readonly
+  ---
+  duration_ms: 8303.4192
+  type: 'test'
+  ...
+# Subtest: W02 duplicate notifications and lost response/restart have one effect
+ok 34 - W02 duplicate notifications and lost response/restart have one effect
+  ---
+  duration_ms: 3615.6443
+  type: 'test'
+  ...
+# Subtest: W03 client cannot provide operation ID, SKU, quantity, status or envelope
+ok 35 - W03 client cannot provide operation ID, SKU, quantity, status or envelope
+  ---
+  duration_ms: 30.1184
+  type: 'test'
+  ...
+# Subtest: W04 signature/site/key and order/line substitution rejected
+ok 36 - W04 signature/site/key and order/line substitution rejected
+  ---
+  duration_ms: 222.3159
+  type: 'test'
+  ...
+# Subtest: W05 expired/future evidence, paid/cancelled/refunded/delayed status cannot hold
+ok 37 - W05 expired/future evidence, paid/cancelled/refunded/delayed status cannot hold
+  ---
+  duration_ms: 402.1443
+  type: 'test'
+  ...
+# Subtest: W06 postflight cancellation retains hold and latches review
+ok 38 - W06 postflight cancellation retains hold and latches review
+  ---
+  duration_ms: 205.2687
+  type: 'test'
+  ...
+# Subtest: W07 ABA with identical contents and newer durable source revision stops retry
+ok 39 - W07 ABA with identical contents and newer durable source revision stops retry
+  ---
+  duration_ms: 234.6768
+  type: 'test'
+  ...
+# Subtest: W08 changed quantity, SKU or product evidence cannot rebind source
+ok 40 - W08 changed quantity, SKU or product evidence cannot rebind source
+  ---
+  duration_ms: 259.0944
+  type: 'test'
+  ...
+# Subtest: W09 postflight transport loss preserves receipt; lookup does not fetch Woo or write
+ok 41 - W09 postflight transport loss preserves receipt; lookup does not fetch Woo or write
+  ---
+  duration_ms: 252.772
+  type: 'test'
+  ...
+# Subtest: W10 browser, generic EC and disabled service identities cannot enter bridge
+ok 42 - W10 browser, generic EC and disabled service identities cannot enter bridge
+  ---
+  duration_ms: 17.3107
+  type: 'test'
+  ...
+# Subtest: W11 missing checkpoint and stock CAS conflicts never silently replan
+ok 43 - W11 missing checkpoint and stock CAS conflicts never silently replan
+  ---
+  duration_ms: 184.4218
+  type: 'test'
+  ...
+# Subtest: W12 producer requires journal proof, rejects confirm/release and generic actor bypass
+ok 44 - W12 producer requires journal proof, rejects confirm/release and generic actor bypass
+  ---
+  duration_ms: 235.5059
+  type: 'test'
+  ...
+# Subtest: W13 forged historical proof fails closed
+ok 45 - W13 forged historical proof fails closed
+  ---
+  duration_ms: 191.3415
+  type: 'test'
+  ...
+# [2026-10-28T15:45:46.246Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x6c1acd5d error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-28T15:45:46.255Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x6c1acd5e error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-28T15:45:46.268Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x6c1acd5f error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# Subtest: W14 direct browser journal/evidence/receipt writes denied
+ok 46 - W14 direct browser journal/evidence/receipt writes denied
+  ---
+  duration_ms: 79.9945
+  type: 'test'
+  ...
+# Subtest: W15 stock floor remains atomic with a concurrent manual count
+ok 47 - W15 stock floor remains atomic with a concurrent manual count
+  ---
+  duration_ms: 105.9567
+  type: 'test'
+  ...
+# Subtest: W16 unknown lookup creates no journal or receipt
+ok 48 - W16 unknown lookup creates no journal or receipt
+  ---
+  duration_ms: 31.1319
+  type: 'test'
+  ...
+# Subtest: W17 previously valid signed reply cannot answer a fresh server challenge
+ok 49 - W17 previously valid signed reply cannot answer a fresh server challenge
+  ---
+  duration_ms: 202.1331
+  type: 'test'
+  ...
+# Subtest: W18 failure after durable intent but before producer keeps exact operation for retry
+ok 50 - W18 failure after durable intent but before producer keeps exact operation for retry
+  ---
+  duration_ms: 327.8774
+  type: 'test'
+  ...
+# Subtest: W19 producer commit then lost acknowledgement is recovered without new write
+ok 51 - W19 producer commit then lost acknowledgement is recovered without new write
+  ---
+  duration_ms: 356.5991
+  type: 'test'
+  ...
+# Subtest: W20 persisted intent never adopts a newer inventory revision automatically
+ok 52 - W20 persisted intent never adopts a newer inventory revision automatically
+  ---
+  duration_ms: 235.5447
+  type: 'test'
+  ...
+# (node:37836) MetadataLookupWarning: received unexpected error = All promises were rejected code = ETIMEDOUT, ENOTFOUND
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: H01 actual PHP HPOS proof -> authenticated Node -> mixed atomic hold and same SKU two rows
+ok 53 - H01 actual PHP HPOS proof -> authenticated Node -> mixed atomic hold and same SKU two rows
+  ---
+  duration_ms: 13619.3214
+  type: 'test'
+  ...
+# Subtest: H change add after commit retains original holds and latches review
+ok 54 - H change add after commit retains original holds and latches review
+  ---
+  duration_ms: 9609.5622
+  type: 'test'
+  ...
+# Subtest: H change delete after commit retains original holds and latches review
+ok 55 - H change delete after commit retains original holds and latches review
+  ---
+  duration_ms: 10404.3753
+  type: 'test'
+  ...
+# Subtest: H change quantity after commit retains original holds and latches review
+ok 56 - H change quantity after commit retains original holds and latches review
+  ---
+  duration_ms: 9423.6434
+  type: 'test'
+  ...
+# Subtest: H change aba after commit retains original holds and latches review
+ok 57 - H change aba after commit retains original holds and latches review
+  ---
+  duration_ms: 10476.1819
+  type: 'test'
+  ...
+# Subtest: H change mapping after commit retains original holds and latches review
+ok 58 - H change mapping after commit retains original holds and latches review
+  ---
+  duration_ms: 10373.0905
+  type: 'test'
+  ...
+# Subtest: H07 HPOS postflight ABA retains holds and latches review
+ok 59 - H07 HPOS postflight ABA retains holds and latches review
+  ---
+  duration_ms: 8377.6827
+  type: 'test'
+  ...
+# Subtest: H08 consumed PHP proof challenge replay rejected
+ok 60 - H08 consumed PHP proof challenge replay rejected
+  ---
+  duration_ms: 6764.5349
+  type: 'test'
+  ...
+# Subtest: H09 cross-site PHP proof rejected by bridge
+ok 61 - H09 cross-site PHP proof rejected by bridge
+  ---
+  duration_ms: 6539.6049
+  type: 'test'
+  ...
+# Subtest: H10 response loss after Firestore commit recovers persistent operation/receipt via lookup
+ok 62 - H10 response loss after Firestore commit recovers persistent operation/receipt via lookup
+  ---
+  duration_ms: 9294.6812
+  type: 'test'
+  ...
+# Subtest: H11 prior single-line fence prevents PHP order hold
+ok 63 - H11 prior single-line fence prevents PHP order hold
+  ---
+  duration_ms: 6490.6099
+  type: 'test'
+  ...
+# Subtest: H12 Firestore stop denies PHP proof with no partial writes
+ok 64 - H12 Firestore stop denies PHP proof with no partial writes
+  ---
+  duration_ms: 5757.7484
+  type: 'test'
+  ...
+# Subtest: H13 saved Woo copy policy stop denies entire order
+ok 65 - H13 saved Woo copy policy stop denies entire order
+  ---
+  duration_ms: 7547.2957
+  type: 'test'
+  ...
+# Subtest: H14 server reader rejects request-supplied plan overrides and foreign site
+ok 66 - H14 server reader rejects request-supplied plan overrides and foreign site
+  ---
+  duration_ms: 4175.0677
+  type: 'test'
+  ...
+# (node:16112) MetadataLookupWarning: received unexpected error = All promises were rejected code = ETIMEDOUT, ENOTFOUND
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: O01 mixed finished accessory + T-shirt atomically held; physical unchanged; permission always false
+ok 67 - O01 mixed finished accessory + T-shirt atomically held; physical unchanged; permission always false
+  ---
+  duration_ms: 3408.8512
+  type: 'test'
+  ...
+# Subtest: O02 duplicate simultaneous delivery and restart replay one receipt
+ok 68 - O02 duplicate simultaneous delivery and restart replay one receipt
+  ---
+  duration_ms: 3310.0232
+  type: 'test'
+  ...
+# Subtest: O03 same SKU multiple rows aggregate against floor and increment once
+ok 69 - O03 same SKU multiple rows aggregate against floor and increment once
+  ---
+  duration_ms: 123.2492
+  type: 'test'
+  ...
+# Subtest: O04 same SKU aggregate shortage leaves no partial hold
+ok 70 - O04 same SKU aggregate shortage leaves no partial hold
+  ---
+  duration_ms: 134.7443
+  type: 'test'
+  ...
+# Subtest: O05 final stock shortage rolls back both canonical docs and authority
+ok 71 - O05 final stock shortage rolls back both canonical docs and authority
+  ---
+  duration_ms: 163.4429
+  type: 'test'
+  ...
+# Subtest: O06 invalid or missing SKU in one row rejects entire order
+ok 72 - O06 invalid or missing SKU in one row rejects entire order
+  ---
+  duration_ms: 94.0167
+  type: 'test'
+  ...
+# Subtest: O07 MTO/unknown/inactive/unselected/duplicate/zero row rejects all
+ok 73 - O07 MTO/unknown/inactive/unselected/duplicate/zero row rejects all
+  ---
+  duration_ms: 541.069
+  type: 'test'
+  ...
+# Subtest: O08 signed purchase-stop and server missing/stopped gate deny all
+ok 74 - O08 signed purchase-stop and server missing/stopped gate deny all
+  ---
+  duration_ms: 240.6299
+  type: 'test'
+  ...
+# Subtest: O09 authority missing on one canonical document fails closed
+ok 75 - O09 authority missing on one canonical document fails closed
+  ---
+  duration_ms: 171.0973
+  type: 'test'
+  ...
+# Subtest: O10 extra operationId, line selection or quantity cannot override server plan
+ok 76 - O10 extra operationId, line selection or quantity cannot override server plan
+  ---
+  duration_ms: 67.5508
+  type: 'test'
+  ...
+# Subtest: O11 source ABA revision change latches review even with identical contents
+ok 77 - O11 source ABA revision change latches review even with identical contents
+  ---
+  duration_ms: 244.7037
+  type: 'test'
+  ...
+# Subtest: O12 postflight change retains both holds and latches review
+ok 78 - O12 postflight change retains both holds and latches review
+  ---
+  duration_ms: 172.6865
+  type: 'test'
+  ...
+# Subtest: O13 postflight unavailable retains hold; lookup has no Woo reads or stock writes
+ok 79 - O13 postflight unavailable retains hold; lookup has no Woo reads or stock writes
+  ---
+  duration_ms: 217.904
+  type: 'test'
+  ...
+# Subtest: O14 forged signature, stale challenge, TTL, incomplete and paid order rejected
+ok 80 - O14 forged signature, stale challenge, TTL, incomplete and paid order rejected
+  ---
+  duration_ms: 563.058
+  type: 'test'
+  ...
+# Subtest: O15 wrong actor and disabled token rejected before reads
+ok 81 - O15 wrong actor and disabled token rejected before reads
+  ---
+  duration_ms: 19.3787
+  type: 'test'
+  ...
+# Subtest: O16 historical single-line journal including removed row blocks order mode
+ok 82 - O16 historical single-line journal including removed row blocks order mode
+  ---
+  duration_ms: 74.3239
+  type: 'test'
+  ...
+# Subtest: O17 order fence blocks old single-line bridge
+ok 83 - O17 order fence blocks old single-line bridge
+  ---
+  duration_ms: 125.7917
+  type: 'test'
+  ...
+# Subtest: O18 receipt loss cannot recreate holds; malformed receipt rejected
+ok 84 - O18 receipt loss cannot recreate holds; malformed receipt rejected
+  ---
+  duration_ms: 296.024
+  type: 'test'
+  ...
+# Subtest: O19 commit response loss recovers exact operation via read-only lookup
+ok 85 - O19 commit response loss recovers exact operation via read-only lookup
+  ---
+  duration_ms: 233.6893
+  type: 'test'
+  ...
+# Subtest: O20 precommit unknown recovers same pending plan; stock conflict does not replan
+ok 86 - O20 precommit unknown recovers same pending plan; stock conflict does not replan
+  ---
+  duration_ms: 249.2699
+  type: 'test'
+  ...
+# Subtest: O21 competing orders on same stocks: one complete winner, no partial loser
+ok 87 - O21 competing orders on same stocks: one complete winner, no partial loser
+  ---
+  duration_ms: 3123.9378
+  type: 'test'
+  ...
+# Subtest: O22 existing manual writer respects batch ledger floor
+ok 88 - O22 existing manual writer respects batch ledger floor
+  ---
+  duration_ms: 173.2147
+  type: 'test'
+  ...
+# Subtest: O23 precommit unknown resumes same plan successfully without new operation
+ok 89 - O23 precommit unknown resumes same plan successfully without new operation
+  ---
+  duration_ms: 214.3167
+  type: 'test'
+  ...
+# Subtest: O24 explicit server stop denies fresh order and cannot turn historical replay into permission
+ok 90 - O24 explicit server stop denies fresh order and cannot turn historical replay into permission
+  ---
+  duration_ms: 173.4409
+  type: 'test'
+  ...
+# Subtest: O25 self-consistent forged receipt result fails historical reconstruction
+ok 91 - O25 self-consistent forged receipt result fails historical reconstruction
+  ---
+  duration_ms: 187.8708
+  type: 'test'
+  ...
+# [2026-10-28T15:48:02.631Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1c683629 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-28T15:48:02.649Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1c68362a error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-28T15:48:02.654Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1c68362b error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-28T15:48:02.665Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1c68362c error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# Subtest: O26 client cannot forge purchase gate, order journal, fence or receipt
+ok 92 - O26 client cannot forge purchase gate, order journal, fence or receipt
+  ---
+  duration_ms: 137.3929
+  type: 'test'
+  ...
+# Subtest: O27 missing/unknown quantity never initializes stock or capacity
+ok 93 - O27 missing/unknown quantity never initializes stock or capacity
+  ---
+  duration_ms: 108.1789
+  type: 'test'
+  ...
+1..93
+# tests 93
+# suites 0
+# pass 93
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 185232.9712
+[32m[1m+ [22m[39m Script exited successfully (code 0)
+[36m[1mi  emulators:[22m[39m Shutting down emulators.
+[36m[1mi  firestore:[22m[39m Stopping Firestore Emulator
+[33m[1m! [22m[39m Firestore Emulator has exited upon receiving signal: SIGINT
+[36m[1mi  auth:[22m[39m Stopping Authentication Emulator
+[36m[1mi  hub:[22m[39m Stopping emulator hub
+[36m[1mi  logging:[22m[39m Stopping Logging Emulator

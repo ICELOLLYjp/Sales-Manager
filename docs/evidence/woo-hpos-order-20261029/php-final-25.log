@@ -1,0 +1,26 @@
+PASS issuer leaves all copied SQLite table contents unchanged
+PASS all persisted HPOS lines retained
+PASS filtered missing line cannot be signed complete
+PASS mixed canonical stocks and same SKU rows
+PASS PHP HMAC over exact base64 payload
+PASS contract TTL and completeness
+PASS request fields do not choose plan
+PASS persisted short ABA advances isolated revision
+PASS cancelled rejects whole order
+PASS processing rejects whole order
+PASS completed rejects whole order
+PASS on-hold rejects whole order
+PASS failed rejects whole order
+PASS refunded rejects whole order
+PASS transaction ID rejects unpaid-looking order
+PASS zero-amount refund record rejects
+PASS MTO or unknown rejects all lines
+PASS MTO or unknown rejects all lines
+PASS one unselected variation rejects entire order
+PASS copy policy stop rejects
+PASS unspecified production revision fails closed
+PASS revision change during reads rejects
+PASS 51 lines rejects whole order
+PASS mapping mutation rejects
+PASS missing revision coverage rejects
+RESULT 25 PASS 0 FAIL 0 SKIP; live calls 0
