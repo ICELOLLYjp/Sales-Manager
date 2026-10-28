@@ -1,0 +1,195 @@
+[36m[1mi  emulators:[22m[39m Starting emulators: auth, firestore
+[36m[1mi  emulators:[22m[39m Detected demo project ID "demo-icelolly-method-b", emulated services will use a demo configuration and attempts to access non-emulated services for this project will fail.
+[36m[1mi  firestore:[22m[39m Firestore Emulator logging to [1mfirestore-debug.log[22m
+[32m[1m+  firestore:[22m[39m Firestore Emulator was started in standard edition.
+[32m[1m+  firestore:[22m[39m Firestore Emulator UI websocket is running on 9152.
+[36m[1mi [22m[39m Running script: [1mnode --test --test-concurrency=1 --test-timeout=60000 --test-reporter=tap woo-order.test.mjs[22m
+TAP version 13
+# (node:14660) MetadataLookupWarning: received unexpected error = All promises were rejected code = ETIMEDOUT, ENOTFOUND
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: O01 mixed finished accessory + T-shirt atomically held; physical unchanged; permission always false
+ok 1 - O01 mixed finished accessory + T-shirt atomically held; physical unchanged; permission always false
+  ---
+  duration_ms: 4497.2909
+  type: 'test'
+  ...
+# Subtest: O02 duplicate simultaneous delivery and restart replay one receipt
+ok 2 - O02 duplicate simultaneous delivery and restart replay one receipt
+  ---
+  duration_ms: 3068.7323
+  type: 'test'
+  ...
+# Subtest: O03 same SKU multiple rows aggregate against floor and increment once
+ok 3 - O03 same SKU multiple rows aggregate against floor and increment once
+  ---
+  duration_ms: 171.5101
+  type: 'test'
+  ...
+# Subtest: O04 same SKU aggregate shortage leaves no partial hold
+ok 4 - O04 same SKU aggregate shortage leaves no partial hold
+  ---
+  duration_ms: 203.6662
+  type: 'test'
+  ...
+# Subtest: O05 final stock shortage rolls back both canonical docs and authority
+ok 5 - O05 final stock shortage rolls back both canonical docs and authority
+  ---
+  duration_ms: 204.6962
+  type: 'test'
+  ...
+# Subtest: O06 invalid or missing SKU in one row rejects entire order
+ok 6 - O06 invalid or missing SKU in one row rejects entire order
+  ---
+  duration_ms: 105.6254
+  type: 'test'
+  ...
+# Subtest: O07 MTO/unknown/inactive/unselected/duplicate/zero row rejects all
+ok 7 - O07 MTO/unknown/inactive/unselected/duplicate/zero row rejects all
+  ---
+  duration_ms: 557.3499
+  type: 'test'
+  ...
+# Subtest: O08 signed purchase-stop and server missing/stopped gate deny all
+ok 8 - O08 signed purchase-stop and server missing/stopped gate deny all
+  ---
+  duration_ms: 250.5437
+  type: 'test'
+  ...
+# Subtest: O09 authority missing on one canonical document fails closed
+ok 9 - O09 authority missing on one canonical document fails closed
+  ---
+  duration_ms: 161.6429
+  type: 'test'
+  ...
+# Subtest: O10 extra operationId, line selection or quantity cannot override server plan
+ok 10 - O10 extra operationId, line selection or quantity cannot override server plan
+  ---
+  duration_ms: 74.8225
+  type: 'test'
+  ...
+# Subtest: O11 source ABA revision change latches review even with identical contents
+ok 11 - O11 source ABA revision change latches review even with identical contents
+  ---
+  duration_ms: 218.0384
+  type: 'test'
+  ...
+# Subtest: O12 postflight change retains both holds and latches review
+ok 12 - O12 postflight change retains both holds and latches review
+  ---
+  duration_ms: 191.5418
+  type: 'test'
+  ...
+# Subtest: O13 postflight unavailable retains hold; lookup has no Woo reads or stock writes
+ok 13 - O13 postflight unavailable retains hold; lookup has no Woo reads or stock writes
+  ---
+  duration_ms: 249.6181
+  type: 'test'
+  ...
+# Subtest: O14 forged signature, stale challenge, TTL, incomplete and paid order rejected
+ok 14 - O14 forged signature, stale challenge, TTL, incomplete and paid order rejected
+  ---
+  duration_ms: 576.4126
+  type: 'test'
+  ...
+# Subtest: O15 wrong actor and disabled token rejected before reads
+ok 15 - O15 wrong actor and disabled token rejected before reads
+  ---
+  duration_ms: 27.1962
+  type: 'test'
+  ...
+# Subtest: O16 historical single-line journal including removed row blocks order mode
+ok 16 - O16 historical single-line journal including removed row blocks order mode
+  ---
+  duration_ms: 98.1749
+  type: 'test'
+  ...
+# Subtest: O17 order fence blocks old single-line bridge
+ok 17 - O17 order fence blocks old single-line bridge
+  ---
+  duration_ms: 191.3673
+  type: 'test'
+  ...
+# Subtest: O18 receipt loss cannot recreate holds; malformed receipt rejected
+ok 18 - O18 receipt loss cannot recreate holds; malformed receipt rejected
+  ---
+  duration_ms: 231.3
+  type: 'test'
+  ...
+# Subtest: O19 commit response loss recovers exact operation via read-only lookup
+ok 19 - O19 commit response loss recovers exact operation via read-only lookup
+  ---
+  duration_ms: 216.9543
+  type: 'test'
+  ...
+# Subtest: O20 precommit unknown recovers same pending plan; stock conflict does not replan
+ok 20 - O20 precommit unknown recovers same pending plan; stock conflict does not replan
+  ---
+  duration_ms: 262.578
+  type: 'test'
+  ...
+# Subtest: O21 competing orders on same stocks: one complete winner, no partial loser
+ok 21 - O21 competing orders on same stocks: one complete winner, no partial loser
+  ---
+  duration_ms: 3476.7124
+  type: 'test'
+  ...
+# Subtest: O22 existing manual writer respects batch ledger floor
+ok 22 - O22 existing manual writer respects batch ledger floor
+  ---
+  duration_ms: 159.5967
+  type: 'test'
+  ...
+# Subtest: O23 precommit unknown resumes same plan successfully without new operation
+ok 23 - O23 precommit unknown resumes same plan successfully without new operation
+  ---
+  duration_ms: 215.691
+  type: 'test'
+  ...
+# Subtest: O24 explicit server stop denies fresh order and cannot turn historical replay into permission
+ok 24 - O24 explicit server stop denies fresh order and cannot turn historical replay into permission
+  ---
+  duration_ms: 174.7019
+  type: 'test'
+  ...
+# Subtest: O25 self-consistent forged receipt result fails historical reconstruction
+ok 25 - O25 self-consistent forged receipt result fails historical reconstruction
+  ---
+  duration_ms: 174.4762
+  type: 'test'
+  ...
+# [2026-10-28T15:26:33.777Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x5e890229 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-28T15:26:33.790Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x5e89022a error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-28T15:26:33.804Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x5e89022b error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-28T15:26:33.814Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x5e89022c error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# Subtest: O26 client cannot forge purchase gate, order journal, fence or receipt
+ok 26 - O26 client cannot forge purchase gate, order journal, fence or receipt
+  ---
+  duration_ms: 311.8503
+  type: 'test'
+  ...
+# Subtest: O27 missing/unknown quantity never initializes stock or capacity
+ok 27 - O27 missing/unknown quantity never initializes stock or capacity
+  ---
+  duration_ms: 108.2382
+  type: 'test'
+  ...
+1..27
+# tests 27
+# suites 0
+# pass 27
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 17299.3842
+[32m[1m+ [22m[39m Script exited successfully (code 0)
+[36m[1mi  emulators:[22m[39m Shutting down emulators.
+[36m[1mi  firestore:[22m[39m Stopping Firestore Emulator
+[33m[1m! [22m[39m Firestore Emulator has exited upon receiving signal: SIGINT
+[36m[1mi  auth:[22m[39m Stopping Authentication Emulator
+[36m[1mi  hub:[22m[39m Stopping emulator hub
+[36m[1mi  logging:[22m[39m Stopping Logging Emulator

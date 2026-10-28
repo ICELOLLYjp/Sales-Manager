@@ -55,6 +55,9 @@ export function createWooBridge(rt,{sites,clock=()=>Math.floor(Date.now()/1000)}
     await auth(token);const loc=locate(input),ref=refFor(loc);let e;
     try {e=await evidence(loc);}catch(err){await review(ref,'source-unavailable-or-changed');throw err;}
     const operation=await rt.db.runTransaction(async tx=>{
+      const fence=rt.db.doc(`inventoryWooOrderFences/${hash({siteId:loc.siteId,orderId:loc.orderId})}`);
+      const mode=await tx.get(fence);
+      if(mode.exists && mode.data().mode!=='single') fail('woo-order-mode-conflict');
       const old=await tx.get(ref);
       if(old.exists) {
         const row=old.data();
@@ -69,6 +72,7 @@ export function createWooBridge(rt,{sites,clock=()=>Math.floor(Date.now()/1000)}
       const stock=await tx.get(rt.db.doc(stockPath));if(!stock.exists) fail('stock-not-found');
       const data=stock.data(),{cell,field}=target(data,provisional);
       const op=normalizeReservation({...provisional,expectedRevision:revision(data),expectedQuantity:cell[field]});
+      if(!mode.exists) tx.create(fence,{mode:'single'});
       tx.create(ref,{schema:'woo-intent-v1',evidence:e,operation:op,state:'pending',createdAt:FieldValue.serverTimestamp()});return op;
     });
     if(!operation) fail('woo-review-required');
