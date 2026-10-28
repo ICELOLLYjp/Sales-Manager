@@ -1,0 +1,221 @@
+{
+  "startedAt": "2026-10-27T05:52:48.259Z",
+  "finishedAt": "2026-10-27T05:53:12.696Z",
+  "projectId": "demo-icelolly-method-b",
+  "firestoreHost": "127.0.0.1:8087",
+  "authHost": "127.0.0.1:9098",
+  "node": "v24.21.0",
+  "versions": {
+    "firebase-admin": "14.4.0",
+    "firebase": "11.0.2",
+    "@firebase/rules-unit-testing": "4.0.1"
+  },
+  "exitCode": 0,
+  "sha256": {
+    "runtime.mjs": "211863a2e9d46a1e0aa38fd04bc71c751479b20f76cdc504a6ea348ae440f0a4",
+    "inventory.mjs": "78d925ffe5366af56acb39c89680ec87059f51996aa2df069938c3793e4656dc",
+    "http.mjs": "2f1c879202db7f08a032b0a38a44e3f442dbff9d6998eae400068b2b186abcfb",
+    "api.test.mjs": "b85e154191a62ed3edf3cc3e53f767318e09ff22ecccfae106961e7e8eaebde3",
+    "run-tests.mjs": "d332019c0dcb5a006b6ccfe78dbe8d5f570624901ff8cabf378596b409869e7c",
+    "firestore.rules": "4fa9497953992ea9949979f9f7bb3176acbbe513b2a8f0719db91c2f82c3c20c",
+    "firebase.json": "e44f879a9a0540c3f3445d7af3013af27ddd070b345cc8edb24d6a6f52869c93",
+    "package-lock.json": "9fd37faea43be18c8808a95afc5c92aa1fb0b6374d2aea00a99bccb47a7cd699"
+  },
+  "counts": {
+    "total": 37,
+    "pass": 37,
+    "fail": 0
+  },
+  "cases": [
+    {
+      "index": 1,
+      "name": "B01 all three verified synthetic UIDs can edit through verified Auth tokens",
+      "result": "pass"
+    },
+    {
+      "index": 2,
+      "name": "B02 outsider, unverified, missing and malformed token denied without effects",
+      "result": "pass"
+    },
+    {
+      "index": 3,
+      "name": "B03 expired, wrong-project and disabled-user tokens denied",
+      "result": "pass"
+    },
+    {
+      "index": 4,
+      "name": "B04 client direct create/update/delete denied across canonical and related paths",
+      "result": "pass"
+    },
+    {
+      "index": 5,
+      "name": "B05 rules reject outsider, unverified and unauthenticated reads and writes",
+      "result": "pass"
+    },
+    {
+      "index": 6,
+      "name": "B06 entire map, arbitrary path/patch and extra nested fields rejected",
+      "result": "pass"
+    },
+    {
+      "index": 7,
+      "name": "B07 malformed quantities, revisions, IDs and operation types rejected",
+      "result": "pass"
+    },
+    {
+      "index": 8,
+      "name": "B08 known legacy forged receipt cannot suppress edit",
+      "result": "pass"
+    },
+    {
+      "index": 9,
+      "name": "B09 replay is once only and different input using same ID is rejected",
+      "result": "pass"
+    },
+    {
+      "index": 10,
+      "name": "B10 same ID concurrent requests commit one effect and one receipt",
+      "result": "pass"
+    },
+    {
+      "index": 11,
+      "name": "B11 same SKU concurrent absolute quantities produce one commit and safe conflict",
+      "result": "pass"
+    },
+    {
+      "index": 12,
+      "name": "B12 different SKU stale revision safely rejected, no lost unrelated quantity (not C01 both-success)",
+      "result": "pass"
+    },
+    {
+      "index": 13,
+      "name": "B13 lost HTTP reply after real commit then later edit and replay does not roll back",
+      "result": "pass"
+    },
+    {
+      "index": 14,
+      "name": "B14 non-target SKU, cell metadata, master and Timestamp preserved",
+      "result": "pass"
+    },
+    {
+      "index": 15,
+      "name": "B15 accessory updates by stable ID preserving other records and unknown",
+      "result": "pass"
+    },
+    {
+      "index": 16,
+      "name": "B16 null/missing quantity and unregistered SKU refused without converting to zero",
+      "result": "pass"
+    },
+    {
+      "index": 17,
+      "name": "B17 known zero permitted but negative count rejected; missing revision migrates once",
+      "result": "pass"
+    },
+    {
+      "index": 18,
+      "name": "B18 malformed stored revision and absent canonical reject without receipt",
+      "result": "pass"
+    },
+    {
+      "index": 19,
+      "name": "B19 real commit failure leaves neither inventory change nor receipt",
+      "result": "pass"
+    },
+    {
+      "index": 20,
+      "name": "B20 expected quantity mismatch and ABA revision mismatch safely rejected",
+      "result": "pass"
+    },
+    {
+      "index": 21,
+      "name": "B21 receipt evidence matches atomic effect and malformed server receipt fails closed",
+      "result": "pass"
+    },
+    {
+      "index": 22,
+      "name": "B22 duplicate accessory IDs refused and SKU keys containing dot are not treated as paths",
+      "result": "pass"
+    },
+    {
+      "index": 23,
+      "name": "B23 anonymous Auth token and revoked ID token rejected",
+      "result": "pass"
+    },
+    {
+      "index": 24,
+      "name": "B24 isolation guards fail closed before production access",
+      "result": "pass"
+    },
+    {
+      "index": 25,
+      "name": "B25 final safe revision remains replayable but cannot overflow",
+      "result": "pass"
+    },
+    {
+      "index": 26,
+      "name": "F01 both stock types enforce EC plus event floor, equality succeeds",
+      "result": "pass"
+    },
+    {
+      "index": 27,
+      "name": "F02 missing/incomplete/malformed reservation evidence fails closed",
+      "result": "pass"
+    },
+    {
+      "index": 28,
+      "name": "F03 confirmed replaces held identity; duplicates and overflow refused",
+      "result": "pass"
+    },
+    {
+      "index": 29,
+      "name": "F04 released holds excluded, other SKU commitments and metadata preserved",
+      "result": "pass"
+    },
+    {
+      "index": 30,
+      "name": "F05 caller cannot substitute zero floor or a reservation ledger",
+      "result": "pass"
+    },
+    {
+      "index": 31,
+      "name": "F06 historical receipt replays after later holds and rejects tampered floor proof",
+      "result": "pass"
+    },
+    {
+      "index": 32,
+      "name": "F07 old v1 receipt cannot bypass the new floor contract",
+      "result": "pass"
+    },
+    {
+      "index": 33,
+      "name": "F08 count versus concurrent EC+event reservation has no floor violation",
+      "result": "pass"
+    },
+    {
+      "index": 34,
+      "name": "F09 reservation-only revision change invalidates stale absolute count (ABA)",
+      "result": "pass"
+    },
+    {
+      "index": 35,
+      "name": "F10 a/b/a concurrent count retains one effect per accepted receipt under holds",
+      "result": "pass"
+    },
+    {
+      "index": 36,
+      "name": "F11 floor rejection and real transaction failure preserve all reservation evidence",
+      "result": "pass"
+    },
+    {
+      "index": 37,
+      "name": "F12 missing or malformed historical reservation proof cannot replay",
+      "result": "pass"
+    }
+  ],
+  "limits": [
+    "Emulator unsigned Auth tokens only; production signature/IAM untested",
+    "Manual edit only; strict document revision rejects even different-SKU contention",
+    "Existing POS and old 32 tests are not migrated or changed"
+  ]
+}

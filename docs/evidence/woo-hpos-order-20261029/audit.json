@@ -1,0 +1,216 @@
+{
+  "worktrees": 27,
+  "previousHeadsAndDirtyFilesMatch": true,
+  "dirtyFiles": 97,
+  "dirtyFilesMatch": true,
+  "consentFiles": 6,
+  "consentMatch": true,
+  "baselineFiles": 220,
+  "baselineAllMatch": true,
+  "sqliteReuse": {
+    "pass": 158,
+    "executed": false,
+    "files": [
+      {
+        "path": "isolated/ec-purchase/allocation-sqlite-fixture.php",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/allocation-sqlite-worker.php",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/allocation-sqlite.test.py",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/allocation-store-boundary.php",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/allocation-store-boundary.test.php",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/allocation-store-model.php",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/allocation-store-sqlite.php",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/bridge-policy.php",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/catalog-checkout-gate.php",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/catalog-checkout-gate.test.php",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/consent-approved-copy.test.php",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/consent-copy.php",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/dispatch-consent-boundary.php",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/dispatch-consent-boundary.test.php",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/dispatch-consent-policy.test.php",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/dispatch-evidence-manifest.php",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/dispatch-evidence-manifest.test.php",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/dispatch-quote-contract.php",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/dispatch-quote-contract.test.php",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/eligibility.php",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/eligibility.test.php",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/event-stock-transition.php",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/event-stock-transition.test.php",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/finished-capacity.test.php",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/finished-sqlite.test.py",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/order-allocation-transition.php",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/order-allocation-transition.test.php",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/order-capacity-adapter.php",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/order-capacity-adapter.test.php",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/purchase-consent-v4.php",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/purchase-consent-v4.test.php",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/purchase-consent.php",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/purchase-consent.test.php",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/stock-writer-transition.php",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/stock-writer-worker.php",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/stock-writer.test.cjs",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/verify-catalog-gate-v2.py",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/woo-allocation-store.php",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/woo-allocation-store.test.php",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/woo-crud-readonly.php",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/woo-order-snapshot.php",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/woo-order-snapshot.test.php",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/woo-order-transform.php",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/woo-order-transform.test.php",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-purchase/woo-product-evidence.php",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-capacity/capacity.php",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-capacity/capacity.test.php",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-calendar/audit-prior.cjs",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-calendar/calendar.php",
+        "match": true
+      },
+      {
+        "path": "isolated/ec-calendar/calendar.test.php",
+        "match": true
+      }
+    ]
+  }
+}

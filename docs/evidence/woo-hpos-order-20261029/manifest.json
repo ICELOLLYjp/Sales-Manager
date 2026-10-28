@@ -1,0 +1,512 @@
+{
+  "dateJST": "2026-10-29",
+  "baseHeads": {
+    "Website": "de537bb1843fbad2d6762635cd5b0cdad22acb56",
+    "Sales-Manager": "6e5061ea76a9fcbfba39c662e4c8498b5d567241",
+    "T-shirts-Stock": "64d935d48df433c66a393e9aff02f7d0a0ded9b6",
+    "Accessories": "b3badb712e0b36d42aa475f49da0c2e83348e996"
+  },
+  "executed": {
+    "php": {
+      "pass": 25,
+      "fail": 0,
+      "skip": 0,
+      "log": "php-final-25.log"
+    },
+    "finalPhpNode": {
+      "pass": 14,
+      "fail": 0,
+      "skip": 0,
+      "log": "php-node-final-14.tap"
+    },
+    "regression": {
+      "pass": 79,
+      "fail": 0,
+      "skip": 0,
+      "log": "initial-93.tap"
+    },
+    "effectiveTotal": 118,
+    "syntax": 6
+  },
+  "superseded": {
+    "php": 24,
+    "initialPhpNode": 14,
+    "reason": "Added persisted line-membership completeness check and filtered-omission test; final PHP25/Node14 replace earlier runs. Regression79 sources unchanged."
+  },
+  "reused": {
+    "sqlitePass": 158,
+    "executed": false,
+    "sourceHashesMatched": 50
+  },
+  "sources": {
+    "Website/isolated/ec-purchase/woo-order-evidence.php": "f9fa153404e8832c1fb4a2bb1a33d7a4e976387287328421ec9e372f05197944",
+    "Website/tests/woo-order-fixture-revision.php": "37e86dbf09980449d3dba18bb10f249f0ce7e968c800b649d92033b683d12093",
+    "Website/tests/woo-order-evidence.php": "c558b9be5af544dfc00e9eada75d0640b24ed366aa7517294374b8ffb1ea6149",
+    "Website/tests/run-woo-order.cjs": "774fcf855437584c979787963f23cdbcd072823a7cf8efda4974eb3e09278c8c",
+    "Website/docs/EC_WOO_ORDER_ISSUER_20261029.md": "3fb8dec28abea9c3c470d723e0c09872045fd764b398e4c0a15cdce4d9daca92",
+    "Sales-Manager/isolated/method-b/woo-order-php-reader.mjs": "275596ad130d807f2e5d13c4f1f17e21e70f69041c8e44c0c1b891779b454ded",
+    "Sales-Manager/isolated/method-b/woo-order-php.test.mjs": "71290dc13d9084a174967fd582e71a33d1a7f61ea6dd0d29efb0f3a78c2b0771",
+    "Sales-Manager/docs/EC_WOO_ORDER_PHP_20261029.md": "b6336ab1c530d32997f8c8fc0a384d412213099a62df3360156855621e3ce79d",
+    "Website/isolated/ec-purchase/ALLOCATION_STORE_BOUNDARY_20261018.md": "49f88278e6c36f3f810e01bca2d42538074b4ecf39746c7292ab744490398193",
+    "Website/isolated/ec-purchase/APPROVED_CONSENT_20261019.md": "7f7ee4cee6afd27082c2525cc1e441eaddde144703200e632d0c912bff21d862",
+    "Website/isolated/ec-purchase/DISPATCH_CONSENT_REVIEW_20261019.md": "f03825c93e6bd524dec6dac36690e05259cba364228285e378700850be1e8f20",
+    "Website/isolated/ec-purchase/FINISHED_SQLITE_20261027.md": "72038759f0b7f4c0e431530af9196ce47500999da040e07e80ddebc224d7c399",
+    "Website/isolated/ec-purchase/ORDER_ALLOCATION_TRANSITION_20261018.md": "b954165982ee7a1102a1fabbe88ff652d57824a56f88f374e2e5e0ccf42d3b33",
+    "Website/isolated/ec-purchase/ORDER_CAPACITY_ADAPTER_20261018.md": "b2f1660cf38865c3f3782d9b1bfb630816050de5631ba7549177e949f9d19675",
+    "Website/isolated/ec-purchase/PURCHASE_CONSENT_20261019.md": "dd1b22d499a155a956b88b4ba0e45208b342aff1176bbb9ae0e817edc3a69b42",
+    "Website/isolated/ec-purchase/PURCHASE_CONSENT_V4_20261020.md": "8d656a9d07c5237c1ce0a7a0b7380c85fcff305f3caccaefb619fe68b14892f2",
+    "Website/isolated/ec-purchase/README.md": "719813f2cd5d55aac1d99ad8c8e1bd0bd984a6f8408d9667296b7122c13b2fba",
+    "Website/isolated/ec-purchase/SQLITE_ALLOCATION_20261027.md": "b85a744e5f7cc4e37f027e20ee340d66619cca0002287611cb9c72a0e3d254f9",
+    "Website/isolated/ec-purchase/STOCK_WRITER_20261027.md": "113a3678fa120db73d9819a7c4aea1d2aea1dd29ea59c71729de5c91c6731e57",
+    "Website/isolated/ec-purchase/WOO_ALLOCATION_STORE_20261018.md": "1d8384377fa51c56728c485d5d0e3fc3ee75f52a5f5c8fc7dd5f50d9ba8f1400",
+    "Website/isolated/ec-purchase/WOO_CRUD_READONLY_20261026.md": "2bb069c69d5de04b11a6dcb18d733c9934f1a67c6484acda3549275cd3a089f8",
+    "Website/isolated/ec-purchase/WOO_ORDER_TRANSFORM_20261018.md": "3f2980d130912b0c262fc6f656a189773685e3ea3c32a4fc4a489224a898362f",
+    "Website/isolated/ec-purchase/WOO_PRODUCT_EVIDENCE_20261026.md": "22a0092ba49197c4ee0d30dab50b493b8947e5e59a2fcb9b2035e2cdda7dc05a",
+    "Website/isolated/ec-purchase/allocation-sqlite-fixture.php": "32e15ba156313c3d00f2826feba6f6e2b76674e1367fccdbe8edcf6021969a24",
+    "Website/isolated/ec-purchase/allocation-sqlite-results.json": "edb2369af9334459e6880641127ef3648a36410b83452f2bd307426f8339a359",
+    "Website/isolated/ec-purchase/allocation-sqlite-worker.php": "f160e7bfdf3200e948f39f2b9821222096af5d0287ba1d3fe294c9496d114d42",
+    "Website/isolated/ec-purchase/allocation-sqlite.test.py": "62c378f157e25818678e11d565ed3321d6c88d548d67898eccad0a67e301c3d5",
+    "Website/isolated/ec-purchase/allocation-store-boundary.php": "315f4683f40514b22f01a1d7f6c53244d55281509fbdab3c92a541ea6ff544c4",
+    "Website/isolated/ec-purchase/allocation-store-boundary.test.php": "593151391f3245c5ce33db484a8913a83f47d4da41c5122179d046b345ddb1fa",
+    "Website/isolated/ec-purchase/allocation-store-model.php": "33ffd8afc9ebac3dbf55161151e1a2618e948b6a1a0e8c612b923aea737ccc15",
+    "Website/isolated/ec-purchase/allocation-store-results.json": "0a69491925054ce7b98d8d2b394e84c27c5eeffa21d8337301c84c8b009c89e7",
+    "Website/isolated/ec-purchase/allocation-store-results.tap": "dbf985815ecc47c0f6135523e3e44283db248e4b905431464635905e5efd5ade",
+    "Website/isolated/ec-purchase/allocation-store-sqlite.php": "0634c5d5976e5cd001bf0867215e7132d356fbdeb5ae50e6826393c9808c30a2",
+    "Website/isolated/ec-purchase/bridge-policy.php": "e56b739f4d19baf69425bf4b4a6961f02b6adae22f4eeb33b5fd4d69f5ff36f7",
+    "Website/isolated/ec-purchase/catalog-checkout-gate-v2-php83-results-20261020.json": "196a868029bfa4b5987cd2aa5634590b7ecffba09a7a4e5a73958b85abd103ab",
+    "Website/isolated/ec-purchase/catalog-checkout-gate-v2-php83-results-20261020.tap": "c26cd6b7f480247103c8345bac66c33c2da595f053a6108b4e755f7f1844b03d",
+    "Website/isolated/ec-purchase/catalog-checkout-gate-v2-results-20261020.json": "69f911d2965118b687e83873fd04805e543c1d663afb68e5794b8776a32aa85e",
+    "Website/isolated/ec-purchase/catalog-checkout-gate-v2-results-20261020.tap": "c26cd6b7f480247103c8345bac66c33c2da595f053a6108b4e755f7f1844b03d",
+    "Website/isolated/ec-purchase/catalog-checkout-gate.php": "8613084a1dfd46b50620cfae1990473c5b8ae755e18030b00d46055cba0428c2",
+    "Website/isolated/ec-purchase/catalog-checkout-gate.test.php": "ef1da68a581c03c5dba9026e28dec68f18eb3a3e2cd47102298fa6079d5bb744",
+    "Website/isolated/ec-purchase/catalog-checkout-results-20261020.json": "0151b611f1ea698c4d2c4e8b3e09e3e9bed265f11203ec2c72a20b79af0813a0",
+    "Website/isolated/ec-purchase/catalog-checkout-results-20261020.tap": "d5465a05ca1356b7cb7c6f73929ac8a0dc609fa5829dde7d1a97e4bb8682a1fc",
+    "Website/isolated/ec-purchase/consent-approved-copy.test.php": "7d70270f2a02eba00391032755a3d6ac2b048755b7662792a95618f39ae47a83",
+    "Website/isolated/ec-purchase/consent-copy.php": "5cb5020b3eb71e7216c914c3d2aff9ed082dd28e57b9b31eda4fd3cd2a62cbe0",
+    "Website/isolated/ec-purchase/consent-v4-results-20261020.json": "f0e866ad21b067e9eab206264b50a35612534e4429c25f86cfcde4f943fbb451",
+    "Website/isolated/ec-purchase/consent-v4-results-20261020.tap": "5978031cc4a0ca4c0bf4ea8968a1f4e0c452cd993d5f44fdd9c10c1384d8ffae",
+    "Website/isolated/ec-purchase/dispatch-consent-boundary-results-20261020.tap": "af39aa5c20a2716e1c86361e912a3bcdd0e11637e79eec56376fceb942fffc6e",
+    "Website/isolated/ec-purchase/dispatch-consent-boundary-summary-20261020.json": "ca1e40aadab24555861cad05c80c9ca215427616312888b9cda7c907cba99b5e",
+    "Website/isolated/ec-purchase/dispatch-consent-boundary.php": "09dabb902cfa50e9234e64860cd4122aa5cbc9f71375fede273c9f788bf53b7f",
+    "Website/isolated/ec-purchase/dispatch-consent-boundary.test.php": "a9902d27b13d1ef3770a723238e747e4c623972d16721f4bf8daddbf3c8c9398",
+    "Website/isolated/ec-purchase/dispatch-consent-policy-results.json": "70debb9358f7ee423b5e3a9fa0d0d760f6271cd4367ff49da6883ee0adf35290",
+    "Website/isolated/ec-purchase/dispatch-consent-policy-results.tap": "fe29fb29650c52dcfc7b5430f3fdf2a30a229cf9083d96d7fcbeb2f20e9f28e7",
+    "Website/isolated/ec-purchase/dispatch-consent-policy.test.php": "1ad2983b50e3f7e50d2544e99157794d8071a7ce519865ccb83e5a051e0630ab",
+    "Website/isolated/ec-purchase/dispatch-evidence-manifest.php": "4478e1d2d962c6d58d6e64d76a6b0c0b865a54b7015a6aa17cac23e61682a060",
+    "Website/isolated/ec-purchase/dispatch-evidence-manifest.test.php": "9964a572e0f38d6cb7d7fb38b18a1b5ceacb00c51672bce4f31d2a2425aa50fa",
+    "Website/isolated/ec-purchase/dispatch-evidence-results-20261020.json": "d6f5df035c146f7d76d3a42c1d108971a75a2330716175bde0ec4293980a85ad",
+    "Website/isolated/ec-purchase/dispatch-evidence-results-20261020.tap": "e70b2b82f253f8b3900481119e99e04f68ce1c23e1ab91bb4b719efd3c15ce5f",
+    "Website/isolated/ec-purchase/dispatch-quote-contract.php": "b83261ee5243ab4a893b8e26b85659c1fe0eef4253ec782ca513796975ce4aed",
+    "Website/isolated/ec-purchase/dispatch-quote-contract.test.php": "bec1fa9b13041cc8ac4d1e2520478c5207a3f6cc4a162e4a71ae77c5f4ad7e5d",
+    "Website/isolated/ec-purchase/dispatch-quote-results-20261020.json": "f774b06c97507fc29127aa59f82affd0aba5c0b0ea23bfa51572bed91598984f",
+    "Website/isolated/ec-purchase/dispatch-quote-results-20261020.tap": "fedd6b3abbfb35ffeebf2b4df552e8659b7a881b83ed2f112bb01e5f86ebf0da",
+    "Website/isolated/ec-purchase/eligibility.php": "868a6a536c7214df6ba4a8cc4676b98b1a55fb51c618f7ee0778f11892e75559",
+    "Website/isolated/ec-purchase/eligibility.test.php": "d6355bddb95f21ba742d051dceceaab42e27bd678e9473166ec6886aed34a582",
+    "Website/isolated/ec-purchase/event-stock-transition.php": "d2d7077f1523b1dbe70062e885a91766e48693698a31c6f6875cf81b06750802",
+    "Website/isolated/ec-purchase/event-stock-transition.test.php": "d9f994ae9e98ea792b957e0961dc21e8d80fd3709d4afbd5c15970333f1a0819",
+    "Website/isolated/ec-purchase/finished-capacity-results.json": "600f06c0bfb2699e26e427ab4dd9f6d38d5ab17de8f5dbd8669fa2a9489a59f9",
+    "Website/isolated/ec-purchase/finished-capacity.test.php": "45edc5baa6640aec934428ad4b71bbf84097b685bf249d9982af302fbd8d6b7f",
+    "Website/isolated/ec-purchase/finished-sqlite-results.json": "228ec070bd5d8c7baef58f4e033332fbfb5c401e872aebebe23aee51ba91decc",
+    "Website/isolated/ec-purchase/finished-sqlite.test.py": "e9146ad16334b91d5b0475fa6462d81d30a374c5409b2dab8459c3fdfbf5ac01",
+    "Website/isolated/ec-purchase/order-allocation-results.json": "a061b0a3bebf33f7bc26e1451f6ea2d77a3037d293ad06bbf93b8ebc2974b129",
+    "Website/isolated/ec-purchase/order-allocation-results.tap": "61f6b00ea749c7658d6c2f1cfd45f11c03714fd859587ebae5a98bf9f1536315",
+    "Website/isolated/ec-purchase/order-allocation-transition.php": "cfff8e4cf1aa63bc8b70994baacc56856ae5405023475bda33a1d01b60a3291b",
+    "Website/isolated/ec-purchase/order-allocation-transition.test.php": "0a7a7b3ccd22a1df5229f69bd4cd675e8626d34205e97ffaa9164ecaeb670811",
+    "Website/isolated/ec-purchase/order-capacity-adapter.php": "fd6233262884b5df4bf63cc69b543c946d44cb5a8cac541c49b4b080a72f872a",
+    "Website/isolated/ec-purchase/order-capacity-adapter.test.php": "73136e6212385207ff5dcd825ee7802a70b527d1f894e4cdf55d5f11755ffe67",
+    "Website/isolated/ec-purchase/order-capacity-results.json": "dfd810e7055df321864f14e7e66db2dd03bd93c90ce355e51096f024e764a0b2",
+    "Website/isolated/ec-purchase/order-capacity-results.tap": "9bd7a8c768d92cb48a7950ee728f5ec766dc2ee2b76d1945a89eb5efe3f64bc9",
+    "Website/isolated/ec-purchase/purchase-consent-results.json": "2dd50a7a23dcdb1ccce9ab591cbd81bf81b1b6bb1a6a7a53fb6eb12c0d5f7a75",
+    "Website/isolated/ec-purchase/purchase-consent-results.tap": "aab42f674cfa2807e8f22be0507b768ccc386d49b57df564e9690f01199284ef",
+    "Website/isolated/ec-purchase/purchase-consent-v4.php": "55ff2040d51f8eaca20af6c629a1f790d8f946a3d83b4b225953915013315042",
+    "Website/isolated/ec-purchase/purchase-consent-v4.test.php": "62069d14c15a3bd877a66b96eb343a5d166da5d191bcbaac5a840656261fdf6a",
+    "Website/isolated/ec-purchase/purchase-consent.php": "0e101e4dd55b7b37e053a798f2b9cda0e3547bcf47ba6482ea49e974fc2a1054",
+    "Website/isolated/ec-purchase/purchase-consent.test.php": "5b54629e21c9078e3861b6d25dc5b38b403adfd2af5eb46dfc852795757da4b1",
+    "Website/isolated/ec-purchase/results.json": "6de51d385045ec4edcddd75da955f0dc560fa25802c2c409aa1afd6bc0c7a5c3",
+    "Website/isolated/ec-purchase/results.tap": "4f8c8b4a5a2e447fab0b8f48ef34e2c51fc097f2bdea9a4b418143c3517a41cc",
+    "Website/isolated/ec-purchase/stock-writer-regression-results.json": "ca8714e5bbd84245a4c01a1673606ed2f27ac0f25e0b78ce40786e5a70b626df",
+    "Website/isolated/ec-purchase/stock-writer-results.json": "d09e2fa923ffe8b013f9533e251ed4fb647352a05cec7e5e7eb637eb364c9740",
+    "Website/isolated/ec-purchase/stock-writer-transition.php": "72c25f8788146ea3dda320d154eb24c9ef40d082f6d0dbfc89f444f93fce616f",
+    "Website/isolated/ec-purchase/stock-writer-worker.php": "e0425b48cf2f07554b55cec5c95b88c994dd47f912e0873c60b358d86a170a4b",
+    "Website/isolated/ec-purchase/stock-writer.test.cjs": "a9543fcf194b419450dd5d94f9331c679041721a08b2952e69fc5c95631a617e",
+    "Website/isolated/ec-purchase/verify-catalog-gate-v2.py": "ae8865cbe998a801024a613864343d6d13e258d0cbabcc37df595d285e90a9a6",
+    "Website/isolated/ec-purchase/verify-consent-v4.ps1": "485cf59a3e7dfa758ce552e244bf2c2e0bec593539db81745982c3f19eb482c4",
+    "Website/isolated/ec-purchase/woo-allocation-store-results.json": "c37f876ef5470fc2be0ed1f39b84209d2e59a0a0f37287cabf3d2d8a05e4af0b",
+    "Website/isolated/ec-purchase/woo-allocation-store-results.tap": "416d0df047c42b172d4a9cc5799efb9885c6929f5c96a9d8a22be7f505930761",
+    "Website/isolated/ec-purchase/woo-allocation-store.php": "9b1f7e101fe52ec9b52bae27eb4ff5dc5f28aa0401a8d64329cb3b29befa4fe5",
+    "Website/isolated/ec-purchase/woo-allocation-store.test.php": "dbaf0005885696c77eb9cfb6348344d0094b78faed43e4abb53b3b9bbe62e10d",
+    "Website/isolated/ec-purchase/woo-crud-readonly.php": "c456e0f3e0ced3c69d3208983f39b174922374583c7a6e21a792452a0d87edf0",
+    "Website/isolated/ec-purchase/woo-order-snapshot-results.txt": "96901b9e9886fbaacbf455ee1a84440925a58b12ed683e9bedf0bcd821c0c39b",
+    "Website/isolated/ec-purchase/woo-order-snapshot.php": "acdc532bb8cb6d3f9e1ad69ca0097f6d504ef9785aa8b3354bf0bbcc5f9e890e",
+    "Website/isolated/ec-purchase/woo-order-snapshot.test.php": "85b0641a3ed8e6b3237e6af080b4f1e3ff3ed27b21e59b67f7f45fe63a74c059",
+    "Website/isolated/ec-purchase/woo-order-transform-results.json": "e23f8b7b75b6e7bd127d7166fbccdcd4419f38733ac8c9f606fc5549648ed1f5",
+    "Website/isolated/ec-purchase/woo-order-transform-results.tap": "d41dc32e031b850a80cad0407c9ff7841222386ab99efaf40e81092b43ff9917",
+    "Website/isolated/ec-purchase/woo-order-transform.php": "3d230efe83c0d32cc402af06ca2bcdd099559f1e34af03f9979851335e87f9ba",
+    "Website/isolated/ec-purchase/woo-order-transform.test.php": "5c0b05dd247bd5b527aea53210d5dbb62ea2945d19472b0296b420a4cc8ef6ff",
+    "Website/isolated/ec-purchase/woo-product-evidence.php": "0fcc7ef4de4b94bbe37b2fad79dbda1bc3f18484fefdf6c2fa19d8116e79079f",
+    "Website/isolated/ec-purchase/woo-reservation-evidence.php": "e6eb26559c20d03462eed0e5d6b9a0301f568bb24dbfaa8024da4881d8cbe50c",
+    "Website/plugins/icelolly-commerce-bridge/README.md": "17ede384412f7527d63044fea7686fec7267d8fdb18f6f8cc25950e94f1d662d",
+    "Website/plugins/icelolly-commerce-bridge/assets/admin.css": "923f21c96af9d4bf1b6a33a3fa2b0cfaa571a30220c069edf199fc0b17385d71",
+    "Website/plugins/icelolly-commerce-bridge/assets/admin.js": "a104c4972581253a382d113d19cfc528a304c078ce80013ac07d3bf098079846",
+    "Website/plugins/icelolly-commerce-bridge/assets/authoring-range.js": "4b0cbaf616da2bb8b0455cf28b8d282110a53701ba9577d1145a5b1199d861a2",
+    "Website/plugins/icelolly-commerce-bridge/assets/authoring.css": "1218e9fce71332f3b263e51ead52d8975dac40dd491f4cb3cde59947d0b8ecb1",
+    "Website/plugins/icelolly-commerce-bridge/assets/authoring.js": "dd06ff54328e2c892e3433ac9338f21bd364e4ef61c8af198299fc5b3a5ad74f",
+    "Website/plugins/icelolly-commerce-bridge/assets/batch.js": "e4d2810c96f1a72eac0443959c79ddc92437703dbaf842db1023042345946dc9",
+    "Website/plugins/icelolly-commerce-bridge/assets/bulk-model.js": "d7ae7cb4d21a4df5b2512e7e7c1a9913a758cd17b6072ebcb94fd51ebf9d0637",
+    "Website/plugins/icelolly-commerce-bridge/assets/bulk.css": "cc1d05ab2847a483a7b9434aac32bb950a6e09bde1c869ce1acb5764b7f9c843",
+    "Website/plugins/icelolly-commerce-bridge/assets/bulk.js": "e1bda38e732f0e9ef86037a7d0a2ce10846e32627ecd7aac3bebd62a3a2185c2",
+    "Website/plugins/icelolly-commerce-bridge/assets/commerce.js": "e82c8c367ac48b56e183ec1c265b09bbfaecb9562e92537010d7fbfcc86fe3e1",
+    "Website/plugins/icelolly-commerce-bridge/assets/contract.js": "cd1208e0c83a1dab01751d7b24d740b697bb4fd1626b838cc08090243feb3335",
+    "Website/plugins/icelolly-commerce-bridge/assets/delivery-settings.js": "6eda7738b7dbad9bc4b429da2716a6422c1f7dba5367107e82c5ba3cb0a52047",
+    "Website/plugins/icelolly-commerce-bridge/assets/delivery.js": "2791d2951b7faf9e1f58ca18136581cc81e8888eb55daafd62cc2f44fafb5a04",
+    "Website/plugins/icelolly-commerce-bridge/assets/dispatch-preview.css": "46b384c329aeec1f95ff81a784d54443467895029b2c075b0a7b06d841cc1782",
+    "Website/plugins/icelolly-commerce-bridge/assets/dispatch.js": "31ef7e481f1e12c8767452857a8feb821c9159d7ad7fb026f423b18e6eb21315",
+    "Website/plugins/icelolly-commerce-bridge/assets/drafts.js": "1bd59363ea1f181b7b8debf218d634f1b5a88903d8f3ae767f962723a0cb4b1f",
+    "Website/plugins/icelolly-commerce-bridge/assets/editorial-compose.js": "4a171986948cfbb3230677dd6bc36c042b825df5c273f21deea5aea613c007c9",
+    "Website/plugins/icelolly-commerce-bridge/assets/editorial.css": "eadd779f6b160cd705b742f860870e724539e164517665ab24146b7fb1624b20",
+    "Website/plugins/icelolly-commerce-bridge/assets/editorial.js": "8f0d6b1d1b762e8f59f96e7867a780fefd13f7b7df87e6d58bddac536024fdc1",
+    "Website/plugins/icelolly-commerce-bridge/assets/manual-form.js": "85c299116b2b2ac2cfdd4434713c6004f72a7ee421481959354f2b25385f1edf",
+    "Website/plugins/icelolly-commerce-bridge/assets/overview-model.js": "7d007e397172d9f181a1f2c023b7eaf0861de9cbf22934c3b0b62ef11c1014ba",
+    "Website/plugins/icelolly-commerce-bridge/assets/overview.js": "09fa97653a3548a869a37f0d3cb02a60632fe45826d9216e56a532512cb378d2",
+    "Website/plugins/icelolly-commerce-bridge/assets/packing-capacity-model.js": "3e973fc458b2bc646e08652ca6f07be5cb921b0f66bb074fec24219e19068d7a",
+    "Website/plugins/icelolly-commerce-bridge/assets/packing-capacity.css": "12c81dce9e7cff0cf58a3d07b1528e2e3a4f66fa3175b4f791487d03d62cc1bf",
+    "Website/plugins/icelolly-commerce-bridge/assets/packing-capacity.js": "6e6a454edb8a2acbbbc335c03aa8434b4e27a996d08fadb4333118abb28874d5",
+    "Website/plugins/icelolly-commerce-bridge/assets/photos.js": "a954b470aac53ed8d0fb1ba5760c3002e6ff9523ad862e156111a04cfd4a0dec",
+    "Website/plugins/icelolly-commerce-bridge/assets/price-reference.js": "82d610a3b1a28546274b36e9d3081e69aef3a23ba9ee9c7ee1c31f7757c54d0a",
+    "Website/plugins/icelolly-commerce-bridge/assets/product-list.js": "614f4142f2c03c96c6d4f81cd2f479f5a06223bfdfd4952117726bcda064f523",
+    "Website/plugins/icelolly-commerce-bridge/assets/registration.css": "c63f508c5dbce03ecf45c9437e1c59860496b402416ea596b59b4f590bfaaac9",
+    "Website/plugins/icelolly-commerce-bridge/assets/registration.js": "593f2ac7667c943be231c2d95a9394090e596f89d62769995cf757c5af30206b",
+    "Website/plugins/icelolly-commerce-bridge/assets/shipping-feedback.js": "058710f60f11dd67e5070ee7bd0c80622f7ab938c336a3290f0a488ea45e425a",
+    "Website/plugins/icelolly-commerce-bridge/assets/shipping-plans.css": "8a584267f89dc6f564b14cb96d3417acc69f0b4852aab2e7c59d3b21b18fd3aa",
+    "Website/plugins/icelolly-commerce-bridge/assets/shipping-plans.js": "77d5792da4f3adad35b66f8e3e641f58b2e619c9f654fb324354e629aaf67dce",
+    "Website/plugins/icelolly-commerce-bridge/assets/shipping-preview.js": "a2bf014ef38976bff9cc043a372f8206bbdd410737e24ca44168a06462fdfa2c",
+    "Website/plugins/icelolly-commerce-bridge/assets/shipping-quote.js": "1a61c0b870d43ba92785d0df3d61031e74ea2776ece3f3fb1a3d4351358f36c1",
+    "Website/plugins/icelolly-commerce-bridge/assets/shipping-reference.js": "b1218a2775322d60db8f4530dbfc87a46b5d11a0fc546a7dd20f7da27cc71ffb",
+    "Website/plugins/icelolly-commerce-bridge/assets/shipping.css": "59675c836bafae124b5de50bff5dc050051d017a5f1aab96158a6ec9e3fe2db3",
+    "Website/plugins/icelolly-commerce-bridge/assets/shipping.js": "a729a77432e6072b46582bc2e45cc49943b0339885c01447306aadccfdaaf00f",
+    "Website/plugins/icelolly-commerce-bridge/assets/size-catalog.js": "f85348b5276252bbeefbe7953db6c18857b5bcf88524cac9f34645a75e632953",
+    "Website/plugins/icelolly-commerce-bridge/assets/spec-translations.css": "64ac111ccee00b98bb35a95c83728cfc36961d3355fd971d91d89840f493e841",
+    "Website/plugins/icelolly-commerce-bridge/assets/spec-translations.js": "e80ae26a2c3c3d6ed340d9d55bba4894ac8378633840c5c791b38dba37a74fb4",
+    "Website/plugins/icelolly-commerce-bridge/assets/supplier-paste.js": "981ed3a7cfa0cc805ffb780465f059fe1646a3f76cfceb0bcae6c7319594ba9b",
+    "Website/plugins/icelolly-commerce-bridge/assets/supplier-stock.css": "591d50883f514e5b8e076722a558bd0834e25dd892a9a9398823f896e9d76eab",
+    "Website/plugins/icelolly-commerce-bridge/assets/supplier-stock.js": "17d157749d81db025b57f2398d870dfdedaca2f7f5d950aaec8f01e75a81549c",
+    "Website/plugins/icelolly-commerce-bridge/assets/supply.css": "6aa759911c4cf716f207d1e68a84c3ad0b54f8c78fb8df29f68e653c5abf1a52",
+    "Website/plugins/icelolly-commerce-bridge/assets/supply.js": "f762f0f92822396e10d6ce69c565cdbeaa73e4ec92e4d3e41ebdb8c2c30b2b64",
+    "Website/plugins/icelolly-commerce-bridge/authoring.php": "0493bd0de94bbfe8fb3cd6103bd1fbca723a304445222f7bef4f2fead045ec0a",
+    "Website/plugins/icelolly-commerce-bridge/bulk-import.php": "ca0fb025c9e35611228368ecf9cf340e5a408bd1c54f856e3c0758282a077df9",
+    "Website/plugins/icelolly-commerce-bridge/bulk.php": "6c42329aaddc979f892d6c295374fc49cfbfdcf97432758a72dab9e8609f4b40",
+    "Website/plugins/icelolly-commerce-bridge/cart-shipping-rehearsal.php": "680ce2ce0bb83fc25d042ff7979746b1f9aec20877b556f7287c8cb8936794b9",
+    "Website/plugins/icelolly-commerce-bridge/cart-tax-evidence.php": "152ed4beab73f551a89cc7aefcda394ce011fdafe43fda856f8a763570a6f697",
+    "Website/plugins/icelolly-commerce-bridge/classification.php": "bcfe0b3d2bf841542322af69a8a5840d5ace2fc918fa42dec4f522ded18a2a8d",
+    "Website/plugins/icelolly-commerce-bridge/commerce.php": "dc5988c6bfb320c67fb764f40e52ae254a6f54bff81414fbb2ebcda4484dd935",
+    "Website/plugins/icelolly-commerce-bridge/customer-notice-copy.php": "41ac278558f563d26e9491563c8fc1b0289665a0f2dd875645d86d189e11abee",
+    "Website/plugins/icelolly-commerce-bridge/delivery-settings.php": "def4c958e5dee9c576ad71c1466c72824b4b7b29841688091e5cf896aeecef7e",
+    "Website/plugins/icelolly-commerce-bridge/delivery.php": "2811be3e09a7e8c7cadf5c981b8d78eceb2e4d40944bc68e7ed193e1d85790bb",
+    "Website/plugins/icelolly-commerce-bridge/dispatch.php": "f965e55f69bcf7e3becd8605f8498c0fd32f19fb0bd40848edcf0317cc93aebe",
+    "Website/plugins/icelolly-commerce-bridge/drafts.php": "10c18046da26960ed03ca48b1d1466ed493be5ab15104769899331a394f295fd",
+    "Website/plugins/icelolly-commerce-bridge/drop-consent.php": "ff9c52034a9e47235c3258bfbb9aac294cec4b02014057058d42dead5669b53e",
+    "Website/plugins/icelolly-commerce-bridge/editorial-page.php": "8923048ccdadea0e1adf3863ba4aed1eebb11ae1ea65833cc0406c743f7483af",
+    "Website/plugins/icelolly-commerce-bridge/editorial.php": "6678b0a4ad52d93d40f44b932e90d6350008b7a996f8c933105da0a1575859c5",
+    "Website/plugins/icelolly-commerce-bridge/fixtures/preview.json": "d01f753a235f313ffd0e1ee5ab3acb59c44a14337f8ae71d012c8c0692abb32e",
+    "Website/plugins/icelolly-commerce-bridge/icelolly-commerce-bridge.php": "7d58cb652c7deb0a47c2523dee3d2a1ced03288a3a77c9ba6f5ec4fc14890364",
+    "Website/plugins/icelolly-commerce-bridge/japanpost-country-codes.json": "6e0fcbb436ce7ef2b87f39efec266faf6fb85b7fbf391607d5089237a5135670",
+    "Website/plugins/icelolly-commerce-bridge/japanpost-csv.php": "1b0548e91cca85b158c865df577cb969a1c92af1b40fcaeaa2393f32e3a42f62",
+    "Website/plugins/icelolly-commerce-bridge/manual-form.php": "591fe96a711df1016ef21f77c164eed64412b2c49391144fa6e6a92bcf4d2e9f",
+    "Website/plugins/icelolly-commerce-bridge/manufacturer-colors.php": "d5b03908eee64f0f8348d8f1f6fd65c6b91e78b905f58409cf5cb73cabf82f29",
+    "Website/plugins/icelolly-commerce-bridge/manufacturer-models.json": "11d2b2467b5414b418838c59e6482da85afd3eadd7836c4ff7621e130fe41a4b",
+    "Website/plugins/icelolly-commerce-bridge/mappings.php": "0f4a5391d0cf51c7cbb68ca3104ac3e3e9d7599ebbd1a0be155e168940cde06d",
+    "Website/plugins/icelolly-commerce-bridge/order-fulfillment.php": "9f134dcef2a1daece7455fe55c7160a02f416c8ea349b8f1aa1db11f7796077e",
+    "Website/plugins/icelolly-commerce-bridge/order-shipping.php": "b7e94cdc98f525f912c0585580e6c1edbb2c6405a1b89845194b6712db09a53a",
+    "Website/plugins/icelolly-commerce-bridge/overview.php": "cb86368630c3db8337cf543fd4fe9b8212d59882994d4c299acfa2341b72e0fe",
+    "Website/plugins/icelolly-commerce-bridge/packing-capacity.php": "548811d21eec7772cad2e58c345cd108bf3a4915213d37e366f9a505c0d2b8b4",
+    "Website/plugins/icelolly-commerce-bridge/packing.php": "c96b35ccd4bc1ab6dd6a20b5d8291558a5667b6dd92d8c17ff26366ba5a39bf7",
+    "Website/plugins/icelolly-commerce-bridge/photos.php": "bcfb55cec59fa07ace92fa3b652127b22167ae8694dbf60f3679dd99dae640b2",
+    "Website/plugins/icelolly-commerce-bridge/price-input.php": "6a525e1c8a4b726ec9a8a7ca775510dfc6143a482f9dcf8e196915a1c9dfcc20",
+    "Website/plugins/icelolly-commerce-bridge/product-list.php": "a2067dee172be484d9dcba334beabea3fdb55bacdd9f0e2287c852ab9d6f255c",
+    "Website/plugins/icelolly-commerce-bridge/product-notices.php": "cfa856d1e42606cf1c5644c6c187324e615be03e0188d56ad93e75692a8544fd",
+    "Website/plugins/icelolly-commerce-bridge/product-profile.php": "f7bf6391a34b3a4f7d4d5fc578c29ab998fe5b1c22629cccb98121164d7df603",
+    "Website/plugins/icelolly-commerce-bridge/registration.php": "095c8bd0d068c2aa887831ddc1434deb1cefe684f72a76dbccf8217d0fea801c",
+    "Website/plugins/icelolly-commerce-bridge/save-batch.php": "469f6c7a20a4595747424d3c80b9ae79c6c7f035c47037bbdd9513998ed6fbb0",
+    "Website/plugins/icelolly-commerce-bridge/shipment-tracking.php": "83abfdff80dc137947d0dedfeaa07e615aa16cdf09a7774b9772168ff7c40bb7",
+    "Website/plugins/icelolly-commerce-bridge/shipping-abilities.php": "c05384842cdf48c05273bd7093459de3e2ca178d22d9f3383047169986f6ea99",
+    "Website/plugins/icelolly-commerce-bridge/shipping-estimate-trial.php": "542ea5343db35a726de8f32f8d9bdb1353117bd759f426bfce0a894b781febc1",
+    "Website/plugins/icelolly-commerce-bridge/shipping-plans.php": "da8a6a5ea11e28396dae437b4c9b4b3b949c3b7b7e4756735444321df61817b6",
+    "Website/plugins/icelolly-commerce-bridge/shipping-preview.php": "487c6189e8bfb44803f26adb2257ea7ad64d458eb2751b1a2181ba63236c53ee",
+    "Website/plugins/icelolly-commerce-bridge/shipping-reference.php": "11f08d73a1516dad40735078e7ecfd5972d872a7b2cb7dd8b127b7cbdaeb117c",
+    "Website/plugins/icelolly-commerce-bridge/shipping-tax-preview.php": "bc7fc41ce1da2cd09930a71a69a689eb035b67447ec968584d1500fde37c1728",
+    "Website/plugins/icelolly-commerce-bridge/size-catalog-seed.json": "09696a1cb1d7ff3048590cf2275ac1aa05423382bd23034d983416864c627b1d",
+    "Website/plugins/icelolly-commerce-bridge/size-catalog.php": "a2050c1fe30a15db1019426863eed0c9620b581840ebc56a8177a9c640e0a6ff",
+    "Website/plugins/icelolly-commerce-bridge/spec-translations-page.php": "39e7daea45e7b8f6f7d17699a16b837fcd5404ffe270e540a18dc4bf5d905e25",
+    "Website/plugins/icelolly-commerce-bridge/spec-translations.php": "489f6799b2d58f493afc10e207d9d845be539c9bd1cb50821c1fdee8ebe8df65",
+    "Website/plugins/icelolly-commerce-bridge/stripe-tax-display.php": "59bae399310e24447f0fb93def68b2c4a9fadb2445d08a0238681b39eb8336cd",
+    "Website/plugins/icelolly-commerce-bridge/supplier-stock.php": "c00192f8dae0cea3a63bc355a68d9ab236eaf6585b9913f30097b197f45dd148",
+    "Website/plugins/icelolly-commerce-bridge/supply-page.php": "a4b75f5ba80705ff4dac35e08765de05b6939ca2d912f22372d8026dd725e574",
+    "Website/plugins/icelolly-commerce-bridge/supply.php": "c589c36029e189ff3bca56da739771fc692cab9bd878cbad36b540cd8bb19a97",
+    "Website/plugins/icelolly-commerce-bridge/tax-rest-shape.php": "fb1db34bf31d7a7b8751721902a4daa49492a248b1f6db3f735a7a5ce9246ee0",
+    "Website/tests/isolated-drop/wp-config.php": "1d88826966768960805e23970ffc7040d72efd59bf8e6e283037dfe07bee7ddf",
+    "Website/tests/run-woo-reservation.cjs": "8835e9694e154000075b28869e58d99efbd917f6c01584c8442b1022e2dc27a5",
+    "Website/tests/woo-crud-readonly.php": "d09ee60b24fa7da9632da27ef2bfcdd9c482dee9e92c411b5ee55ff55bba4511",
+    "Website/tests/woo-reservation-evidence.php": "d6ad9e61a0999bb5d05d9906a0c2a22cb1aa5962c334951b9f7a6a5502282629",
+    "Sales-Manager/isolated/method-b/.gitignore": "b982a92052dc5c0d5a138332a2ad5b4c63c3aa9370e2a6649dd0b27823c3bd87",
+    "Sales-Manager/isolated/method-b/README.md": "4c72b8d8e980bb43a8a4fae60198dfe19a2c19c7b4cbcf1f77beb9c50163cff9",
+    "Sales-Manager/isolated/method-b/api.test.mjs": "ceae63e64f08b07e067c343f81832e202d92eeef689490e9b8823420e4f3f4d6",
+    "Sales-Manager/isolated/method-b/event-release.mjs": "e993778b74f5ced0f5cada74cd728acfe88c0178a1e2d224e0a3442a300dc6e1",
+    "Sales-Manager/isolated/method-b/event-release.test.mjs": "6025aa3e1547eca37c980c1d8b6b82ce78465b867b8a9c592f6473a0541b0fbb",
+    "Sales-Manager/isolated/method-b/firebase.json": "7d269595379866e5bbe14522248c910af09f1f5404010be228c96f87b230a12e",
+    "Sales-Manager/isolated/method-b/firestore.rules": "82a0dee68f3de0c9da39b46b414e55d58d9be90804484580681b2ffe7dc9f883",
+    "Sales-Manager/isolated/method-b/http.mjs": "86c399bab0c2963f6794f0093cddbeb173a924aa690abcc74d34f7fa22b9e7e5",
+    "Sales-Manager/isolated/method-b/inventory.mjs": "55eb2e2e8c50f7d4fc168ac7a882171d75131ac9e4dc9a43f7a09aa20ff66251",
+    "Sales-Manager/isolated/method-b/package-lock.json": "60d3c5f5bd789b730b284c13e7fb50d874c1340ff7a2945336deb10d2353079b",
+    "Sales-Manager/isolated/method-b/package.json": "42ff09c599b395633c44aa46d8da893f67ec947481e64ff2191555d0a60e5da7",
+    "Sales-Manager/isolated/method-b/reservations.mjs": "14de4a301124da1a1f920a1d90771cd21d0e29f970205ca71a375e8af53c1ec2",
+    "Sales-Manager/isolated/method-b/reservations.test.mjs": "20db04e19fda146ce1a0d8ebdc732913f118fc3c41fa0c95aebdfa194ee5d722",
+    "Sales-Manager/isolated/method-b/run-tests.mjs": "9ae50a8bd4a4c7d4ae4ccc207d957fe640f50bb78536f408c900dba1aaf01051",
+    "Sales-Manager/isolated/method-b/runtime.mjs": "780a965320f6b7f63f40745403882bdf95a1cfe76858dcb91f2e48ab631b394e",
+    "Sales-Manager/isolated/method-b/woo-bridge.mjs": "830d14adf0d6df8568fd0831191e14f81bb69db12f05536aa04d35c529961741",
+    "Sales-Manager/isolated/method-b/woo-bridge.test.mjs": "bb05174ecc3ebdea3778a5be325afb8a9bcba543c57d7166728f6f46d3c42447",
+    "Sales-Manager/isolated/method-b/woo-order.mjs": "fdaf9358963bdae9727b083b147271cda1c0bbda2094b57c37f968462e598e72",
+    "Sales-Manager/isolated/method-b/woo-order.test.mjs": "fa1ba8e52f3ea063a936ec182dcaf393eed01d1ed051dd5a0580176a4312d746",
+    "Sales-Manager/isolated/method-b/woo-proof.mjs": "332d8f6391497c189110038edf0c1184f5330d391bb5f389c9e713991b953159"
+  },
+  "logs": {
+    "audit.json": "901a77e3f611633db832b3b09b58c132a4c59cae3184c18ae0205dc18091ea50",
+    "initial-93.tap": "89b700ae7402563b2e98cbd52decb162f54482a4d7f88df52356f0c817292898",
+    "local-launcher.cjs": "54914d159133b957cf691d417a51bcc51b75b90f52eb579cef43594fdf0af793",
+    "php-final-25.log": "b1f8743633c636d5b25dfc4ee4bf3fbc70767736ff63bcecab0d39230307b31b",
+    "php-node-final-14.tap": "3b800ff47ee1f9e77ec793f24a7dc806aef9db3ce0aaca4491e1feee5be9def3",
+    "php-sandbox-startup-failure.log": "5d2109b50a282caa53ff2df939455e9510b559bb419892887c63a8c19baa681f",
+    "syntax.json": "d7c7ac1e95d1a4a60c48400b91ac5b4fd3fc46ff2298351914834b6e2e32b2b8"
+  },
+  "protection": {
+    "worktrees": 27,
+    "previousHeadsAndDirtyFilesMatch": true,
+    "dirtyFiles": 97,
+    "dirtyFilesMatch": true,
+    "consentFiles": 6,
+    "consentMatch": true,
+    "baselineFiles": 220,
+    "baselineAllMatch": true,
+    "sqliteReuse": {
+      "pass": 158,
+      "executed": false,
+      "files": [
+        {
+          "path": "isolated/ec-purchase/allocation-sqlite-fixture.php",
+          "match": true
+        },
+        {
+          "path": "isolated/ec-purchase/allocation-sqlite-worker.php",
+          "match": true
+        },
+        {
+          "path": "isolated/ec-purchase/allocation-sqlite.test.py",
+          "match": true
+        },
+        {
+          "path": "isolated/ec-purchase/allocation-store-boundary.php",
+          "match": true
+        },
+        {
+          "path": "isolated/ec-purchase/allocation-store-boundary.test.php",
+          "match": true
+        },
+        {
+          "path": "isolated/ec-purchase/allocation-store-model.php",
+          "match": true
+        },
+        {
+          "path": "isolated/ec-purchase/allocation-store-sqlite.php",
+          "match": true
+        },
+        {
+          "path": "isolated/ec-purchase/bridge-policy.php",
+          "match": true
+        },
+        {
+          "path": "isolated/ec-purchase/catalog-checkout-gate.php",
+          "match": true
+        },
+        {
+          "path": "isolated/ec-purchase/catalog-checkout-gate.test.php",
+          "match": true
+        },
+        {
+          "path": "isolated/ec-purchase/consent-approved-copy.test.php",
+          "match": true
+        },
+        {
+          "path": "isolated/ec-purchase/consent-copy.php",
+          "match": true
+        },
+        {
+          "path": "isolated/ec-purchase/dispatch-consent-boundary.php",
+          "match": true
+        },
+        {
+          "path": "isolated/ec-purchase/dispatch-consent-boundary.test.php",
+          "match": true
+        },
+        {
+          "path": "isolated/ec-purchase/dispatch-consent-policy.test.php",
+          "match": true
+        },
+        {
+          "path": "isolated/ec-purchase/dispatch-evidence-manifest.php",
+          "match": true
+        },
+        {
+          "path": "isolated/ec-purchase/dispatch-evidence-manifest.test.php",
+          "match": true
+        },
+        {
+          "path": "isolated/ec-purchase/dispatch-quote-contract.php",
+          "match": true
+        },
+        {
+          "path": "isolated/ec-purchase/dispatch-quote-contract.test.php",
+          "match": true
+        },
+        {
+          "path": "isolated/ec-purchase/eligibility.php",
+          "match": true
+        },
+        {
+          "path": "isolated/ec-purchase/eligibility.test.php",
+          "match": true
+        },
+        {
+          "path": "isolated/ec-purchase/event-stock-transition.php",
+          "match": true
+        },
+        {
+          "path": "isolated/ec-purchase/event-stock-transition.test.php",
+          "match": true
+        },
+        {
+          "path": "isolated/ec-purchase/finished-capacity.test.php",
+          "match": true
+        },
+        {
+          "path": "isolated/ec-purchase/finished-sqlite.test.py",
+          "match": true
+        },
+        {
+          "path": "isolated/ec-purchase/order-allocation-transition.php",
+          "match": true
+        },
+        {
+          "path": "isolated/ec-purchase/order-allocation-transition.test.php",
+          "match": true
+        },
+        {
+          "path": "isolated/ec-purchase/order-capacity-adapter.php",
+          "match": true
+        },
+        {
+          "path": "isolated/ec-purchase/order-capacity-adapter.test.php",
+          "match": true
+        },
+        {
+          "path": "isolated/ec-purchase/purchase-consent-v4.php",
+          "match": true
+        },
+        {
+          "path": "isolated/ec-purchase/purchase-consent-v4.test.php",
+          "match": true
+        },
+        {
+          "path": "isolated/ec-purchase/purchase-consent.php",
+          "match": true
+        },
+        {
+          "path": "isolated/ec-purchase/purchase-consent.test.php",
+          "match": true
+        },
+        {
+          "path": "isolated/ec-purchase/stock-writer-transition.php",
+          "match": true
+        },
+        {
+          "path": "isolated/ec-purchase/stock-writer-worker.php",
+          "match": true
+        },
+        {
+          "path": "isolated/ec-purchase/stock-writer.test.cjs",
+          "match": true
+        },
+        {
+          "path": "isolated/ec-purchase/verify-catalog-gate-v2.py",
+          "match": true
+        },
+        {
+          "path": "isolated/ec-purchase/woo-allocation-store.php",
+          "match": true
+        },
+        {
+          "path": "isolated/ec-purchase/woo-allocation-store.test.php",
+          "match": true
+        },
+        {
+          "path": "isolated/ec-purchase/woo-crud-readonly.php",
+          "match": true
+        },
+        {
+          "path": "isolated/ec-purchase/woo-order-snapshot.php",
+          "match": true
+        },
+        {
+          "path": "isolated/ec-purchase/woo-order-snapshot.test.php",
+          "match": true
+        },
+        {
+          "path": "isolated/ec-purchase/woo-order-transform.php",
+          "match": true
+        },
+        {
+          "path": "isolated/ec-purchase/woo-order-transform.test.php",
+          "match": true
+        },
+        {
+          "path": "isolated/ec-purchase/woo-product-evidence.php",
+          "match": true
+        },
+        {
+          "path": "isolated/ec-capacity/capacity.php",
+          "match": true
+        },
+        {
+          "path": "isolated/ec-capacity/capacity.test.php",
+          "match": true
+        },
+        {
+          "path": "isolated/ec-calendar/audit-prior.cjs",
+          "match": true
+        },
+        {
+          "path": "isolated/ec-calendar/calendar.php",
+          "match": true
+        },
+        {
+          "path": "isolated/ec-calendar/calendar.test.php",
+          "match": true
+        }
+      ]
+    }
+  },
+  "history": [
+    "Initial sandbox PHP SQLite directory writable failure before tests (raw log retained).",
+    "Initial elevated WP bootstrap failed before tests; copied MU paths aligned to new checkout; bootstrap raw HTML was not retained separately. PHP24 then PHP25 passed.",
+    "Node loopback-only metadata lookup blocked warnings; WordPress theme initialization notices in local runtime error log. No external-service access enabled."
+  ],
+  "limits": [
+    "Real WP/Woo runtime, copied isolated fixture SQLite HPOS DB; not a production-store DB copy.",
+    "SQLite fixture revision/policy is not a production authority. No full writer closure, restore/epoch or production source revision.",
+    "No MySQL HPOS, real network transport, live POS/browser, production Rules/IAM or Staging acceptance tests.",
+    "No MTO/material/task/shipping/Stripe/confirm/refund/expiry integration."
+  ],
+  "commands": [
+    "node Website/tests/run-woo-order.cjs test",
+    "node run-emulator.cjs \"node --test --test-concurrency=1 --test-timeout=60000 --test-reporter=tap woo-order-php.test.mjs woo-order.test.mjs woo-bridge.test.mjs reservations.test.mjs event-release.test.mjs\"",
+    "node run-emulator.cjs \"node --test --test-concurrency=1 --test-timeout=60000 --test-reporter=tap woo-order-php.test.mjs\""
+  ]
+}

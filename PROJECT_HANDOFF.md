@@ -1,3 +1,7 @@
+# EC共通数量writer — 2026-10-27 JST
+
+方式B #123 `6eda78b` の既存手動APIを再利用し、T-shirt/Accessoriesの絶対数量変更にEC＋イベント確保下限とv2 operation receiptを接続。Firestore/Auth Emulator **37 PASS / 0 FAIL / 0 SKIP**。専用Draftの隔離サーバー実装で、実アプリUI・確保producer・POS全writerは未接続。配備・購入解禁不可。実装契約、証拠、次工程は [EC_SHARED_WRITER_20261027.md](docs/EC_SHARED_WRITER_20261027.md)。下記の過去状態よりこの追補と対象PRの最新HEADを優先。
+
 # 工程A原因切分け — 2026-10-12 JST
 
 最新再開指示により原因究明・隔離検証・設計比較だけを実施。製品コード/Rulesは未修正。32件を再実行し安全合格26・競合失敗3・危険許可再現3で不変。11条件の最小実験でrevision制約によるRules拒否がSDKの再試行可能な版不一致より先に表面化することを確認。追加3プローブで差分制約の限界・receipt偽装の影響・架空3 UID認可案を検証。[診断報告と証拠](docs/EC_STAGE_A_DIAGNOSIS_2026-10-12.md)。Website #22に方式比較を記録。**サーバーAPI案は推奨のみ、採用未承認。工程A配備不可・工程B着手不可で停止。**
@@ -755,3 +759,9 @@ Approved 2026-10-11: Activate the event reservation when the operator confirms a
 Approved 2026-10-11: At event end, final physical counting and operator confirmation of the remaining stock for each identified SKU releases that SKU's unsold event hold into ecommerce saleable finished stock. Do not wait for physical return to Japan. A Session close action alone, or an unresolved/partial count, must not automatically release an unconfirmed SKU hold. Preserve existing partial close and pending allocation rules: release identified and confirmed SKU holds independently; hold unknown/Quick related quantities conservatively until they are resolved. Reuse the existing final count workflow; do not create duplicate data entry.
 
 The website shipping schedule separately excludes travel departure through final return date and other nonbusiness days, so saleability after event close does not imply shipment while overseas. If confirmed counts later prove wrong and an online buyer has paid, the ecommerce side flags the issue and prepares an individually reviewed message offering waiting, substitution or refund. Do not infer an exact SKU or silently alter the online order. Confirmed rule 2026-10-11: Partial final inventory confirmation must release the event EC hold per verified SKU even if other SKUs, unidentified Quick sales, or the overall event close remain unresolved. Do not block all SKU releases behind a full Session reconciliation. Retain holds for only the unconfirmed or unresolved quantities; display the unresolved cases for later follow-up. Do not fabricate SKU allocations or perform a second canonical stock decrement when reconciling a hold. The precise hold persistence contract and the representation of unidentified SKUs still need implementation verification. Documentation change only.
+
+
+## 2026-10-27 Codex: reservation producer and T-shirt API connection
+
+Server producer, source/SKU binding, reconciliation checkpoint and read-only result lookup implemented. Final affected suites: manual API 38, producer 20, T-shirt client+A1 23, actual client to HTTP/Auth/Firestore 3 PASS, all 0 FAIL / 0 SKIP. SQLite 158 reused after 50 source hash matches. See [implementation, evidence and remaining gates](docs/EC_RESERVATION_PRODUCER_20261027.md). Disabled/unreleased; real Woo/Session adapters, all old writers, production identities/Rules and Staging acceptance remain incomplete. No deploy, purchase enablement, real stock write or merge.
+

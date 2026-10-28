@@ -1,0 +1,109 @@
+[36m[1mi  emulators:[22m[39m Starting emulators: auth, firestore
+[36m[1mi  emulators:[22m[39m Detected demo project ID "demo-icelolly-method-b", emulated services will use a demo configuration and attempts to access non-emulated services for this project will fail.
+[36m[1mi  firestore:[22m[39m Firestore Emulator logging to [1mfirestore-debug.log[22m
+[32m[1m+  firestore:[22m[39m Firestore Emulator was started in standard edition.
+[32m[1m+  firestore:[22m[39m Firestore Emulator UI websocket is running on 9152.
+[36m[1mi [22m[39m Running script: [1mnode --test --test-concurrency=1 --test-timeout=60000 --test-reporter=tap woo-order-php.test.mjs[22m
+TAP version 13
+# (node:31112) MetadataLookupWarning: received unexpected error = All promises were rejected code = ETIMEDOUT, ENOTFOUND
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: H01 actual PHP HPOS proof -> authenticated Node -> mixed atomic hold and same SKU two rows
+ok 1 - H01 actual PHP HPOS proof -> authenticated Node -> mixed atomic hold and same SKU two rows
+  ---
+  duration_ms: 13825.2144
+  type: 'test'
+  ...
+# Subtest: H change add after commit retains original holds and latches review
+ok 2 - H change add after commit retains original holds and latches review
+  ---
+  duration_ms: 10631.8861
+  type: 'test'
+  ...
+# Subtest: H change delete after commit retains original holds and latches review
+ok 3 - H change delete after commit retains original holds and latches review
+  ---
+  duration_ms: 9520.3145
+  type: 'test'
+  ...
+# Subtest: H change quantity after commit retains original holds and latches review
+ok 4 - H change quantity after commit retains original holds and latches review
+  ---
+  duration_ms: 9353.8218
+  type: 'test'
+  ...
+# Subtest: H change aba after commit retains original holds and latches review
+ok 5 - H change aba after commit retains original holds and latches review
+  ---
+  duration_ms: 10882.7767
+  type: 'test'
+  ...
+# Subtest: H change mapping after commit retains original holds and latches review
+ok 6 - H change mapping after commit retains original holds and latches review
+  ---
+  duration_ms: 9295.311
+  type: 'test'
+  ...
+# Subtest: H07 HPOS postflight ABA retains holds and latches review
+ok 7 - H07 HPOS postflight ABA retains holds and latches review
+  ---
+  duration_ms: 9394.6696
+  type: 'test'
+  ...
+# Subtest: H08 consumed PHP proof challenge replay rejected
+ok 8 - H08 consumed PHP proof challenge replay rejected
+  ---
+  duration_ms: 5735.3332
+  type: 'test'
+  ...
+# Subtest: H09 cross-site PHP proof rejected by bridge
+ok 9 - H09 cross-site PHP proof rejected by bridge
+  ---
+  duration_ms: 6482.8686
+  type: 'test'
+  ...
+# Subtest: H10 response loss after Firestore commit recovers persistent operation/receipt via lookup
+ok 10 - H10 response loss after Firestore commit recovers persistent operation/receipt via lookup
+  ---
+  duration_ms: 8102.345
+  type: 'test'
+  ...
+# Subtest: H11 prior single-line fence prevents PHP order hold
+ok 11 - H11 prior single-line fence prevents PHP order hold
+  ---
+  duration_ms: 5839.8393
+  type: 'test'
+  ...
+# Subtest: H12 Firestore stop denies PHP proof with no partial writes
+ok 12 - H12 Firestore stop denies PHP proof with no partial writes
+  ---
+  duration_ms: 6937.2358
+  type: 'test'
+  ...
+# Subtest: H13 saved Woo copy policy stop denies entire order
+ok 13 - H13 saved Woo copy policy stop denies entire order
+  ---
+  duration_ms: 6892.39
+  type: 'test'
+  ...
+# Subtest: H14 server reader rejects request-supplied plan overrides and foreign site
+ok 14 - H14 server reader rejects request-supplied plan overrides and foreign site
+  ---
+  duration_ms: 5632.5758
+  type: 'test'
+  ...
+1..14
+# tests 14
+# suites 0
+# pass 14
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 119527.7086
+[32m[1m+ [22m[39m Script exited successfully (code 0)
+[36m[1mi  emulators:[22m[39m Shutting down emulators.
+[36m[1mi  firestore:[22m[39m Stopping Firestore Emulator
+[33m[1m! [22m[39m Firestore Emulator has exited upon receiving signal: SIGINT
+[36m[1mi  auth:[22m[39m Stopping Authentication Emulator
+[36m[1mi  hub:[22m[39m Stopping emulator hub
+[36m[1mi  logging:[22m[39m Stopping Logging Emulator

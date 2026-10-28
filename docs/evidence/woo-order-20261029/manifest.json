@@ -1,0 +1,87 @@
+{
+  "dateJST": "2026-10-29",
+  "baseHeads": {
+    "Sales-Manager": "95720dc9cec053bec3d4b44525e255e1f79692b3",
+    "Website": "de537bb1843fbad2d6762635cd5b0cdad22acb56",
+    "T-shirts-Stock": "64d935d48df433c66a393e9aff02f7d0a0ded9b6",
+    "Accessories": "b3badb712e0b36d42aa475f49da0c2e83348e996"
+  },
+  "scope": "Isolated server completed-order snapshot to atomic finished-goods hold only; no multi-line PHP issuer, no production or payment readiness",
+  "executed": {
+    "regression": {
+      "pass": 52,
+      "fail": 0,
+      "skip": 0,
+      "log": "initial-74.tap"
+    },
+    "orderFinal": {
+      "pass": 27,
+      "fail": 0,
+      "skip": 0,
+      "log": "order-final-27.tap"
+    },
+    "effectiveTotal": 79,
+    "syntax": 3,
+    "phpNewTests": 0
+  },
+  "superseded": {
+    "initialOrderPass": 22,
+    "reason": "Historical receipt validation and five cases added; final 27 replaces initial 22"
+  },
+  "reused": {
+    "sqlitePass": 158,
+    "executed": false,
+    "sourceHashesMatched": 50,
+    "audit": "audit.json"
+  },
+  "history": [
+    "Sandbox hub startup failed before tests; raw startup-failure.log retained. Same fixed loopback demo launcher succeeded outside sandbox.",
+    "Junction dependency link denied; copied existing locked dependencies instead.",
+    "Raw Accessories blob mismatch was CRLF-only; remote content and normalized LF hash verified. T-shirt raw blob matches remote (line endings preserved).",
+    "No test assertion failures occurred in either actual emulator run."
+  ],
+  "sources": {
+    "isolated/method-b/woo-order.mjs": "fdaf9358963bdae9727b083b147271cda1c0bbda2094b57c37f968462e598e72",
+    "isolated/method-b/woo-order.test.mjs": "fa1ba8e52f3ea063a936ec182dcaf393eed01d1ed051dd5a0580176a4312d746",
+    "isolated/method-b/woo-bridge.mjs": "830d14adf0d6df8568fd0831191e14f81bb69db12f05536aa04d35c529961741",
+    "isolated/method-b/woo-bridge.test.mjs": "bb05174ecc3ebdea3778a5be325afb8a9bcba543c57d7166728f6f46d3c42447",
+    "isolated/method-b/reservations.mjs": "14de4a301124da1a1f920a1d90771cd21d0e29f970205ca71a375e8af53c1ec2",
+    "isolated/method-b/reservations.test.mjs": "20db04e19fda146ce1a0d8ebdc732913f118fc3c41fa0c95aebdfa194ee5d722",
+    "isolated/method-b/event-release.mjs": "e993778b74f5ced0f5cada74cd728acfe88c0178a1e2d224e0a3442a300dc6e1",
+    "isolated/method-b/event-release.test.mjs": "6025aa3e1547eca37c980c1d8b6b82ce78465b867b8a9c592f6473a0541b0fbb",
+    "isolated/method-b/inventory.mjs": "55eb2e2e8c50f7d4fc168ac7a882171d75131ac9e4dc9a43f7a09aa20ff66251",
+    "isolated/method-b/runtime.mjs": "780a965320f6b7f63f40745403882bdf95a1cfe76858dcb91f2e48ab631b394e",
+    "isolated/method-b/woo-proof.mjs": "332d8f6391497c189110038edf0c1184f5330d391bb5f389c9e713991b953159",
+    "isolated/method-b/firestore.rules": "82a0dee68f3de0c9da39b46b414e55d58d9be90804484580681b2ffe7dc9f883",
+    "isolated/method-b/firebase.json": "7d269595379866e5bbe14522248c910af09f1f5404010be228c96f87b230a12e",
+    "isolated/method-b/package-lock.json": "60d3c5f5bd789b730b284c13e7fb50d874c1340ff7a2945336deb10d2353079b"
+  },
+  "logs": {
+    "initial-74.tap": "1ff7c7c5994f2fb1b3786e82ddeb410ce025d57a963eda455cbbc101e35c60d7",
+    "order-final-27.tap": "26da88ee9bb87fb17ed6438fdd42f241f19b9dee5f414519f94317b97f0f4305",
+    "startup-failure.log": "5565374d21e983da05d4a0ecb6c0f5060e808f8ecca0ea5c041815b14d005146",
+    "audit.json": "32557f735712532408041caa121f86d78f42f4faf93cd407be3071b540e65572",
+    "local-launcher.cjs": "e7ba28b88cbbace0dcc7e0e58d10319b811ea98ab8a6053831bf2eebed6c7744"
+  },
+  "commands": [
+    "node woo-order-20261029/run-emulator.cjs \"node --test --test-concurrency=1 --test-timeout=60000 --test-reporter=tap woo-order.test.mjs woo-bridge.test.mjs reservations.test.mjs event-release.test.mjs\"",
+    "node woo-order-20261029/run-emulator.cjs \"node --test --test-concurrency=1 --test-timeout=60000 --test-reporter=tap woo-order.test.mjs\""
+  ],
+  "notRun": [
+    "Multi-line PHP/HPOS issuer integration",
+    "MTO capacity/material/task/shipping integration",
+    "Live/Staging/POS/payment/Rules IAM/deployment"
+  ],
+  "preservation": {
+    "worktrees": 27,
+    "previousWorktreesMatched": 26,
+    "dirtyFilesMatched": 97,
+    "consentFilesMatched": 6
+  },
+  "portsClosed": [
+    8087,
+    9098,
+    4402,
+    4502
+  ]
+}

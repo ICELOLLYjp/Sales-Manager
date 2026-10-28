@@ -1,0 +1,665 @@
+i  emulators: Starting emulators: auth, firestore
+i  emulators: Detected demo project ID "demo-icelolly-method-b", emulated services will use a demo configuration and attempts to access non-emulated services for this project will fail.
+i  firestore: Firestore Emulator logging to firestore-debug.log
++  firestore: Firestore Emulator was started in standard edition.
++  firestore: Firestore Emulator UI websocket is running on 9152.
+i  Running script: node --test --test-concurrency=1 --test-timeout=60000 --test-reporter=tap api.test.mjs reservations.test.mjs
+TAP version 13
+# (node:27200) MetadataLookupWarning: received unexpected error = All promises were rejected code = UNKNOWN
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: Q01 result lookup never creates a write; lost reply resolves exact original operation
+ok 1 - Q01 result lookup never creates a write; lost reply resolves exact original operation
+  ---
+  duration_ms: 1578.3155
+  type: 'test'
+  ...
+# Subtest: B01 all three verified synthetic UIDs can edit through verified Auth tokens
+ok 2 - B01 all three verified synthetic UIDs can edit through verified Auth tokens
+  ---
+  duration_ms: 181.2283
+  type: 'test'
+  ...
+# Subtest: B02 outsider, unverified, missing and malformed token denied without effects
+ok 3 - B02 outsider, unverified, missing and malformed token denied without effects
+  ---
+  duration_ms: 90.5485
+  type: 'test'
+  ...
+# Subtest: B03 expired, wrong-project and disabled-user tokens denied
+ok 4 - B03 expired, wrong-project and disabled-user tokens denied
+  ---
+  duration_ms: 46.0543
+  type: 'test'
+  ...
+# [2026-10-27T11:07:42.445Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b0ed error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:07:42.460Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b0ee error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L9
+# [2026-10-27T11:07:42.469Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b0ef error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-27T11:07:42.481Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b0f0 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:07:42.503Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b0f1 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L9
+# [2026-10-27T11:07:42.518Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b0f2 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-27T11:07:42.535Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b0f3 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:07:42.549Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b0f4 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L9
+# [2026-10-27T11:07:42.565Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b0f5 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-27T11:07:42.583Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b0f6 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:07:42.590Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b0f7 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L9
+# [2026-10-27T11:07:42.611Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b0f8 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-27T11:07:42.620Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b0f9 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:07:42.626Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b0fa error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L9
+# [2026-10-27T11:07:42.642Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b0fb error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-27T11:07:42.659Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b0fc error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:07:42.673Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b0fd error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L9
+# [2026-10-27T11:07:42.689Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b0fe error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-27T11:07:42.696Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b0ff error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:07:42.703Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b100 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L9
+# [2026-10-27T11:07:42.720Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b101 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-27T11:07:42.737Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b102 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:07:42.750Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b103 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L9
+# [2026-10-27T11:07:42.756Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b104 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-27T11:07:42.766Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b105 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:07:42.771Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b106 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L9
+# [2026-10-27T11:07:42.780Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b107 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-27T11:07:42.798Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b108 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:07:42.813Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b109 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L9
+# [2026-10-27T11:07:42.819Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b10a error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-27T11:07:42.827Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b10b error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:07:42.843Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b10c error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L9
+# [2026-10-27T11:07:42.850Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b10d error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-27T11:07:42.859Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b10e error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:07:42.874Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b10f error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L9
+# [2026-10-27T11:07:42.880Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b110 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-27T11:07:42.890Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b111 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:07:42.904Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b112 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L9
+# [2026-10-27T11:07:42.919Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b113 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-27T11:07:42.926Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b114 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:07:42.949Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b115 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:07:42.956Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b116 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L9
+# [2026-10-27T11:07:42.964Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b117 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-27T11:07:42.981Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b118 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:07:42.988Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b119 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L9
+# [2026-10-27T11:07:42.995Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b11a error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-27T11:07:43.015Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b11b error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:07:43.027Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b11c error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L9
+# [2026-10-27T11:07:43.043Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b11d error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-27T11:07:43.049Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b11e error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:07:43.057Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b11f error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L9
+# [2026-10-27T11:07:43.075Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b120 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-27T11:07:43.091Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b121 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:07:43.106Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b122 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L9
+# [2026-10-27T11:07:43.121Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b123 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-27T11:07:43.138Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b124 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:07:43.154Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b125 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L9
+# [2026-10-27T11:07:43.159Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b126 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-27T11:07:43.170Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b127 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:07:43.184Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b128 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L9
+# [2026-10-27T11:07:43.189Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b129 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-27T11:07:43.200Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b12a error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:07:43.215Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b12b error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L9
+# [2026-10-27T11:07:43.221Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b12c error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-27T11:07:43.227Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b12d error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:07:43.246Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b12e error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L9
+# [2026-10-27T11:07:43.251Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b12f error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-27T11:07:43.260Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b130 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:07:43.270Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b131 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L9
+# [2026-10-27T11:07:43.277Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b132 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-27T11:07:43.295Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b133 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:07:43.300Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b134 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L9
+# [2026-10-27T11:07:43.307Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b135 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-27T11:07:43.324Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b136 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:07:43.329Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b137 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L9
+# [2026-10-27T11:07:43.339Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b138 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-27T11:07:43.345Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b139 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:07:43.355Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b13a error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L9
+# [2026-10-27T11:07:43.370Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b13b error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-27T11:07:43.397Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b13c error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:07:43.436Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b13d error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:07:43.442Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b13e error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L9
+# [2026-10-27T11:07:43.447Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b13f error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-27T11:07:43.465Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b140 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:07:43.481Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b141 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L9
+# [2026-10-27T11:07:43.487Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b142 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-27T11:07:43.493Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b143 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:07:43.511Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b144 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L9
+# [2026-10-27T11:07:43.527Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b145 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-27T11:07:43.543Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b146 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:07:43.558Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b147 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L9
+# [2026-10-27T11:07:43.574Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b148 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-27T11:07:43.589Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b149 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:07:43.594Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b14a error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L9
+# [2026-10-27T11:07:43.605Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b14b error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-27T11:07:43.621Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b14c error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:07:43.635Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b14d error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L9
+# [2026-10-27T11:07:43.651Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b14e error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-27T11:07:43.667Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b14f error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:07:43.683Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b150 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L9
+# [2026-10-27T11:07:43.698Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b151 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-27T11:07:43.715Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b152 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:07:43.737Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b153 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L9
+# [2026-10-27T11:07:43.752Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b154 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-27T11:07:43.766Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b155 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:07:43.778Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b156 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L9
+# [2026-10-27T11:07:43.787Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b157 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-27T11:07:43.807Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b158 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:07:43.811Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b159 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L9
+# [2026-10-27T11:07:43.815Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b15a error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-27T11:07:43.823Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b15b error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:07:43.828Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b15c error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L9
+# [2026-10-27T11:07:43.837Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b15d error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-27T11:07:43.861Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b15e error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:07:43.871Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b15f error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L9
+# [2026-10-27T11:07:43.879Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b160 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-27T11:07:43.903Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b161 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:07:43.912Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b162 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'update' @ L9
+# [2026-10-27T11:07:43.933Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b163 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-27T11:07:43.943Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b164 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# Subtest: B04 client direct create/update/delete denied across canonical and related paths
+ok 5 - B04 client direct create/update/delete denied across canonical and related paths
+  ---
+  duration_ms: 1803.644
+  type: 'test'
+  ...
+# [2026-10-27T11:07:44.058Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b166 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:07:44.132Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b168 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:07:44.182Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x1b44b16a error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# Subtest: B05 rules reject outsider, unverified and unauthenticated reads and writes
+ok 6 - B05 rules reject outsider, unverified and unauthenticated reads and writes
+  ---
+  duration_ms: 219.2205
+  type: 'test'
+  ...
+# Subtest: B06 entire map, arbitrary path/patch and extra nested fields rejected
+ok 7 - B06 entire map, arbitrary path/patch and extra nested fields rejected
+  ---
+  duration_ms: 64.0261
+  type: 'test'
+  ...
+# Subtest: B07 malformed quantities, revisions, IDs and operation types rejected
+ok 8 - B07 malformed quantities, revisions, IDs and operation types rejected
+  ---
+  duration_ms: 56.6588
+  type: 'test'
+  ...
+# Subtest: B08 known legacy forged receipt cannot suppress edit
+ok 9 - B08 known legacy forged receipt cannot suppress edit
+  ---
+  duration_ms: 113.6384
+  type: 'test'
+  ...
+# Subtest: B09 replay is once only and different input using same ID is rejected
+ok 10 - B09 replay is once only and different input using same ID is rejected
+  ---
+  duration_ms: 135.5751
+  type: 'test'
+  ...
+# Subtest: B10 same ID concurrent requests commit one effect and one receipt
+ok 11 - B10 same ID concurrent requests commit one effect and one receipt
+  ---
+  duration_ms: 3208.243
+  type: 'test'
+  ...
+# Subtest: B11 same SKU concurrent absolute quantities produce one commit and safe conflict
+ok 12 - B11 same SKU concurrent absolute quantities produce one commit and safe conflict
+  ---
+  duration_ms: 3508.7628
+  type: 'test'
+  ...
+# Subtest: B12 different SKU stale revision safely rejected, no lost unrelated quantity (not C01 both-success)
+ok 13 - B12 different SKU stale revision safely rejected, no lost unrelated quantity (not C01 both-success)
+  ---
+  duration_ms: 3349.6285
+  type: 'test'
+  ...
+# Subtest: B13 lost HTTP reply after real commit then later edit and replay does not roll back
+ok 14 - B13 lost HTTP reply after real commit then later edit and replay does not roll back
+  ---
+  duration_ms: 156.9669
+  type: 'test'
+  ...
+# Subtest: B14 non-target SKU, cell metadata, master and Timestamp preserved
+ok 15 - B14 non-target SKU, cell metadata, master and Timestamp preserved
+  ---
+  duration_ms: 53.9726
+  type: 'test'
+  ...
+# Subtest: B15 accessory updates by stable ID preserving other records and unknown
+ok 16 - B15 accessory updates by stable ID preserving other records and unknown
+  ---
+  duration_ms: 130.2187
+  type: 'test'
+  ...
+# Subtest: B16 null/missing quantity and unregistered SKU refused without converting to zero
+ok 17 - B16 null/missing quantity and unregistered SKU refused without converting to zero
+  ---
+  duration_ms: 114.0914
+  type: 'test'
+  ...
+# Subtest: B17 known zero permitted but negative count rejected; missing revision migrates once
+ok 18 - B17 known zero permitted but negative count rejected; missing revision migrates once
+  ---
+  duration_ms: 89.3715
+  type: 'test'
+  ...
+# Subtest: B18 malformed stored revision and absent canonical reject without receipt
+ok 19 - B18 malformed stored revision and absent canonical reject without receipt
+  ---
+  duration_ms: 206.4513
+  type: 'test'
+  ...
+# Subtest: B19 real commit failure leaves neither inventory change nor receipt
+ok 20 - B19 real commit failure leaves neither inventory change nor receipt
+  ---
+  duration_ms: 112.9386
+  type: 'test'
+  ...
+# Subtest: B20 expected quantity mismatch and ABA revision mismatch safely rejected
+ok 21 - B20 expected quantity mismatch and ABA revision mismatch safely rejected
+  ---
+  duration_ms: 149.6329
+  type: 'test'
+  ...
+# Subtest: B21 receipt evidence matches atomic effect and malformed server receipt fails closed
+ok 22 - B21 receipt evidence matches atomic effect and malformed server receipt fails closed
+  ---
+  duration_ms: 96.2975
+  type: 'test'
+  ...
+# Subtest: B22 duplicate accessory IDs refused and SKU keys containing dot are not treated as paths
+ok 23 - B22 duplicate accessory IDs refused and SKU keys containing dot are not treated as paths
+  ---
+  duration_ms: 87.8923
+  type: 'test'
+  ...
+# Subtest: B23 anonymous Auth token and revoked ID token rejected
+ok 24 - B23 anonymous Auth token and revoked ID token rejected
+  ---
+  duration_ms: 28.2377
+  type: 'test'
+  ...
+# Subtest: B24 isolation guards fail closed before production access
+ok 25 - B24 isolation guards fail closed before production access
+  ---
+  duration_ms: 12.1175
+  type: 'test'
+  ...
+# Subtest: B25 final safe revision remains replayable but cannot overflow
+ok 26 - B25 final safe revision remains replayable but cannot overflow
+  ---
+  duration_ms: 117.2175
+  type: 'test'
+  ...
+# Subtest: F01 both stock types enforce EC plus event floor, equality succeeds
+ok 27 - F01 both stock types enforce EC plus event floor, equality succeeds
+  ---
+  duration_ms: 205.034
+  type: 'test'
+  ...
+# Subtest: F02 missing/incomplete/malformed reservation evidence fails closed
+ok 28 - F02 missing/incomplete/malformed reservation evidence fails closed
+  ---
+  duration_ms: 370.3503
+  type: 'test'
+  ...
+# Subtest: F03 confirmed replaces held identity; duplicates and overflow refused
+ok 29 - F03 confirmed replaces held identity; duplicates and overflow refused
+  ---
+  duration_ms: 124.1382
+  type: 'test'
+  ...
+# Subtest: F04 released holds excluded, other SKU commitments and metadata preserved
+ok 30 - F04 released holds excluded, other SKU commitments and metadata preserved
+  ---
+  duration_ms: 61.4256
+  type: 'test'
+  ...
+# Subtest: F05 caller cannot substitute zero floor or a reservation ledger
+ok 31 - F05 caller cannot substitute zero floor or a reservation ledger
+  ---
+  duration_ms: 31.1703
+  type: 'test'
+  ...
+# Subtest: F06 historical receipt replays after later holds and rejects tampered floor proof
+ok 32 - F06 historical receipt replays after later holds and rejects tampered floor proof
+  ---
+  duration_ms: 140.7073
+  type: 'test'
+  ...
+# Subtest: F07 old v1 receipt cannot bypass the new floor contract
+ok 33 - F07 old v1 receipt cannot bypass the new floor contract
+  ---
+  duration_ms: 95.7745
+  type: 'test'
+  ...
+# Subtest: F08 count versus concurrent EC+event reservation has no floor violation
+ok 34 - F08 count versus concurrent EC+event reservation has no floor violation
+  ---
+  duration_ms: 3172.8153
+  type: 'test'
+  ...
+# Subtest: F09 reservation-only revision change invalidates stale absolute count (ABA)
+ok 35 - F09 reservation-only revision change invalidates stale absolute count (ABA)
+  ---
+  duration_ms: 121.2668
+  type: 'test'
+  ...
+# Subtest: F10 a/b/a concurrent count retains one effect per accepted receipt under holds
+ok 36 - F10 a/b/a concurrent count retains one effect per accepted receipt under holds
+  ---
+  duration_ms: 3573.1167
+  type: 'test'
+  ...
+# Subtest: F11 floor rejection and real transaction failure preserve all reservation evidence
+ok 37 - F11 floor rejection and real transaction failure preserve all reservation evidence
+  ---
+  duration_ms: 78.302
+  type: 'test'
+  ...
+# Subtest: F12 missing or malformed historical reservation proof cannot replay
+ok 38 - F12 missing or malformed historical reservation proof cannot replay
+  ---
+  duration_ms: 175.5458
+  type: 'test'
+  ...
+# (node:23112) MetadataLookupWarning: received unexpected error = All promises were rejected code = UNKNOWN
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: P01 held to confirmed replaces identity and advances revision; release and replay
+ok 39 - P01 held to confirmed replaces identity and advances revision; release and replay
+  ---
+  duration_ms: 456.1284
+  type: 'test'
+  ...
+# Subtest: P02 concurrent same ID has one effect; changed intent rejected
+ok 40 - P02 concurrent same ID has one effect; changed intent rejected
+  ---
+  duration_ms: 3601.2716
+  type: 'test'
+  ...
+# Subtest: P03 same and different SKU conflicts use shared canonical revision
+ok 41 - P03 same and different SKU conflicts use shared canonical revision
+  ---
+  duration_ms: 6903.8051
+  type: 'test'
+  ...
+# Subtest: P04 EC plus event floor rejects overbooking and manual below floor
+ok 42 - P04 EC plus event floor rejects overbooking and manual below floor
+  ---
+  duration_ms: 156.9628
+  type: 'test'
+  ...
+# Subtest: P05 zero, unknown and unregistered stock fail safely
+ok 43 - P05 zero, unknown and unregistered stock fail safely
+  ---
+  duration_ms: 132.9287
+  type: 'test'
+  ...
+# Subtest: P06 missing/incomplete/tampered ledger and forged complete flag rejected
+ok 44 - P06 missing/incomplete/tampered ledger and forged complete flag rejected
+  ---
+  duration_ms: 148.7434
+  type: 'test'
+  ...
+# Subtest: P07 authority must cover both sources and exact ledger hash
+ok 45 - P07 authority must cover both sources and exact ledger hash
+  ---
+  duration_ms: 218.5202
+  type: 'test'
+  ...
+# Subtest: P08 service auth rejects browser, other producer, missing/expired and revoked user
+ok 46 - P08 service auth rejects browser, other producer, missing/expired and revoked user
+  ---
+  duration_ms: 33.5972
+  type: 'test'
+  ...
+# [2026-10-27T11:08:16.926Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x37f55d38 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:08:16.939Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x37f55d39 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-27T11:08:16.952Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x37f55d3a error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:08:16.974Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x37f55d3b error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-27T11:08:16.988Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x37f55d3c error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:08:16.999Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x37f55d3d error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-27T11:08:17.014Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x37f55d3e error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:08:17.028Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x37f55d3f error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-27T11:08:17.047Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x37f55d40 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:08:17.053Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x37f55d41 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-27T11:08:17.062Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x37f55d42 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:08:17.067Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x37f55d43 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-27T11:08:17.077Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x37f55d44 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:08:17.081Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x37f55d45 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-27T11:08:17.104Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x37f55d46 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:08:17.122Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x37f55d47 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-27T11:08:17.127Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x37f55d48 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:08:17.138Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x37f55d49 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-27T11:08:17.143Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x37f55d4a error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:08:17.155Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x37f55d4b error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-27T11:08:17.171Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x37f55d4c error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:08:17.186Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x37f55d4d error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-27T11:08:17.201Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x37f55d4e error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:08:17.216Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x37f55d4f error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-27T11:08:17.233Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x37f55d50 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:08:17.247Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x37f55d51 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# [2026-10-27T11:08:17.253Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x37f55d52 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L9, false for 'update' @ L9
+# [2026-10-27T11:08:17.261Z]  @firebase/firestore: Firestore (11.0.2): GrpcConnection RPC 'Write' stream 0x37f55d53 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'delete' @ L9
+# Subtest: P09 old client whole-map/init/queue/authority/receipt writes denied
+ok 47 - P09 old client whole-map/init/queue/authority/receipt writes denied
+  ---
+  duration_ms: 415.3785
+  type: 'test'
+  ...
+# Subtest: P10 lost response and server restart replay original ID
+ok 48 - P10 lost response and server restart replay original ID
+  ---
+  duration_ms: 123.6462
+  type: 'test'
+  ...
+# Subtest: P11 forged historical receipt result and ledger rejected
+ok 49 - P11 forged historical receipt result and ledger rejected
+  ---
+  duration_ms: 204.4103
+  type: 'test'
+  ...
+# Subtest: P12 atomic rollback includes ledger authority physical and receipt
+ok 50 - P12 atomic rollback includes ledger authority physical and receipt
+  ---
+  duration_ms: 95.7971
+  type: 'test'
+  ...
+# Subtest: P13 sale reduces physical and event remainder once, return binds original sale
+ok 51 - P13 sale reduces physical and event remainder once, return binds original sale
+  ---
+  duration_ms: 262.1156
+  type: 'test'
+  ...
+# Subtest: P14 reserve/count/sale contention commits only one and preserves EC floor
+ok 52 - P14 reserve/count/sale contention commits only one and preserves EC floor
+  ---
+  duration_ms: 3021.787
+  type: 'test'
+  ...
+# Subtest: P15 no implicit release by time or session close, no arbitrary caller ledger
+ok 53 - P15 no implicit release by time or session close, no arbitrary caller ledger
+  ---
+  duration_ms: 76.9103
+  type: 'test'
+  ...
+# Subtest: P16 accessory uses same producer and preserves metadata and other SKU
+ok 54 - P16 accessory uses same producer and preserves metadata and other SKU
+  ---
+  duration_ms: 61.5049
+  type: 'test'
+  ...
+# Subtest: P17 held confirmed released ABA invalidates old manual revision
+ok 55 - P17 held confirmed released ABA invalidates old manual revision
+  ---
+  duration_ms: 127.66
+  type: 'test'
+  ...
+# Subtest: P18 refund cannot invent sale or use other identity / quantity
+ok 56 - P18 refund cannot invent sale or use other identity / quantity
+  ---
+  duration_ms: 188.638
+  type: 'test'
+  ...
+1..56
+# tests 56
+# suites 0
+# pass 56
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 42246.7871
++  Script exited successfully (code 0)
+i  emulators: Shutting down emulators.
+i  firestore: Stopping Firestore Emulator
+!  Firestore Emulator has exited upon receiving signal: SIGINT
+i  auth: Stopping Authentication Emulator
+i  hub: Stopping emulator hub
+i  logging: Stopping Logging Emulator

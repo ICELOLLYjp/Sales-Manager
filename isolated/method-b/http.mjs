@@ -7,7 +7,7 @@ export function server({db,auth}) {
   return http.createServer(async(req,res)=>{
     const send=(status,body)=>{res.writeHead(status,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(body));};
     try {
-      if(req.method!=='POST'||req.url!=='/v1/inventory/manual-edit') throw new ApiError(404,'not-found');
+      if(req.method!=='POST'||!['/v1/inventory/manual-edit','/v1/inventory/manual-edit/result'].includes(req.url)) throw new ApiError(404,'not-found');
       const match=/^Bearer (\S+)$/.exec(req.headers.authorization||'');
       if(!match) throw new ApiError(401,'unauthenticated');
       let claims;
@@ -18,7 +18,7 @@ export function server({db,auth}) {
       for await(const chunk of req) {bytes+=chunk.length;if(bytes>8192) throw new ApiError(413,'payload-too-large'); chunks.push(chunk);}
       let input;
       try {input=JSON.parse(Buffer.concat(chunks).toString('utf8'));} catch {throw new ApiError(400,'invalid-json');}
-      send(200,await editInventory(db,claims.uid,input));
+      send(200,await editInventory(db,claims.uid,input,{lookupOnly:req.url.endsWith('/result')}));
     } catch(error) {
       const status=error instanceof ApiError?error.status:[4,10,14].includes(error.code)?503:500;
       send(status,{error:error instanceof ApiError?error.code:status===503?'temporarily-unavailable':'internal-error'});
