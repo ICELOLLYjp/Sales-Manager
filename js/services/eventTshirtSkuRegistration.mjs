@@ -94,3 +94,44 @@ export function planEventTshirtSkuRegistration({
   }
   return {rows, excluded};
 }
+
+
+/**
+ * Compare the actual POS "SKU未登録" cells with fresh Firestore state.
+ * Do not infer that an empty registration plan means the POS is correct.
+ */
+export function diagnoseVisibleMissingTshirtSkus({
+  visibleMissingIds = [], openingItems = [], registeredVariants = [],
+  plan = {rows: [], excluded: []}
+} = {}) {
+  const visible = [...new Set((visibleMissingIds || []).map(clean).filter(Boolean))];
+  const openingById = new Map((openingItems || [])
+    .filter(x => x?.variantId)
+    .map(x => [clean(x.variantId), x]));
+  const registry = new Set((registeredVariants || [])
+    .map(x => clean(x.variantId || x.id)).filter(Boolean));
+  const planned = new Set((plan.rows || []).map(x => clean(x.variantId)));
+  const errors = new Map((plan.excluded || [])
+    .filter(x => x?.variantId)
+    .map(x => [clean(x.variantId), clean(x.reason)]));
+  const output = {
+    visible: visible.length, registeredInDb: 0, missingFromOpening: 0,
+    eligible: 0, excluded: 0, unexplained: 0,
+    statuses: []
+  };
+  for (const variantId of visible) {
+    const opening = openingById.get(variantId);
+    const status = !opening ? "not_in_opening"
+      : registry.has(variantId) ? "already_registered_in_db"
+      : planned.has(variantId) ? "eligible"
+      : errors.has(variantId) ? "excluded"
+      : "unexplained";
+    output.statuses.push({variantId, status, reason: errors.get(variantId) || ""});
+    if (status === "already_registered_in_db") output.registeredInDb += 1;
+    else if (status === "not_in_opening") output.missingFromOpening += 1;
+    else if (status === "eligible") output.eligible += 1;
+    else if (status === "excluded") output.excluded += 1;
+    else output.unexplained += 1;
+  }
+  return output;
+}
