@@ -77,6 +77,7 @@ async function readPlan(sessionId, visibleIds = []) {
     diagnosis: diagnoseVisibleMissingTshirtSkus({
       visibleMissingIds: visibleIds,
       openingItems: count.opening.items,
+      flowEntries: count.flowEntries || [],
       registeredVariants,
       plan
     })
