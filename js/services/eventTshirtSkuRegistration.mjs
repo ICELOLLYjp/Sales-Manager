@@ -101,13 +101,19 @@ export function planEventTshirtSkuRegistration({
  * Do not infer that an empty registration plan means the POS is correct.
  */
 export function diagnoseVisibleMissingTshirtSkus({
-  visibleMissingIds = [], openingItems = [], registeredVariants = [],
+  visibleMissingIds = [], openingItems = [], flowEntries = [], registeredVariants = [],
   plan = {rows: [], excluded: []}
 } = {}) {
   const visible = [...new Set((visibleMissingIds || []).map(clean).filter(Boolean))];
   const openingById = new Map((openingItems || [])
     .filter(x => x?.variantId)
     .map(x => [clean(x.variantId), x]));
+  for (const entry of flowEntries || []) {
+    if (!["restock","opening_correction"].includes(entry?.type) ||
+        !entry?.variantId || !entry?.item || entry.item.category !== "tshirt") continue;
+    const id = clean(entry.variantId);
+    if (!openingById.has(id)) openingById.set(id, entry.item);
+  }
   const registry = new Set((registeredVariants || [])
     .map(x => clean(x.variantId || x.id)).filter(Boolean));
   const planned = new Set((plan.rows || []).map(x => clean(x.variantId)));
