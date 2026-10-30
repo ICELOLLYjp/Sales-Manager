@@ -89,6 +89,31 @@ export function mergeEventTshirtPosRows(
     });
   }
 
+  // Use one saved event label per canonical design/body/color group.
+  // Pinkoi names can differ between sizes and must not split one POS row.
+  const namesByGroup = new Map();
+  for (const source of openingItems || []) {
+    if (source?.category !== "tshirt") continue;
+    const ids = tshirtIds(source.variantId);
+    if (!ids) continue;
+    const groupId = JSON.stringify(ids.slice(0, 3));
+    const label = string(source.label);
+    const parts = string(source.detail).split("/").map(part => part.trim());
+    if (!label) continue;
+    if (!namesByGroup.has(groupId)) namesByGroup.set(groupId, new Map());
+    const names = namesByGroup.get(groupId);
+    const normalized = JSON.stringify([label, parts[0] || "", parts[1] || ""]);
+    names.set(normalized, { label, body: parts[0], color: parts[1] });
+  }
+  for (const row of byId.values()) {
+    const groupId = JSON.stringify([row.bodyId, row.designId, row.colorId]);
+    const names = namesByGroup.get(groupId);
+    if (!names || names.size !== 1) continue;
+    const eventName = [...names.values()][0];
+    row.design = eventName.label;
+    if (eventName.body) row.body = eventName.body;
+    if (eventName.color) row.color = eventName.color;
+  }
   return [...byId.values()];
 }
 

@@ -100,3 +100,29 @@ test("before event opening, registered zero stock is not shown merely because a 
   assert.deepEqual(filterTshirtRowsForPosContext(rows, false).map(row => row.variantId), [id("xl")]);
   assert.deepEqual(filterTshirtRowsForPosContext(rows, true).map(row => row.variantId), [id("s"), id("xl")]);
 });
+
+
+test("event uses one canonical Gull label even when Pinkoi registered sizes use another title", () => {
+  const eventOpening = [
+    { ...opening[0], label: "Gull", detail: "Organic / Beige Grey / S" },
+    { ...opening[1], label: "Gull", detail: "Organic / Beige Grey / M" }
+  ];
+  const displayRows = [
+    { ...globalRows[0], design: "Gulls and Lemons", body: "Organic", color: "Beige Grey",
+      bodyId: "vintage", designId: "deep", colorId: "vintage_purple", sizeId: "xl", variantId: id("xl") }
+  ];
+  const mix = mergeEventTshirtPosRows(displayRows, eventOpening, [], registered);
+  const group = mix.filter(row => ["s","m","xl"].includes(row.sizeId));
+  assert.equal(group.length, 3);
+  assert.deepEqual([...new Set(group.map(row => row.design))], ["Gull"]);
+  assert.deepEqual([...new Set(group.map(row => row.body))], ["Organic"]);
+});
+
+test("ambiguous saved names do not silently rename a canonical SKU group", () => {
+  const conflicting = [
+    { ...opening[0], label: "Gull" },
+    { ...opening[1], label: "Different artwork" }
+  ];
+  const rows = mergeEventTshirtPosRows(globalRows, conflicting, [], registered);
+  assert.equal(rows.find(row => row.variantId === id("xl")).design, "DEEP");
+});
