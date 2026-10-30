@@ -1,4 +1,4 @@
-import { planEventTshirtSkuRegistration } from "./services/eventTshirtSkuRegistration.mjs";
+import { planEventTshirtSkuRegistration, diagnoseVisibleMissingTshirtSkus } from "./services/eventTshirtSkuRegistration.mjs";
 import { listAllProductVariants, registerTshirtVariant } from "./services/productAdminService.js";
 import { tshirtAdapter } from "./inventoryAdapters/tshirtAdapter.js";
 import { loadEventInventoryCount } from "./services/inventoryCountService.js";
@@ -18,7 +18,40 @@ function showMessage(message, error = false) {
   }
 }
 
-async function readPlan(sessionId) {
+function visibleMissingSkuIds() {
+  return [...new Set(Array.from(document.querySelectorAll("button.posSkuItem"))
+    .filter(button => button.textContent.includes("SKU未登録"))
+    .map(button => String(button.dataset.variantId || "").trim())
+    .filter(Boolean))];
+}
+
+function diagnosisMessage(plan) {
+  const d = plan.diagnosis;
+  if (!d.visible) {
+    return "現在表示中のPOSには未登録SKUが見つかりません。SKU画面を開き直してから確認してください。";
+  }
+  const parts = [
+    "POS上の未登録 " + d.visible + " SKU",
+    "Firestoreに登録済み " + d.registeredInDb,
+    "イベント開始在庫のIDに一致しない " + d.missingFromOpening,
+    "登録条件を満たさない " + (d.excluded + d.unexplained)
+  ];
+  if (d.registeredInDb === d.visible) {
+    return parts.join("、") + "。商品データは登録済みです。POSのQuickからSKUへ切り替えて再取得してください。";
+  }
+  if (d.missingFromOpening) {
+    return parts.join("、") + "。POSとイベント在庫のSKU IDが不一致です。自動登録せず照合が必要です。";
+  }
+  if (d.excluded || d.unexplained) {
+    const first = d.statuses.filter(x => ["excluded","unexplained"].includes(x.status)).slice(0, 3);
+    return parts.join("、") + "。照合理由：" +
+      first.map(x => x.variantId + "（" + (x.reason || "追加判定不一致") + "）").join("、") +
+      "。実在庫を変更せず停止しました。";
+  }
+  return parts.join("、") + "。登録候補がゼロです。POSの表示を再読込してください。";
+}
+
+async function readPlan(sessionId, visibleIds = []) {
   const [count, registeredVariants, masterOptions, sessions] = await Promise.all([
     loadEventInventoryCount(sessionId),
     listAllProductVariants(),
@@ -32,13 +65,23 @@ async function readPlan(sessionId) {
   if (!Array.isArray(count?.opening?.items)) {
     throw new Error("イベント開始在庫が未登録です。");
   }
-  return planEventTshirtSkuRegistration({
+  const plan = planEventTshirtSkuRegistration({
     openingItems: count.opening.items,
     flowEntries: count.flowEntries || [],
     soldByVariant: count.soldByVariant || {},
     registeredVariants,
     masterOptions
   });
+  return {
+    ...plan,
+    diagnosis: diagnoseVisibleMissingTshirtSkus({
+      visibleMissingIds: visibleIds,
+      openingItems: count.opening.items,
+      flowEntries: count.flowEntries || [],
+      registeredVariants,
+      plan
+    })
+  };
 }
 
 async function registerMissingSku() {
@@ -53,12 +96,12 @@ async function registerMissingSku() {
   button.disabled = true;
   button.textContent = "在庫と登録情報を確認中";
   try {
-    const initial = await readPlan(sessionId);
+    const missingIds = visibleMissingSkuIds();
+    const initial = await readPlan(sessionId, missingIds);
     if (selectedSessionId() !== sessionId) throw new Error("イベントが切り替わりました。");
     if (!initial.rows.length) {
-      showMessage(initial.excluded.length
-        ? "登録できないSKUが " + initial.excluded.length + " 件あります。マスターIDと在庫キーを確認してください。"
-        : "追加登録が必要なSKUはありません。");
+      showMessage(diagnosisMessage(initial), Boolean(initial.diagnosis.missingFromOpening ||
+        initial.diagnosis.excluded || initial.diagnosis.unexplained));
       return;
     }
     const message = initial.rows.length + " SKUの商品情報を登録しますか？\n" +
@@ -68,7 +111,7 @@ async function registerMissingSku() {
       showMessage("SKU登録はキャンセルしました。");
       return;
     }
-    const current = await readPlan(sessionId);
+    const current = await readPlan(sessionId, missingIds);
     const expected = initial.rows.map(r => r.variantId).sort().join("|");
     const actual = current.rows.map(r => r.variantId).sort().join("|");
     if (selectedSessionId() !== sessionId || expected !== actual) {
