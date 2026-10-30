@@ -1,5 +1,5 @@
 const CACHE_NAME =
-  "icelolly-sales-shell-20261030-pos-canonical-group-1";
+  "icelolly-sales-shell-20261030-pos-sku-registration-2";
 
 const CORE_ASSETS = [
   "./",
@@ -39,6 +39,8 @@ const CORE_ASSETS = [
   "./js/eventLateSkuResolutionSessionsUi.js",
   "./js/posUxEnhancements.js",
   "./js/fastPosUi.js",
+  "./js/eventTshirtSkuRepairUi.js",
+  "./js/services/eventTshirtSkuRegistration.mjs",
   "./js/fastPosModeEnhancement.js",
   "./js/fastPosSessionEnhancement.js",
   "./js/transactionHistorySearch.js",
