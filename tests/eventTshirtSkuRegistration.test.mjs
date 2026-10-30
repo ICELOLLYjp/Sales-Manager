@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { planEventTshirtSkuRegistration } from "../js/services/eventTshirtSkuRegistration.mjs";
+import { planEventTshirtSkuRegistration, diagnoseVisibleMissingTshirtSkus } from "../js/services/eventTshirtSkuRegistration.mjs";
 
 const mk = size => {
   const ids = ["organic", "gull", "beige_grey", size.toLowerCase()];
@@ -90,4 +90,58 @@ test("page includes missing SKU repair controller and never replaces sale transa
   assert.match(script,/window\.confirm/);
   assert.match(script,/registerTshirtVariant/);
   assert.doesNotMatch(script,/saveEventOpeningInventory|changeStock|commitQuickSale/);
+});
+
+test("empty registration plan does not disguise a POS item missing from event records", () => {
+  const unknown = "tshirt__organic__gull__beige_grey__xxl";
+  const d = diagnoseVisibleMissingTshirtSkus({
+    visibleMissingIds:[unknown], openingItems, registeredVariants, plan:{rows:[],excluded:[]}
+  });
+  assert.equal(d.visible,1);
+  assert.equal(d.missingFromOpening,1);
+  assert.equal(d.registeredInDb,0);
+});
+
+test("POS can be stale when fresh Firestore registry already contains visible SKU", () => {
+  const d = diagnoseVisibleMissingTshirtSkus({
+    visibleMissingIds:[openingItems[1].variantId,openingItems[1].variantId],
+    openingItems,registeredVariants,plan:{rows:[],excluded:[]}
+  });
+  assert.equal(d.visible,1);
+  assert.equal(d.registeredInDb,1);
+  assert.equal(d.missingFromOpening,0);
+});
+
+test("live mismatch diagnosis distinguishes eligible rows from excluded and unexplained", () => {
+  const ids = openingItems.map(x=>x.variantId);
+  const d = diagnoseVisibleMissingTshirtSkus({
+    visibleMissingIds:[ids[0],ids[1],ids[2],ids[3]],
+    openingItems,registeredVariants:[{variantId:ids[1]}],
+    plan:{
+      rows:[{variantId:ids[0]}],
+      excluded:[{variantId:ids[2],reason:"stock_key_mismatch"}]
+    }
+  });
+  assert.deepEqual([d.eligible,d.registeredInDb,d.excluded,d.unexplained],[1,1,1,1]);
+  assert.equal(d.statuses[2].reason,"stock_key_mismatch");
+});
+
+test("restock-only event item is not incorrectly treated as absent", () => {
+  const id = openingItems[0].variantId;
+  const d = diagnoseVisibleMissingTshirtSkus({
+    visibleMissingIds:[id],
+    openingItems:[],
+    flowEntries:[{variantId:id,type:"restock",quantity:4,item:openingItems[0]}],
+    plan:{rows:[{variantId:id}],excluded:[]}
+  });
+  assert.equal(d.missingFromOpening,0);
+  assert.equal(d.eligible,1);
+});
+
+test("POS repair no-candidate message must disclose visible missing SKU diagnosis", () => {
+  const src = readFileSync(new URL("../js/eventTshirtSkuRepairUi.js",import.meta.url),"utf8");
+  assert.match(src,/diagnoseVisibleMissingTshirtSkus/);
+  assert.match(src,/registeredInDb/);
+  assert.match(src,/missingFromOpening/);
+  assert.doesNotMatch(src,/追加登録が必要なSKUはありません/);
 });
