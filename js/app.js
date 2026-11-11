@@ -6643,6 +6643,14 @@ async function renderSessions(
         countTransactions;
     }
 
+    // Shared by the inventory panel and its edit/reset button handlers.
+    const activeInventoryTransactions =
+      eventInventoryTransactions.filter(
+        transaction => transaction.status !== "voided"
+      );
+    const openingInventoryLocked =
+      activeInventoryTransactions.length > 0;
+
     const categoryCostHistories =
       selectedDetailSession
         ? await loadAllCategoryCostHistories()
@@ -7893,18 +7901,6 @@ async function renderSessions(
               const inventorySessionPending =
                 selectedInventoryCountSession?.status ===
                 "pending_allocation";
-
-              const activeInventoryTransactions =
-                eventInventoryTransactions
-                  .filter(
-                    transaction =>
-                      transaction.status !==
-                      "voided"
-                  );
-
-              const openingInventoryLocked =
-                activeInventoryTransactions.length >
-                0;
 
               const openingEditMode =
                 !inventorySessionClosed &&
