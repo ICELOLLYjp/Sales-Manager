@@ -18,6 +18,18 @@ const BUTTON_ID = "fastPosOpenButton";
 const OVERLAY_ID = "fastPosOverlay";
 let stripeToken = 0;
 
+function closeFastPosOverlay() {
+  const overlay = document.getElementById(OVERLAY_ID);
+  if (!overlay) return true;
+  if (overlay.dataset.checkoutPending === "true") {
+    window.alert("会計処理中です。完了またはキャンセル後に移動してください。");
+    return false;
+  }
+  stripeToken += 1;
+  overlay.remove();
+  return true;
+}
+
 function text(value) {
   return String(value ?? "").trim();
 }
@@ -83,13 +95,13 @@ function installStyles() {
   style.textContent = `
     #${BUTTON_ID}{min-height:36px;padding:0 14px;border:1px solid #185fa5;border-radius:18px;background:#eaf4ff;color:#185fa5;font:800 13px system-ui,sans-serif}
     #${OVERLAY_ID}{position:fixed;top:var(--fp-top-offset,0px);right:0;bottom:0;left:0;z-index:12000;background:#f5f5f2;color:#1f1f1f;overflow:auto;-webkit-overflow-scrolling:touch}
-    #${OVERLAY_ID} .fp-head{max-width:480px;margin:0 auto;padding:16px 16px 10px;background:#f5f5f2}
-    #${OVERLAY_ID} .fp-history-row{display:flex;justify-content:flex-end;align-items:center;margin-bottom:10px}
+    #${OVERLAY_ID} .fp-head{position:sticky;top:0;z-index:2;max-width:480px;margin:0 auto;padding:12px 16px 10px;background:#f5f5f2;border-bottom:1px solid #e1e1dc}
+    #${OVERLAY_ID} .fp-history-row{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px}
     #${OVERLAY_ID} .fp-title-row{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
     #${OVERLAY_ID} .fp-title-row strong{font:800 24px/1.2 system-ui,sans-serif}
     #${OVERLAY_ID} .fp-history{min-height:42px;padding:0 14px;border:1px solid #deded9;border-radius:12px;background:#f3f3f0;color:#222;font:800 13px system-ui;white-space:nowrap}
     #${OVERLAY_ID} .fp-currency{min-width:76px;min-height:44px;padding:0 12px;border:1px solid #deded9;border-radius:12px;background:#fff;color:#555;font:800 14px system-ui;text-align:center;opacity:1;-webkit-text-fill-color:#555}
-    #${OVERLAY_ID} .fp-close[hidden]{display:none}
+    #${OVERLAY_ID} .fp-close{min-height:42px;padding:0 14px;border:1px solid #b9b9b4;border-radius:12px;background:#fff;color:#222;font:800 13px system-ui;white-space:nowrap}
     #${OVERLAY_ID} .fp-wrap{max-width:480px;margin:auto;padding:12px 10px calc(30px + env(safe-area-inset-bottom))}
     #${OVERLAY_ID} .fp-card{background:#fff;border:1px solid #e1e1dc;border-radius:16px;padding:12px;margin-bottom:10px}
     #${OVERLAY_ID} .fp-session{font-size:12px;color:#666;line-height:1.45}
@@ -173,8 +185,7 @@ function cardTitle(label) {
 }
 
 async function openActiveSessionHistory(sessionId) {
-  stripeToken += 1;
-  document.getElementById(OVERLAY_ID)?.remove();
+  if (!closeFastPosOverlay()) return;
 
   const sessionsNav = document.querySelector('.nav-btn[data-route="sessions"]');
   if (!sessionsNav) return;
@@ -221,6 +232,7 @@ async function openFastPos() {
   overlay.innerHTML = `
     <div class="fp-head">
       <div class="fp-history-row">
+        <button class="fp-close" type="button" aria-label="最速POSを閉じて通常POSへ戻る">POSへ戻る</button>
         <button class="fp-history" type="button">会計履歴</button>
       </div>
       <div class="fp-title-row">
@@ -229,7 +241,6 @@ async function openFastPos() {
           <option selected>${esc(currency)}</option>
         </select>
       </div>
-      <button class="fp-close" type="button" hidden aria-label="最速POSを閉じる"></button>
     </div>
     <div class="fp-wrap">
       <section class="fp-card">
@@ -301,10 +312,7 @@ async function openFastPos() {
     renderAmount();
   }
 
-  overlay.querySelector(".fp-close")?.addEventListener("click", () => {
-    stripeToken += 1;
-    overlay.remove();
-  });
+  overlay.querySelector(".fp-close")?.addEventListener("click", closeFastPosOverlay);
 
   overlay.querySelectorAll(".fp-key").forEach(button => {
     button.addEventListener("click", () => {
@@ -342,6 +350,7 @@ SKU・商品数は未分類のまま保存します。`)) return;
 
     manualButton.disabled = true;
     stripeButton.disabled = true;
+    overlay.dataset.checkoutPending = "true";
     setStatus("会計中…");
 
     const transactionId = makeTransactionId();
@@ -371,6 +380,8 @@ SKU・商品数は未分類のまま保存します。`)) return;
     } catch (error) {
       setStatus(error?.message || String(error), "err");
       renderAmount();
+    } finally {
+      delete overlay.dataset.checkoutPending;
     }
   });
 
@@ -389,6 +400,7 @@ SKU・商品数は未分類のまま保存します。`)) return;
 
     manualButton.disabled = true;
     stripeButton.disabled = true;
+    overlay.dataset.checkoutPending = "true";
     setStatus("Stripe QRを作成中…");
 
     try {
@@ -406,6 +418,7 @@ SKU・商品数は未分類のまま保存します。`)) return;
       statusEl.querySelector("#fpCancelStripe")?.addEventListener("click", async () => {
         stripeToken += 1;
         try { await expireStripeCheckout(transactionId); } catch {}
+        delete overlay.dataset.checkoutPending;
         setStatus("Stripe会計をキャンセルしました。");
         renderAmount();
       });
@@ -432,6 +445,7 @@ SKU・商品数は未分類のまま保存します。`)) return;
             console.warn("Stripe committed marker failed", error);
           }
           stripeToken += 1;
+          delete overlay.dataset.checkoutPending;
           setStatus(`Stripe支払い完了。${formatAmount(total, currency)} を未分類売上として保存しました。`, "ok");
           setTimeout(resetSale, 1100);
           return;
@@ -439,6 +453,7 @@ SKU・商品数は未分類のまま保存します。`)) return;
 
         if (latest?.status === "expired" || latest?.status === "complete" && latest?.paymentStatus !== "paid") {
           stripeToken += 1;
+          delete overlay.dataset.checkoutPending;
           setStatus("Stripe会計は完了しませんでした。", "err");
           renderAmount();
           return;
@@ -446,10 +461,12 @@ SKU・商品数は未分類のまま保存します。`)) return;
       }
 
       if (token === stripeToken) {
+        delete overlay.dataset.checkoutPending;
         setStatus("支払い確認がタイムアウトしました。会計履歴とStripe状態を確認してください。", "err");
         renderAmount();
       }
     } catch (error) {
+      delete overlay.dataset.checkoutPending;
       setStatus(error?.message || String(error), "err");
       renderAmount();
     }
@@ -463,6 +480,21 @@ SKU・商品数は未分類のまま保存します。`)) return;
     });
   }
 }
+
+// Route changes must close the Fast POS layer so it cannot block the next screen.
+document.addEventListener("click", event => {
+  if (!(event.target instanceof Element) || !event.target.closest(".bottom-nav [data-route]")) return;
+  if (!closeFastPosOverlay()) {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  }
+}, true);
+
+document.addEventListener("keydown", event => {
+  if (event.key === "Escape" && document.getElementById(OVERLAY_ID) && closeFastPosOverlay()) {
+    event.preventDefault();
+  }
+});
 
 new MutationObserver(ensureButton).observe(document.body, { childList: true, subtree: true });
 window.addEventListener("online", () => {
