@@ -69,7 +69,11 @@ async function openHistoryReliably() {
     return;
   }
 
-  document.getElementById("fastPosOverlay")?.remove();
+  const fastOverlay = document.getElementById("fastPosOverlay");
+  if (fastOverlay) {
+    fastOverlay.querySelector(".fp-close")?.click();
+    if (document.getElementById("fastPosOverlay")) return;
+  }
 
   const sessionsNav = document.querySelector('.nav-btn[data-route="sessions"]');
   if (!sessionsNav) return;

@@ -122,6 +122,7 @@ function switchFromFastOverlay(mode) {
   if (mode === "fast") return;
   const overlay = document.getElementById(FAST_OVERLAY_ID);
   overlay?.querySelector(".fp-close")?.click();
+  if (document.getElementById(FAST_OVERLAY_ID)) return;
 
   window.setTimeout(() => {
     const target = document.getElementById(mode === "sku" ? "posModeSku" : "posModeQuick");

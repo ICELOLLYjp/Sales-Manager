@@ -231,6 +231,11 @@ async function enhanceOverlay() {
     select.addEventListener("change", async () => {
       const requested = text(select.value);
       const previousId = activeSessionId();
+      if (overlay.dataset.checkoutPending === "true") {
+        select.value = previousId;
+        window.alert("会計処理中はSessionを変更できません。");
+        return;
+      }
       select.disabled = true;
       const effective = await requestSharedSessionChange(requested);
 
